@@ -40,9 +40,10 @@
       try { tg.requestFullscreen(); } catch (e) {}
     }
     // В полноэкранном режиме отодвигаем отчёт от кнопок Telegram на отступ, который сообщает сам Telegram.
-    // Берём бо́льшую из двух зон, а не сумму: на компьютере сумма давала лишнюю белую полосу над отчётом.
+    // На компьютере строка Telegram (крестик, вкладки) стоит НАД отчётом, а не поверх него — отступ там
+    // давал пустую белую полосу, поэтому на компьютере он 0. Телефон в полноэкранный режим не переводим.
     var insets = function () {
-      var top = tg.isFullscreen ? Math.max((tg.safeAreaInset && tg.safeAreaInset.top) || 0, (tg.contentSafeAreaInset && tg.contentSafeAreaInset.top) || 0) : 0;
+      var top = tg.isFullscreen && !desktop ? ((tg.safeAreaInset && tg.safeAreaInset.top) || 0) + ((tg.contentSafeAreaInset && tg.contentSafeAreaInset.top) || 0) : 0;
       document.body.style.setProperty('--top', top + 'px');
     };
     ['fullscreenChanged', 'safeAreaChanged', 'contentSafeAreaChanged'].forEach(function (ev) { try { tg.onEvent(ev, insets); } catch (e) {} });
