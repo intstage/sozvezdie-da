@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://script.google.com https://script.googleusercontent.com; img-src data: blob:; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<script>window.SZ_API='https://script.google.com/macros/s/AKfycbwdnoykshoHYwuMv25Ldac04ZqZeEZ-68BXcyzHsN2bTEMuuFUzPn52rod_8Ub6jzOe/exec'</script>
+<title>Заявки Созвездия</title>
+<meta name="color-scheme" content="light">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('sa-theme')==='dark'?'dark':'light'}catch(e){document.documentElement.dataset.theme='light'}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600&family=Roboto:wght@400;500;700&display=swap" media="print" onload="this.media='all'">
+<style>
+:root{
+  /* Палитра «Созвездия» (как в NPS-отчёте) + серии графиков из проверенной категориальной палитры */
+  color-scheme:light;
+  --bg:#FFFFFF;--surface:#FFFFFF;--surface2:#F7F7F7;--ink:#111111;--ink2:#38434D;--muted:#66727D;--line:#D5E3EC;
+  --navy:#103A60;--aqua:#00B9E7;--orange:#F16522;--link:#00799B;--accent:#103A60;--accent-soft:#EDF2F6;
+  --good:#17804D;--good-soft:#E4F2EA;--warn:#B05E00;--warn-soft:#FBEEDD;--bad:#C93333;--bad-soft:#FBE7E7;
+  --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s1-soft:#cde2fb;
+  --display:"Montserrat","Roboto",Arial,sans-serif;--body:"Roboto",Arial,"Segoe UI",sans-serif;
+}
+:root[data-theme="dark"]{color-scheme:dark;
+  --bg:#0A1A2B;--surface:#0F2438;--surface2:#16304A;--ink:#EAF1F6;--ink2:#B7C6D3;--muted:#8799A9;--line:#23405C;
+  --navy:#7FB3DD;--aqua:#00B9E7;--orange:#F47A44;--link:#4FC8EC;--accent:#5CC4EA;--accent-soft:#16344D;
+  --good:#3CC08A;--good-soft:#123A2C;--warn:#F0A13C;--warn-soft:#3A2A14;--bad:#F06A6A;--bad-soft:#3E1D22;
+  --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s1-soft:#1c3f66;}
+html,body{background:var(--bg);max-width:100%}
+html{overflow-x:hidden}body{overflow-x:hidden;overflow-x:clip}   /* clip, а не hidden: hidden у body ломает прилипание вкладок и заголовков таблиц */
+*{box-sizing:border-box}
+body{margin:0;color:var(--ink2);font:14px/1.45 var(--body);font-variant-numeric:tabular-nums}
+.wrap{max-width:1240px;margin:0 auto;padding:20px 20px 130px}   /* снизу — место под кнопки «Назад» и «Наверх» */
+@media (max-width:560px){.wrap{padding:16px 16px 130px}}
+/* Шапка — как в NPS-отчёте: полоса бренда, название, «Данные на …» и значки справа, легенда уровней */
+.wrap::before{content:"";display:block;height:4px;border-radius:0 0 4px 4px;background:linear-gradient(90deg,var(--navy) 0 60%,var(--aqua) 60% 85%,var(--orange) 85%);margin:-20px 0 18px}
+@media (max-width:560px){.wrap::before{margin-top:-16px}}
+header.top{display:grid;grid-template-columns:1fr auto;grid-template-areas:"title refresh" "legend legend";align-items:start;row-gap:6px;margin-bottom:18px}
+.brand{display:contents}
+.brand h1{grid-area:title;font:600 22px/1.2 var(--display);color:var(--navy);margin:0;text-wrap:balance;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand h1 .h1-sub{font:500 14px/1.2 var(--body);color:var(--muted);padding-left:12px;border-left:3px solid var(--orange)}
+/* Справка об объёме данных — в подвале, между «Качеством данных» и «Как считается» */
+footer.method .ref-info{margin:0 0 20px;padding:12px 16px;border-radius:10px;background:var(--surface2);color:var(--ink2);font-size:13px;line-height:1.5}
+footer.method .ref-info b{font-weight:600;color:var(--ink)}
+header.top .refresh{grid-area:refresh;justify-content:flex-end;padding-top:4px}
+header.top .legend-zones{grid-area:legend}
+.legend-zones{display:flex;flex-wrap:wrap;gap:8px}
+.m-only{display:none}
+@media (max-width:760px){header.top{grid-template-columns:1fr;grid-template-areas:"title" "refresh" "legend"}
+  header.top .refresh{justify-content:flex-start;padding-top:0;margin-bottom:6px;gap:4px}}
+/* До 760 px (телефон и узкое окно Telegram): все действия — в строке названия, размер кнопок — от ширины экрана */
+@media (max-width:760px){
+  .brand h1{flex-wrap:nowrap;justify-content:space-between;gap:12px;min-width:0}.brand h1 .h1-sub{display:none}
+  .brand h1 .h1-title{white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
+  /* Кнопка обновления ужимается по месту: «Обновить данные» → «Обновить» → кружок со стрелкой (класс ставит fitHeader) */
+  .js-refresh-m .t-short,.js-refresh-m .t-icon{display:none}
+  .m-actions.fit-short .js-refresh-m .t-full,.m-actions.fit-icon .js-refresh-m .t-full,.m-actions.fit-icon .js-refresh-m .t-short{display:none}
+  .m-actions.fit-short .js-refresh-m .t-short{display:inline}
+  .m-actions.fit-icon .js-refresh-m .t-icon{display:block;width:1.4em;height:1.4em}
+  .m-actions.fit-icon .js-refresh-m{width:2.7em;padding:0;justify-content:center;border-radius:50%}
+  .m-actions.fit-icon .btn.icon-btn.js-theme,.m-actions.fit-icon .btn.icon-btn.js-fs{border-radius:50%}
+  .js-refresh-m.busy .t-icon{animation:sp 1s linear infinite}
+  /* Телефон: «Обновить данные» и тема — рядом в строке заголовка, одной высоты; размеры в em — растут вместе с масштабом шрифта */
+  .brand h1 .m-actions{display:inline-flex;align-items:center;gap:.45em;flex:none;font:500 clamp(12px,3.6vw,15px)/1 var(--body)}
+  header.top .refresh #btn-fs{display:none}
+  .m-actions .btn{font:inherit;height:2.7em;padding:0 1em;background:var(--surface);background:color-mix(in srgb,var(--surface) 55%,transparent);border:1px solid var(--line);border:1px solid color-mix(in srgb,var(--line) 70%,transparent);border-radius:8px;display:inline-flex;align-items:center;white-space:nowrap}
+  .m-actions .btn.icon-btn{width:2.7em;height:2.7em;padding:0;justify-content:center;background:var(--surface);background:color-mix(in srgb,var(--surface) 55%,transparent);border:1px solid var(--line);border:1px solid color-mix(in srgb,var(--line) 70%,transparent);border-radius:8px}
+  .m-actions .btn.icon-btn svg{width:1.4em;height:1.4em}
+  header.top .refresh #btn-theme{display:none}
+  header.top .refresh #btn-refresh{display:none}header.top .refresh #stamp{flex:1 1 auto}}
+@media (max-width:560px){.legend-zones{display:grid;grid-template-columns:1fr 1fr}.legend-zones .pill{justify-content:center;padding:4px 8px}}
+.refresh{display:flex;align-items:center;gap:10px;font-size:12.5px;flex-wrap:wrap}
+.btn{font:500 13px var(--body);color:var(--accent);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+.btn:disabled{opacity:.55;cursor:progress}
+.btn.icon-btn{display:inline-grid;place-items:center;width:34px;height:34px;padding:0;border:0;background:transparent;border-radius:50%;line-height:0}
+.btn.icon-btn svg{display:block;width:18px;height:18px}
+.zoom{display:inline-flex;align-items:center;gap:0}.zoom .icon-btn{font:600 18px/1 var(--body);color:var(--accent)}
+.btn.zoom-val{border:0;background:transparent;padding:6px 4px;min-width:46px;font-variant-numeric:tabular-nums}
+@media (max-width:560px){.zoom{display:none}}
+nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:grid;grid-auto-flow:column;grid-auto-columns:max-content;justify-content:start;gap:4px;padding-block:8px;border-bottom:1px solid var(--line);margin-bottom:16px}
+nav.tabs button{font:600 13.5px var(--display);min-height:40px;color:var(--ink2);background:none;border:1px solid transparent;padding:8px 14px;border-radius:8px;cursor:pointer;white-space:nowrap}
+nav.tabs button:hover{background:var(--surface2)}
+nav.tabs button[aria-selected="true"]{background:var(--navy);color:#FFFFFF}
+nav.tabs button:focus:not(:focus-visible){outline:none}
+@media (max-width:760px){nav.tabs{position:static;grid-auto-flow:row;grid-auto-columns:auto;grid-template-columns:repeat(3,1fr);justify-content:stretch}nav.tabs button{border-color:var(--line)}}
+@media (max-width:420px){nav.tabs{grid-template-columns:repeat(2,1fr)}}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.filters{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:end;margin-bottom:16px}
+.flbl{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;display:block;margin-bottom:5px}
+.seg{display:inline-flex;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px;min-height:42px}
+.seg button{font:500 14px var(--body);border:0;background:none;color:var(--ink2);padding:0 14px;border-radius:7px;cursor:pointer;min-height:34px}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
+@media (max-width:560px){.filters>*{flex:1 1 100%}.seg{display:grid;grid-template-columns:repeat(3,1fr);width:100%}.seg button{padding:8px 4px}}
+select,input[type=date]{font:15px var(--body);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;height:42px;padding:0 12px;min-width:0;max-width:100%}
+select:focus,input[type=date]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+#sel-month{min-width:190px}
+.range{display:inline-flex;align-items:center;gap:6px}.range span{color:var(--muted)}
+.range.on input{border-color:var(--accent);background:var(--accent-soft)}
+:root[data-theme="dark"] input[type=date]{color-scheme:dark}
+@media (max-width:560px){.filters select,.range{width:100%}.range input{flex:1;min-width:0}}
+/* Телефон: фильтры компактнее — не занимают весь экран; «— выбрать —» и даты по центру */
+#sel-month{text-align:center;text-align-last:center}
+@media (max-width:560px){
+  .filters{gap:8px 10px;margin-bottom:12px}
+  .flbl{font-size:10px;margin-bottom:3px}
+  .seg{min-height:0;padding:2px;border-radius:8px}
+  .seg button{font-size:12.5px;min-height:30px;padding:4px 2px;border-radius:6px}
+  select,input[type=date]{height:34px;font-size:13.5px;border-radius:8px;padding:0 8px}
+  input[type=date]{text-align:center}
+  #period-note{font-size:11.5px;padding-bottom:4px}
+}
+.grid{display:grid;gap:16px;margin-bottom:16px}
+.g-kpi{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.g-2{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.g-two{grid-template-columns:repeat(2,minmax(0,1fr))}   /* ровно две в ряд; на узком экране — одна */
+@media (max-width:760px){.g-two{grid-template-columns:1fr}}
+.g-3{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+@media (max-width:420px){.g-2,.g-3{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;min-width:0}
+.panel h2{font:600 15px/1.3 var(--display);color:var(--navy);margin:0 0 2px}
+.panel .sub{color:var(--muted);font-size:12.5px;margin:0 0 12px}
+.kpi .lbl{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.kpi .val{font:600 34px/1.1 var(--display);color:var(--navy);margin:8px 0 6px;letter-spacing:-.02em}
+.kpi .val small{font:500 14px var(--body);color:var(--muted);margin-left:4px;letter-spacing:0}
+.kpi .foot{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;color:var(--ink2);font-size:12.5px}
+.kpi .foot+.foot{margin-top:4px}.kpi .val small .delta{font-size:14px;white-space:nowrap}
+.delta{font-weight:600}.delta.up{color:var(--good)}.delta.dn{color:var(--bad)}.delta.eq{color:var(--muted)}
+/* в таблицах: стрелка слева, число справа — колонка изменений ровная */
+td .delta{display:inline-flex;justify-content:space-between;gap:6px;min-width:5.4em}td .delta.eq{min-width:0}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 10px 2px 8px;font-size:12px;font-weight:600;white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.l-ok{color:var(--good);background:var(--good-soft)}.l-warn{color:var(--warn);background:var(--warn-soft)}.l-bad{color:var(--bad);background:var(--bad-soft)}.l-na{color:var(--muted);background:var(--surface2)}
+.side h3{display:flex;justify-content:space-between;align-items:center;gap:8px;font:600 14px var(--display);color:var(--ink);margin:0 0 10px}
+.sig{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.sig li{display:grid;grid-template-columns:10px 1fr auto;gap:8px;align-items:baseline;font-size:13px}
+.sig li i{width:8px;height:8px;border-radius:50%;display:inline-block;transform:translateY(-1px)}
+.sig .ok i{background:var(--good)}.sig .warn i{background:var(--warn)}.sig .bad i{background:var(--bad)}.sig .na i{background:var(--line)}
+.sig .v{white-space:nowrap;color:var(--ink)}.sig .v small{color:var(--muted);font-size:11.5px;margin-left:4px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--ink2);margin:0 0 8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px}
+.legend i.bar{height:10px;width:10px;border-radius:2px}
+.legend i.dash{background:repeating-linear-gradient(90deg,currentColor 0 4px,transparent 4px 7px)!important;height:2px}
+svg[role="img"]{display:block;width:100%;height:auto;overflow:visible}
+svg text{fill:var(--muted);font-family:var(--body);font-size:11px}
+svg .gl{stroke:var(--line);stroke-width:1}
+svg .ax{stroke:var(--line);stroke-width:1}
+svg .hit{fill:transparent}
+svg[role="img"]{touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;cursor:crosshair}
+svg .cross{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3}
+/* Навигация внутри вкладок: карточки и чипы ведут к блокам, строки и столбики выбирают месяц / теплоход / вебинар */
+.kpi.go{cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.kpi.go .lbl{display:flex;justify-content:space-between;gap:8px}.kpi.go .lbl::after{content:"↓";color:var(--accent);font-size:13px;letter-spacing:0}
+.kpi.go[data-go^="@"] .lbl::after{content:"→"}
+.sig li[data-go],.side h3[data-go]{cursor:pointer;border-radius:6px}
+@media (hover:hover){.sig li[data-go]:hover{background:var(--surface2)}.side h3[data-go]:hover{color:var(--accent)}}
+@media (hover:hover){.kpi.go:hover{border-color:var(--accent);box-shadow:0 2px 12px rgba(0,0,0,.07)}
+  tr[data-pick]:hover td,.mix .row[data-pick]:hover{background:var(--surface2)}}
+.jump{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
+.jump button{font:500 13px var(--body);border:1px solid var(--line);background:var(--surface);color:var(--ink2);border-radius:999px;padding:6px 12px;cursor:pointer}
+@media (hover:hover){.jump button:hover{border-color:var(--accent);color:var(--accent)}}
+.sec{scroll-margin-top:calc(var(--nav-h,57px) + 12px)}
+.flash{animation:obflash 1.6s ease}
+@keyframes obflash{0%,35%{box-shadow:0 0 0 3px var(--accent)}100%{box-shadow:0 0 0 0 transparent}}
+[data-pick]{cursor:pointer}.mix .row[data-pick]{border-radius:6px;margin:0 -6px;padding:2px 6px}
+#c-board{cursor:pointer}
+.mix{display:grid;gap:8px}
+.mix .row{display:grid;grid-template-columns:minmax(110px,170px) 1fr 64px 120px;gap:10px;align-items:center;font-size:13px}
+.mix .bar{height:22px;background:var(--surface2);border-radius:4px;overflow:hidden;display:flex}
+.mix .bar i{display:block;height:100%}
+.mix .n{text-align:right;color:var(--ink);font-weight:600}
+.mix .cr{text-align:right;font-size:12.5px}
+.mix .row.tot{padding-bottom:8px;border-bottom:1px solid var(--line)}
+@media (max-width:560px){.mix .row{grid-template-columns:1fr 64px;row-gap:4px}.mix .bar{grid-column:1/-1;order:3}.mix .cr{grid-column:1/-1;text-align:left}}
+.funnel{display:grid;gap:8px}
+.funnel .row{display:grid;grid-template-columns:minmax(120px,190px) 1fr 70px 90px;gap:10px;align-items:center;font-size:13px}
+.funnel .bar{height:22px;background:var(--surface2);border-radius:4px;overflow:hidden;position:relative}
+.funnel .bar i{position:absolute;top:0;bottom:0;left:0;inset:0 auto 0 0;background:var(--s1);border-radius:0 4px 4px 0}
+.funnel .n{text-align:right;color:var(--ink);font-weight:600}
+.funnel .cr{text-align:right;font-size:12.5px}
+@media (max-width:560px){.funnel .row{grid-template-columns:1fr 64px;row-gap:4px}.funnel .bar{grid-column:1/-1;order:3}.funnel .cr{grid-column:1/-1;text-align:left}}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600;text-align:left;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px;border-bottom:1px solid var(--line);color:var(--ink2)}
+th.r,td.r{text-align:right;white-space:nowrap}
+td.b{color:var(--ink);font-weight:600}
+.tbl{overflow-x:auto}
+/* Заголовки таблиц прилипают при прокрутке.
+   Компьютер: к нижнему краю прилипшей строки вкладок (--nav-h ставит JS); таблица без своей прокрутки.
+   Телефон/узкое окно: вкладки не прилипают, а таблица может быть шире экрана — у длинной таблицы своя
+   прокрутка по высоте, заголовок прилипает к её верху. */
+thead th{position:sticky;z-index:3;background:var(--surface);box-shadow:inset 0 -1px 0 var(--line)}
+@media (min-width:761px){.tbl{overflow:visible}thead th{top:var(--nav-h,57px)}}
+@media (max-width:760px){.tbl{max-height:75vh;overflow:auto;overscroll-behavior:contain}thead th{top:0}}
+.empty{padding:18px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-size:13px;background:var(--surface2)}
+.empty b{color:var(--ink2)}
+.muted{color:var(--muted)}
+.nw{white-space:nowrap}
+.note{font-size:12.5px;color:var(--muted);margin:8px 0 0}
+.err{background:var(--bad-soft);color:var(--bad);border-radius:10px;padding:14px 16px;line-height:1.5}.err b{color:var(--ink)}
+.loading{display:flex;gap:12px;align-items:center;padding:40px 0;color:var(--muted)}
+.spin{width:22px;height:22px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.tip{position:fixed;pointer-events:none;z-index:20;background:var(--ink);color:var(--bg);padding:8px 10px;border-radius:8px;font-size:12.5px;line-height:1.45;max-width:280px;box-shadow:0 6px 20px rgba(0,0,0,.18)}
+.tip b{font-weight:600}.tip i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
+.dq{margin-top:16px}
+details.pick{padding:12px 16px}
+details.pick summary{font:600 16px/1.3 var(--display);color:var(--navy);flex-wrap:wrap;column-gap:.3em}
+details.pick summary .pick-n{flex-basis:auto}
+details.pick .pick-n{font:500 14px var(--body)}
+.pick-list{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}
+details.dq.pick li{display:block;padding:0;background:none;border-radius:0}details.dq.pick li::before{content:none}
+.pick-list button{width:100%;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;text-align:left;font:500 14px var(--body);color:var(--ink);background:var(--surface2);border:1px solid transparent;border-radius:8px;padding:9px 12px;cursor:pointer}
+
+.pick-list button[aria-current="true"]{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+.pick-list .muted{font-size:12.5px}
+footer.method .dq{margin:0 0 22px;font-size:14px;line-height:1.45;color:var(--ink2)}
+footer.method{font-size:12.5px;line-height:1.5;color:var(--muted);margin-top:24px;padding-top:16px;border-top:1px solid var(--line)}
+footer.method h3{font:600 12px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+footer.method dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px 28px;margin:0}
+footer.method dt{font-weight:600;color:var(--ink2);margin:0 0 2px}footer.method dd{margin:0}
+/* Навигация: «Назад» — к предыдущей вкладке, «Наверх» — в начало страницы */
+.fab{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));z-index:15;display:flex;flex-direction:column;gap:10px}
+.fab button{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--accent);box-shadow:0 4px 14px rgba(16,58,96,.18);display:grid;place-items:center;cursor:pointer;padding:0}
+.fab button[hidden]{display:none}
+.fab svg{width:20px;height:20px}
+@media print{.fab{display:none}}
+@media (hover:hover){.btn:hover,.btn.icon-btn:hover,.fab button:hover{background:var(--accent-soft)}.pick-list button:hover{border-color:var(--line)}}
+/* скрытая кнопка скрыта всегда — даже если её стиль задаёт display */
+[hidden]{display:none!important}
+details.dq summary{cursor:pointer;font-weight:600;font-size:15px;color:var(--ink);list-style:none;display:flex;align-items:center;gap:10px}
+details.dq summary::-webkit-details-marker{display:none}
+details.dq summary::before{content:"";width:7px;height:7px;border-right:2px solid var(--ink2);border-bottom:2px solid var(--ink2);transform:rotate(-45deg);transition:transform .15s ease;flex:none;margin-left:2px}
+details.dq[open] summary::before{transform:rotate(45deg) translate(-2px,-2px)}
+details.dq summary:focus:not(:focus-visible){outline:none}
+details.dq ul{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:6px}
+details.dq li{display:grid;grid-template-columns:4px 1fr;gap:10px;font-size:13px;padding:6px 10px;background:var(--surface2);border-radius:6px}
+details.dq li::before{content:"";border-radius:2px;background:var(--muted)}
+details.dq li.ok::before{background:var(--good)}details.dq li.warn::before{background:var(--warn)}details.dq li.bad::before{background:var(--bad)}
+.hero{display:flex;flex-wrap:wrap;gap:6px 24px;align-items:baseline}
+.hero .big{font:600 44px/1 var(--display);color:var(--navy);letter-spacing:-.02em}
+.hero .rng{font-size:14px;color:var(--ink2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1><span class="h1-title">Заявки Созвездия</span> <span class="h1-sub">сайт · обращения · заявки · оплаты</span><span class="m-actions m-only"><button type="button" class="btn js-refresh js-refresh-m" title="Обновить данные" aria-label="Обновить данные"><span class="t-full">Обновить данные</span><span class="t-short">Обновить</span><svg class="t-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button type="button" class="btn icon-btn js-fs" hidden></button><button type="button" class="btn icon-btn js-theme"></button></span></h1>
+    </div>
+    <div class="refresh"><span id="stamp" class="muted"></span><span class="zoom" role="group" aria-label="Масштаб"><button type="button" class="btn icon-btn" data-zoom="-1" title="Мельче (Ctrl/Cmd −)" aria-label="Мельче">−</button><button type="button" class="btn zoom-val" data-zoom="0" title="Обычный размер (Ctrl/Cmd 0)">100%</button><button type="button" class="btn icon-btn" data-zoom="1" title="Крупнее (Ctrl/Cmd +)" aria-label="Крупнее">+</button></span><button type="button" id="btn-fs" class="btn icon-btn" hidden></button><button type="button" id="btn-theme" class="btn icon-btn"></button><button type="button" id="btn-refresh" class="btn js-refresh">Обновить данные</button></div>
+    <div class="legend-zones" aria-label="Уровни сигналов">
+      <span class="pill l-ok">в норме</span>
+      <span class="pill l-warn">просело на 7%+</span>
+      <span class="pill l-bad">провал на 15%+</span>
+      <span class="pill l-na">мало данных</span>
+    </div>
+  </header>
+  <nav class="tabs" id="tabs" role="tablist"></nav>
+  <div id="filters"></div>
+  <main id="view"><div class="loading"><div class="spin"></div>Загружаю данные…</div></main>
+<script>
+/* Сторож совместимости: если основной скрипт не запустился (старый встроенный браузер Telegram на Android, Windows, Linux),
+   вместо вечной «загрузки» показываем, что обновить. Без новых возможностей языка — должен работать везде. */
+window.__szErr='';
+window.addEventListener('error',function(e){if(!window.__szErr)window.__szErr=String(e&&e.message||'')});
+window.addEventListener('load',function(){setTimeout(function(){
+  if(window.__szBoot)return;var v=document.getElementById('view');if(!v)return;var ua=navigator.userAgent;
+  var how=/Android/i.test(ua)?'обновите Telegram и «Android System WebView» (или Chrome) в Google Play / AppGallery':
+    /Windows/i.test(ua)?'обновите Telegram Desktop; если не помогло — установите Microsoft Edge WebView2 Runtime (бесплатно, с сайта Microsoft)':
+    /Linux|X11/i.test(ua)?'обновите Telegram Desktop и пакет webkit2gtk (libwebkit2gtk-4.1) через менеджер пакетов':
+    /iPhone|iPad|Macintosh/i.test(ua)?'обновите iOS / macOS и Telegram':'обновите Telegram';
+  v.innerHTML='<div class="err"><b>Отчёт не запустился на этом устройстве.</b> Похоже, встроенный браузер устарел: '+how+'.'+
+    (window.__szErr?'<br><small>Ошибка: '+window.__szErr.replace(/[<>&]/g,'')+'</small>':'')+'</div>';
+},1500)});
+</script>
+  <footer class="method" id="method"></footer>
+</div>
+<div class="fab"><button type="button" id="btn-back" title="Назад — к предыдущей вкладке" aria-label="Назад" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button type="button" id="btn-top" title="Наверх" aria-label="Наверх" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 15l7-7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+<div class="tip" id="tip" hidden></div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const nf=new Intl.NumberFormat('ru-RU');
+const fmt=(v,d=0)=>v==null||isNaN(v)?'—':new Intl.NumberFormat('ru-RU',{maximumFractionDigits:d,minimumFractionDigits:d}).format(v);
+const pct=(v,d=1)=>v==null||isNaN(v)?'—':fmt(v*100,d)+'%';
+// неразрывные пробелы: сумма и «₽» не переносятся на разные строки
+const rub=v=>v==null||isNaN(v)?'—':Math.abs(v)>=1e6?fmt(v/1e6,1)+'\u00a0млн\u00a0₽':nf.format(Math.round(v))+'\u00a0₽';
+const MON=['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+const MON_S=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+const monName=m=>MON[+m.slice(5,7)-1]+' '+m.slice(0,4);
+const monShort=m=>MON_S[+m.slice(5,7)-1]+' '+m.slice(2,4);
+const dShort=d=>+d.slice(8,10)+' '+MON_S[+d.slice(5,7)-1];
+const sum=a=>a.reduce((x,y)=>x+y,0);
+const cssv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function delta(cur,prev,{inverse=false,asPct=true}={}){
+  if(cur==null||prev==null||!prev)return'<span class="delta eq">нет сравнения</span>';
+  const ch=(cur-prev)/prev,good=inverse?ch<0:ch>0,cls=Math.abs(ch)<0.005?'eq':good?'up':'dn';
+  return`<span class="delta ${cls}">${ch>0?'▲':ch<0?'▼':'='} ${fmt(Math.abs(ch)*100,0)}%</span>`;
+}
+
+/* ---------- состояние ---------- */
+let D=null;
+const S={tab:'summary',period:'month'};
+try{Object.assign(S,JSON.parse(localStorage.getItem('sa-state')||'{}'))}catch(e){}
+const TABS=[['summary','Сводка'],['zav','Заявки'],['site','Сайт'],['obr','Обращения'],['web','Мероприятия'],['pay','Оплаты'],['board','Продажи с бортов'],['chan','Каналы и расходы']];
+function save(){try{localStorage.setItem('sa-state',JSON.stringify(S))}catch(e){}}
+// «Назад»: стек переходов между вкладками (вкладка + период), только в этой сессии
+const HIST=[];
+function go(tab){if(tab===S.tab)return;HIST.push({tab:S.tab,period:S.period,y:scrollY});if(HIST.length>30)HIST.shift();S.tab=tab;save();render();window.scrollTo({top:0});navState()}
+function goBack(){const h=HIST.pop();if(!h)return;S.tab=h.tab;S.period=h.period;if(h.bm!=null){S.bm=h.bm;S.bs=h.bs}if(h.web!=null)S.web=h.web;save();render();window.scrollTo({top:h.y||0});navState()}
+function navState(){$('#btn-back').hidden=!HIST.length;$('#btn-top').hidden=scrollY<400}
+$('#btn-back').onclick=e=>{if(e.detail)e.currentTarget.blur();goBack()};
+$('#btn-top').onclick=e=>{if(e.detail)e.currentTarget.blur();window.scrollTo({top:0,behavior:'smooth'})};
+addEventListener('scroll',()=>{$('#btn-top').hidden=scrollY<400},{passive:true});
+
+/* ---------- периоды ---------- */
+// Быстрые периоды; ещё два вида задаются значением S.period: 'm:ГГГГ-ММ' — выбранный месяц, 'c:ГГГГ-ММ-ДД:ГГГГ-ММ-ДД' — свой период
+const PERIODS=[['month','Текущий месяц'],['prev','Прошлый месяц'],['d30','30 дней'],['d90','90 дней'],['year','Год'],['all','Всё время']];
+// [с, по] — индексы дней включительно; и такой же предыдущий период для сравнения
+function range(p){
+  const n=D.days.length,ti=n-1,today=D.today;
+  const idx=d=>D.days.indexOf(d);
+  const clamp=i=>Math.max(0,Math.min(ti,i));
+  const monEnd=m=>{const d=new Date(+m.slice(0,4),+m.slice(5,7),0).getDate();return idx(m+'-'+String(d).padStart(2,'0'))};
+  let a,b,label;
+  if(p==='month'){a=idx(today.slice(0,7)+'-01');b=ti}
+  else if(p==='prev'){const f=idx(today.slice(0,7)+'-01');b=f-1;a=idx(D.days[b].slice(0,7)+'-01')}
+  else if(p==='d30'){b=ti-1;a=b-29}
+  else if(p==='d90'){b=ti-1;a=b-89}
+  else if(p==='year'){b=ti-1;a=b-364}
+  else if(p==='all'){a=0;b=ti}
+  else if(/^m:\d{4}-\d{2}$/.test(p)){const m=p.slice(2);a=idx(m+'-01');const e=monEnd(m);b=e<0?ti:e;label=monName(m)}
+  else if(/^c:\d{4}-\d{2}-\d{2}:\d{4}-\d{2}-\d{2}$/.test(p)){const[,f,t]=p.split(':');a=idx(f);b=idx(t);if(a<0)a=f<D.days[0]?0:ti;if(b<0)b=t>today?ti:0;if(b<a)[a,b]=[b,a];label='Свой период'}
+  else {a=idx(today.slice(0,7)+'-01');b=ti}
+  a=clamp(a);b=clamp(b);
+  const len=b-a+1;
+  // сравнение: текущий месяц — те же дни прошлого месяца; месяц — весь предыдущий месяц;
+  // «всё время» — без сравнения; остальное — такой же отрезок прямо перед периодом
+  let pa,pb;
+  if(p==='all'){pa=-1;pb=-1}
+  else if(p==='month'){const dm=+today.slice(8,10);const pf=idx(D.days[Math.max(0,a-1)].slice(0,7)+'-01');pa=pf;pb=Math.min(pf+dm-1,a-1)}
+  else if(p==='prev'||p.startsWith('m:')){pb=a-1;pa=pb>=0?idx(D.days[pb].slice(0,7)+'-01'):-1}
+  else {pb=a-1;pa=pb>=0?Math.max(0,pb-len+1):-1}
+  if(pb<0||pa<0){pa=-1;pb=-1}
+  return{a,b,pa,pb,label:label||(PERIODS.find(x=>x[0]===p)||[])[1],from:D.days[a],to:D.days[b]};
+}
+const rs=(arr,a,b)=>a<0||b<a?0:sum(arr.slice(a,b+1));
+// сравнение честное, только если источник уже работал в начале прошлого периода
+const since=(r,from)=>!!from&&r.pa>=0&&D.days[r.pa]>=from;
+// карточки: «к 1–9 сентября: 45 заявок» — с чем сравниваем; ok=false — в прошлом периоде данных ещё нет
+const MON_GEN=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+function perTxt(a,b){if(a<0||b<0||a>b)return null;const x=D.days[a],y=D.days[b],d=v=>+v.slice(8,10);
+  if(x.slice(0,7)===y.slice(0,7))return(a===b?d(x):d(x)+'–'+d(y))+'\u00a0'+MON_GEN[+x.slice(5,7)-1];
+  return d(x)+'\u00a0'+MON_S[+x.slice(5,7)-1]+' – '+d(y)+'\u00a0'+MON_S[+y.slice(5,7)-1]}
+const cmpLine=(r,ok,txt)=>{const p=perTxt(r.pa,r.pb);return`<div class="foot"><span>${ok&&p?`к ${p}: ${txt}`:p?'сравнить не с чем — в прошлом периоде данных ещё нет':'без сравнения'}</span></div>`};
+const mutedLine=t=>t?`<div class="foot"><span class="muted">${t}</span></div>`:'';
+const nw=(n,a,b,c)=>`${fmt(n)} ${plural(n||0,a,b,c)}`;
+const obrFrom=()=>{let m=Infinity;D.obr.rows.forEach(x=>{if(x[0]<m)m=x[0]});
+  // первый месяц, где обращений хотя бы 20 — раньше единичные записи
+  const byM={};D.obr.rows.forEach(x=>{const k=D.days[x[0]].slice(0,7);byM[k]=(byM[k]||0)+1});
+  const ok=Object.keys(byM).sort().find(k=>byM[k]>=20);return ok?ok+'-01':null};
+function periodFilter(){
+  const months=[...new Set(D.days.map(d=>d.slice(0,7)))].reverse();
+  const isM=S.period.startsWith('m:'),isC=S.period.startsWith('c:');
+  const[,cf,ct]=isC?S.period.split(':'):[,D.days[Math.max(0,D.days.length-31)],D.today];
+  return`<div class="filters">
+  <div><span class="flbl">Период</span><div class="seg" id="seg-period">${PERIODS.map(([k,l])=>`<button type="button" data-p="${k}" aria-pressed="${S.period===k}">${l}</button>`).join('')}</div></div>
+  <label><span class="flbl">Месяц</span><select id="sel-month"><option value="">— выбрать —</option>${months.map(m=>`<option value="${m}"${isM&&S.period==='m:'+m?' selected':''}>${monName(m)}</option>`).join('')}</select></label>
+  <div><span class="flbl">Свой период</span><div class="range${isC?' on':''}"><input type="date" id="c-from" value="${cf}" min="${D.days[0]}" max="${D.today}"><span>—</span><input type="date" id="c-to" value="${ct}" min="${D.days[0]}" max="${D.today}"></div></div>
+  <div class="muted" style="font-size:12.5px;padding-bottom:10px;flex-basis:100%" id="period-note"></div></div>`;
+}
+function bindPeriod(){
+  const el=$('#seg-period');if(!el)return;
+  const set=p=>{if(p===S.period)return;HIST.push({tab:S.tab,period:S.period,y:scrollY});if(HIST.length>30)HIST.shift();S.period=p;save();render();navState()};
+  el.onclick=e=>{const b=e.target.closest('[data-p]');if(!b)return;if(e.detail)b.blur();set(b.dataset.p)};
+  $('#sel-month').onchange=e=>{if(e.target.value)set('m:'+e.target.value)};
+  const onRange=()=>{const f=$('#c-from').value,t=$('#c-to').value;if(/^\d{4}-\d{2}-\d{2}$/.test(f)&&/^\d{4}-\d{2}-\d{2}$/.test(t))set('c:'+(f<=t?f+':'+t:t+':'+f))};
+  $('#c-from').onchange=onRange;$('#c-to').onchange=onRange;
+  const r=range(S.period),y=d=>dShort(d)+' '+d.slice(0,4);
+  $('#period-note').textContent=`${r.label}: ${y(r.from)} – ${y(r.to)} · `+(r.pa<0?'без сравнения':`сравнение с ${y(D.days[r.pa])} – ${y(D.days[r.pb])}`);
+}
+
+/* ---------- подсказка ---------- */
+const tip=$('#tip');
+function showTip(html,ev){tip.innerHTML=html;tip.hidden=false;const z=parseFloat(document.documentElement.style.zoom)||1;
+  const x=ev.clientX/z,y=ev.clientY/z,w=tip.offsetWidth,h=tip.offsetHeight,touch=ev.pointerType&&ev.pointerType!=='mouse';
+  tip.style.left=Math.max(8,Math.min(touch?x-w/2:x+14,innerWidth/z-w-8))+'px';
+  tip.style.top=(touch?Math.max(8,y-h-28):(y+h+20>innerHeight/z?y-h-12:y+14))+'px'}
+function hideTip(){tip.hidden=true}
+/**
+ * Прокрутка значений графика мышью и пальцем. idx(px) — номер точки по x в координатах viewBox,
+ * show(i, ev) — нарисовать выделение и подсказку, clear() — убрать.
+ * На телефоне горизонтальное движение пальца листает значения, вертикальное — страницу (touch-action: pan-y).
+ */
+function bindScrub(svg,W,idx,show,clear){
+  const at=ev=>{const r=svg.getBoundingClientRect();return idx((ev.clientX-r.left)/r.width*W)};
+  const move=ev=>{const i=at(ev);if(i==null)return;scrubClear=clear;show(i,ev)};
+  // без захвата указателя: палец, ушедший за край графика, не держит подсказку
+  svg.addEventListener('pointerdown',ev=>{if(ev.pointerType!=='mouse'){try{svg.releasePointerCapture(ev.pointerId)}catch(e){}}move(ev)});
+  svg.addEventListener('pointermove',move);
+  svg.addEventListener('pointerleave',ev=>{if(ev.pointerType==='mouse'){scrubClear=null;clear()}});
+}
+// касание вне графика — убрать подсказку (один слушатель на страницу)
+let scrubClear=null;
+document.addEventListener('pointerdown',ev=>{if(scrubClear&&!ev.target.closest('svg[role="img"]')){scrubClear();scrubClear=null}},{passive:true});
+document.addEventListener('scroll',hideTip,{passive:true});
+
+/* ---------- графики (SVG) ---------- */
+// число делений шкалы: у максимумов 2,5 и 5 (250, 500, 5…) — пять ровных шагов, иначе четыре
+function gridSteps(max){const n=max/Math.pow(10,Math.floor(Math.log10(max)));return Math.abs(n-2.5)<1e-9||Math.abs(n-5)<1e-9?5:4}
+function niceMax(v){if(v<=0)return 1;const p=Math.pow(10,Math.floor(Math.log10(v))),n=v/p;return(n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*p}
+/**
+ * Линии по общей оси X. series: [{name,color,values,dash,area}], labels — подписи точек (для подсказки),
+ * ticks — функция (i)→подпись или ''. Подсказка — перекрестье по ближайшей точке.
+ */
+function lineChart(id,{labels,series,ticks,height=240,fmtV=v=>fmt(v)}){
+  const W=760,H=height,L=44,R=12,T=10,B=26,n=labels.length;
+  const max=niceMax(Math.max(1,...series.flatMap(s=>s.values.filter(v=>v!=null))));
+  const x=i=>L+(n<=1?0:i*(W-L-R)/(n-1)),y=v=>T+(H-T-B)*(1-v/max);
+  let g='';
+  const ST=gridSteps(max);for(let k=0;k<=ST;k++){const v=max*k/ST;g+=`<line class="gl" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${fmt(v)}</text>`}
+  for(let i=0;i<n;i++){const t=ticks(i);if(t)g+=`<text x="${x(i)}" y="${H-6}" text-anchor="middle">${esc(t)}</text>`}
+  series.forEach(s=>{let d='',open=false;s.values.forEach((v,i)=>{if(v==null){open=false;return}d+=(open?'L':'M')+x(i).toFixed(1)+','+y(v).toFixed(1);open=true});
+    if(s.area){let a='',st=null,en=null;s.values.forEach((v,i)=>{if(v==null)return;if(st==null)st=i;en=i;a+=(a?'L':'M')+x(i).toFixed(1)+','+y(v).toFixed(1)});
+      if(a)g+=`<path d="${a}L${x(en)},${y(0)}L${x(st)},${y(0)}Z" fill="${s.color}" opacity=".12"/>`}
+    g+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" ${s.dash?'stroke-dasharray="5 4"':''}/>`});
+  g+=`<line class="cross" id="${id}-x" y1="${T}" y2="${H-B}" x1="-10" x2="-10"/><g id="${id}-dots"></g><rect class="hit" x="${L}" y="${T}" width="${W-L-R}" height="${H-T-B}"/>`;
+  setTimeout(()=>{
+    const svg=document.getElementById(id);if(!svg)return;
+    bindScrub(svg,W,px=>Math.max(0,Math.min(n-1,Math.round((px-L)/((W-L-R)/Math.max(1,n-1))))),(i,ev)=>{
+      document.getElementById(id+'-x').setAttribute('x1',x(i));document.getElementById(id+'-x').setAttribute('x2',x(i));
+      document.getElementById(id+'-dots').innerHTML=series.map(s=>s.values[i]==null?'':`<circle cx="${x(i)}" cy="${y(s.values[i])}" r="4" fill="${s.color}" stroke="${cssv('--surface')}" stroke-width="2"/>`).join('');
+      showTip(`<b>${esc(labels[i])}</b><br>`+series.filter(s=>s.values[i]!=null).map(s=>`<i style="background:${s.color}"></i>${esc(s.name)}: <b>${fmtV(s.values[i])}</b>`).join('<br>'),ev)},
+    ()=>{hideTip();document.getElementById(id+'-x').setAttribute('x1',-10);document.getElementById(id+'-x').setAttribute('x2',-10);document.getElementById(id+'-dots').innerHTML=''});
+  },0);
+  return`<svg id="${id}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(series.map(s=>s.name).join(', '))}">${g}</svg>`;
+}
+/** Столбики: bars [{label, value, tip}] + необязательная линия поверх (line: {name,color,values}). */
+function barChart(id,{bars,color,height=220,line,ticks,fmtV=v=>fmt(v),name}){
+  const W=760,H=height,L=44,R=12,T=10,B=26,n=bars.length;
+  const max=niceMax(Math.max(1,...bars.map(b=>b.value),...(line?line.values.filter(v=>v!=null):[])));
+  const bw=(W-L-R)/n,gap=Math.min(2,bw*.2),y=v=>T+(H-T-B)*(1-v/max);
+  let g='';
+  const ST=gridSteps(max);for(let k=0;k<=ST;k++){const v=max*k/ST;g+=`<line class="gl" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${fmt(v)}</text>`}
+  bars.forEach((b,i)=>{const x0=L+i*bw+gap/2,w=Math.max(1,bw-gap),h=y(0)-y(b.value);
+    const bar=(bx,bwid,v,fill,ring)=>{const hh=y(0)-y(v);if(hh<=0)return'';const r=Math.min(4,bwid/2,hh);
+      return`<path d="M${bx},${y(0)}V${y(v)+r}Q${bx},${y(v)} ${bx+r},${y(v)}H${bx+bwid-r}Q${bx+bwid},${y(v)} ${bx+bwid},${y(v)+r}V${y(0)}Z" fill="${fill}"${ring?` stroke="${cssv('--surface')}" stroke-width="2"`:''}/>`};
+    if(b.inner!=null&&b.inner>0){
+      // накопительный столбик: снизу «из них» (inner), сверху остаток до value — вплотную
+      const yi=y(Math.min(b.inner,b.value)),top=b.value>b.inner;
+      if(top&&yi-y(b.value)>0){const r=Math.min(4,w/2,yi-y(b.value));
+        g+=`<path d="M${x0},${yi}V${y(b.value)+r}Q${x0},${y(b.value)} ${x0+r},${y(b.value)}H${x0+w-r}Q${x0+w},${y(b.value)} ${x0+w},${y(b.value)+r}V${yi}Z" fill="${b.color||color}"/>`}
+      g+=top?`<rect x="${x0}" y="${yi}" width="${w}" height="${y(0)-yi}" fill="${b.innerColor}"/>`:bar(x0,w,b.inner,b.innerColor);
+    } else if(h>0)g+=bar(x0,w,b.value,b.color||color);
+    const t=ticks?ticks(i):'';if(t)g+=`<text x="${x0+w/2}" y="${H-6}" text-anchor="middle">${esc(t)}</text>`;
+  });
+
+  if(line){let d='',open=false;line.values.forEach((v,i)=>{if(v==null){open=false;return}const cx=L+i*bw+bw/2;d+=(open?'L':'M')+cx.toFixed(1)+','+y(v).toFixed(1);open=true});
+    g+=`<path d="${d}" fill="none" stroke="${line.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"${line.dash?' stroke-dasharray="6 4"':''} pointer-events="none"/>`}
+  g+=`<rect class="hit" x="${L}" y="${T}" width="${W-L-R}" height="${H-T-B}"/>`;
+  setTimeout(()=>{const svg=document.getElementById(id);if(!svg)return;
+    bindScrub(svg,W,px=>Math.max(0,Math.min(n-1,Math.floor((px-L)/bw))),(i,ev)=>{const b=bars[i];
+      showTip(`<b>${esc(b.label)}</b><br>${b.inner!=null?'':`<i style="background:${b.color||color}"></i>`}${esc(name||'')}: <b>${fmtV(b.value)}</b>`+(b.tip?'<br>'+b.tip:'')+(line&&line.values[i]!=null?`<br><i style="background:${line.color}"></i>${esc(line.name)}: <b>${fmt(line.values[i],1)}</b>`:''),ev)},
+    ()=>hideTip())},0);
+  return`<svg id="${id}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(name||'')}">${g}</svg>`;
+}
+function legend(items){return`<div class="legend">${items.map(([name,color,kind])=>`<span><i class="${kind||''}" style="background:${color};color:${color}"></i>${esc(name)}</span>`).join('')}</div>`}
+
+/* ---------- вспомогательные расчёты ---------- */
+function monthsOf(){const out=[];D.days.forEach((d,i)=>{const m=d.slice(0,7);if(!out.length||out[out.length-1].m!==m)out.push({m,a:i,b:i});else out[out.length-1].b=i});return out}
+function ma7(arr){return arr.map((_,i)=>i<6?null:sum(arr.slice(i-6,i+1))/7)}
+function obrDaily(){const n=D.days.length,t=new Array(n).fill(0),tg=new Array(n).fill(0),bk=new Array(n).fill(0),pd=new Array(n).fill(0);
+  D.obr.rows.forEach(r=>{t[r[0]]++;tg[r[0]]+=r[2];bk[r[0]]+=r[3];pd[r[0]]+=r[4]});return{t,tg,bk,pd}}
+function reqIn(a,b){return D.requests.rows.filter(r=>r[0]>=a&&r[0]<=b)}
+/** Линейный тренд заявок по полным месяцам (первый неполный месяц данных и текущий не участвуют в расчёте, но линия идёт через все). */
+function monTrend(ms){
+  const vals=ms.map(m=>rs(D.zav.total,m.a,m.b));
+  const full=ms.map((m,i)=>i).filter(i=>{const m=ms[i];return D.days[m.b]!==D.today&&(!D.zav_from||D.days[m.a]>=D.zav_from)&&D.days[m.a].slice(8)==='01'&&(i>0||!D.zav_from||D.zav_from.slice(8)==='01')});
+  if(full.length<3)return null;
+  const n=full.length,mx=full.reduce((a,i)=>a+i,0)/n,my=full.reduce((a,i)=>a+vals[i],0)/n;
+  const k=full.reduce((a,i)=>a+(i-mx)*(vals[i]-my),0)/full.reduce((a,i)=>a+(i-mx)*(i-mx),0);
+  return{name:'Тренд',color:cssv('--s2'),dash:true,values:vals.map((_,i)=>Math.max(0,my+k*(i-mx)))};
+}
+function median(a){if(!a.length)return null;const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2}
+const LEVEL_TXT={ok:'в норме',warn:'просело',bad:'провал',na:'нет данных'};
+
+/* ---------- вкладки ---------- */
+function render(){
+  $('#tabs').innerHTML=TABS.map(([k,l])=>`<button role="tab" aria-selected="${S.tab===k}" data-tab="${k}">${l}</button>`).join('');
+  $('#tabs').onclick=e=>{const b=e.target.closest('[data-tab]');if(!b)return;if(e.detail)b.blur();if(D)go(b.dataset.tab)};
+  hideTip();if(!D)return;
+  $('#view').onclick=viewClick;
+  $('#filters').innerHTML=['zav','site','obr'].includes(S.tab)?periodFilter():'';
+  (TABS.some(t=>t[0]===S.tab)?{summary:vSummary,zav:vZav,site:vSite,obr:vObr,web:vWeb,pay:vPay,board:vBoard,chan:vChan}[S.tab]:(S.tab='summary',vSummary))();
+  const slot=$('#dq-slot');if(slot)slot.innerHTML=dqBlock();
+  bindPeriod();
+}
+
+/* ---------- навигация внутри вкладок ----------
+   data-go="id" — блок этой вкладки; "@tab" или "@tab#id" — другая вкладка (и блок на ней).
+   data-pick: "p:<период>[@tab]" — период (и вкладка), "w:<вебинар>"; «Продажи с бортов»: "m:<месяц>", "s:<теплоход>" (повтор снимает).
+   После выбора страница остаётся на том же блоке; «Назад» возвращает вкладку, период, выбор и место. */
+function histPush(){HIST.push({tab:S.tab,period:S.period,bm:S.bm,bs:S.bs,web:S.web,y:scrollY});if(HIST.length>30)HIST.shift()}
+function jumpTo(id,push,instant){const el=document.getElementById(id);if(!el)return;
+  if(push){histPush();navState()}
+  el.scrollIntoView({behavior:instant?'auto':'smooth',block:'start'});el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash')}
+function pickState(patch,sec,tab){histPush();Object.assign(S,patch);if(tab)S.tab=tab;save();render();navState();if(sec)jumpTo(sec,false,true);else window.scrollTo({top:0})}
+// строка-навигация по блокам вкладки (на место <!--jump-->), только по тем блокам, что есть на странице
+function withJump(h,secs){const l=secs.filter(([id])=>h.includes(`id="${id}"`));
+  return h.replace('<!--jump-->',l.length>1?`<nav class="jump" aria-label="Блоки вкладки">${l.map(([id,t])=>`<button type="button" data-go="${id}">${t}</button>`).join('')}</nav>`:'')}
+// клик по столбику графика barChart → индекс столбика (те же поля, что в barChart: ширина 760, слева 44, справа 12)
+function chartPick(id,n,fn){const svg=document.getElementById(id);if(!svg||!n)return;svg.style.cursor='pointer';
+  svg.addEventListener('click',ev=>{const r=svg.getBoundingClientRect(),px=(ev.clientX-r.left)/r.width*760,i=Math.floor((px-44)/((760-44-12)/n));if(i>=0&&i<n)fn(i)})}
+function viewClick(e){
+  const g=e.target.closest('[data-go]');
+  if(g){if(e.detail&&g.blur)g.blur();const v=g.dataset.go;
+    if(v[0]==='@'){const[t,sec]=v.slice(1).split('#');
+      if(t===S.tab){if(sec)jumpTo(sec,true);return}
+      histPush();S.tab=t;save();render();navState();if(sec)jumpTo(sec,false,true);else window.scrollTo({top:0});return}
+    jumpTo(v,true);return}
+  const p=e.target.closest('[data-pick]');if(!p)return;
+  const v=p.dataset.pick,sec=(p.closest('.sec')||{}).id;
+  if(v.startsWith('p:')){const[per,t]=v.slice(2).split('@');if(t&&t!==S.tab)pickState({period:per},null,t);else if(per!==S.period)pickState({period:per},sec);return}
+  if(v.startsWith('w:')){if(v.slice(2)!==S.web)pickState({web:v.slice(2)});return}
+  if(v.startsWith('m:')){if(v.slice(2)!==S.bm)pickState({bm:v.slice(2)},sec);return}
+  if(v.startsWith('s:')){const x=v.slice(2);pickState({bs:S.bs===x?'all':x},sec)}
+}
+// «Где отвал» → вкладка с подробностями
+const SIG_GO={'Заявки':'@zav#zav-mon','Сайт':'@site#site-funnel','Обращения':'@obr','После заявки':'@pay'};
+
+function vSummary(){
+  const f=D.forecast,n=D.days.length,ti=n-1,z=D.zav.total;
+  const mStart=D.days.indexOf(f.month+'-01');
+  const r=range('month');
+  const paidM=rs(D.zav.paid,r.a,r.b),paidPrev=rs(D.zav.paid,r.pa,r.pb);
+  const visM=rs(D.site.visits,r.a,r.b-1),visPrev=rs(D.site.visits,r.pa,r.pb-1);   // без сегодняшнего дня — и в прошлом месяце на день меньше
+  const crM=visM?rs(z,r.a,r.b-1)/visM:null,crPrev=visPrev?rs(z,r.pa,r.pb-1)/visPrev:null;
+  const pPer=r.pa>=0&&r.pb>=0?`${+D.days[r.pa].slice(8)}–${+D.days[r.pb].slice(8)}\u00a0${MON_G[+D.days[r.pb].slice(5,7)-1]}`:"прошлый месяц";   // те же дни прошлого месяца: «1–8 сен»
+  const planTxt=f.plan?`план ${fmt(f.plan)} · ${f.forecast>=f.plan?'<span class="delta up">выходим на план</span>':`<span class="delta dn">не хватает ${fmt(f.plan-f.forecast)}</span> · нужно ${fmt(f.need_per_day,1)} в день`}`:'<span class="muted">плана нет — лист «План»</span>';
+  // последний рабочий день до сегодняшнего (сб/вс пропускаем; праздники не учитываются) и рабочий день перед ним
+  const isWd=i=>{const g=new Date(D.days[i]+'T12:00:00Z').getUTCDay();return g>0&&g<6};
+  const prevWd=i=>{i--;while(i>0&&!isWd(i))i--;return i};
+  const wd1=prevWd(ti),wd2=prevWd(wd1);
+  const wdL=[];for(let i=Math.max(0,ti-28);i<ti;i++)if(isWd(i))wdL.push(z[i]);
+  const wdMean=wdL.length?wdL.reduce((a,b)=>a+b,0)/wdL.length:null;
+  const wdLbl=wd1===ti-1?'Заявок вчера':'Заявок в последний будний день';
+  let h=`<div class="grid g-kpi">
+    <div class="panel kpi go" data-go="sum-daily" title="Заявки по дням"><div class="lbl">${wdLbl}, ${dShort(D.days[wd1])}</div><div class="val">${fmt(z[wd1])}<small>${delta(z[wd1],wdMean)}</small></div>
+      <div class="foot"><span>к норме: ${fmt(wdMean,1)} заявки в будний день (среднее за 4 недели)</span></div>
+      <div class="foot"><span class="muted">${dShort(D.days[wd2])} было ${fmt(z[wd2])} ${plural(z[wd2],'заявка','заявки','заявок')}${wd1===ti-1?'':(n=>` · за выходные ${fmt(n)} ${plural(n,'заявка','заявки','заявок')}`)(rs(z,wd1+1,ti-1))}</span></div></div>
+    <div class="panel kpi go" data-go="sum-fc" title="Прогноз месяца"><div class="lbl">Заявок за ${MON[+f.month.slice(5)-1]}</div><div class="val">${fmt(f.fact)}<small>${delta(f.fact,rs(z,r.pa,r.pb))}</small></div>
+      <div class="foot"><span>к ${pPer}: ${fmt(rs(z,r.pa,r.pb))} ${plural(rs(z,r.pa,r.pb),'заявка','заявки','заявок')}</span></div>
+      <div class="foot"><span class="muted">прогноз на месяц — ${fmt(f.forecast)} ${plural(f.forecast,'заявка','заявки','заявок')}</span></div></div>
+    <div class="panel kpi go" data-go="@pay" title="Открыть «Оплаты»"><div class="lbl">Оплачено и предоплата</div><div class="val">${fmt(paidM)}<small>${delta(paidM,paidPrev)}</small></div>
+      <div class="foot"><span>к ${pPer}: ${fmt(paidPrev)} ${plural(paidPrev,'заявка','заявки','заявок')}</span></div>
+      <div class="foot"><span class="muted">на ${rub(rs(D.zav.paid_rub,r.a,r.b))} · из заявок этого месяца</span></div></div>
+    <div class="panel kpi go" data-go="@site#site-funnel" title="Открыть воронку сайта"><div class="lbl">Визит → заявка</div><div class="val">${pct(crM,2)}<small>${delta(crM,crPrev)}</small></div>
+      <div class="foot"><span>к ${perTxt(r.pa,r.pb-1)||pPer}: ${pct(crPrev,2)}</span></div>
+      <div class="foot"><span class="muted">заявки с сайта / визиты · без сегодняшнего дня</span></div></div>
+  </div><!--jump-->`;
+  // прогноз
+  const dim=new Date(+f.month.slice(0,4),+f.month.slice(5,7),0).getDate();
+  const labels=[],fact=[],fc=[],ly=[],plan=[];
+  const lyStart=D.days.indexOf((+f.month.slice(0,4)-1)+f.month.slice(4)+'-01');
+  let cum=0,lyCum=0;
+  for(let dd=1;dd<=dim;dd++){const ds=f.month+'-'+String(dd).padStart(2,'0'),i=mStart+dd-1;labels.push(dShort(ds));
+    if(i<=ti){cum+=z[i];fact.push(cum)}else fact.push(null);
+    if(lyStart>=0&&D.zav_from&&D.days[lyStart]>=D.zav_from){lyCum+=z[lyStart+dd-1]||0;ly.push(lyCum)}else ly.push(null);
+    plan.push(f.plan?f.plan*dd/dim:null)}
+  // прогнозная линия: от факта сегодня до прогноза в конце месяца, по дням пропорционально
+  const todayN=ti-mStart+1;
+  for(let dd=1;dd<=dim;dd++){fc.push(dd<todayN?null:dd===todayN?fact[dd-1]:fact[todayN-1]+(f.forecast-fact[todayN-1])*(dd-todayN)/(dim-todayN||1))}
+  const series=[{name:'Факт, накопительно',color:cssv('--s1'),values:fact,area:true},{name:'Прогноз',color:cssv('--s1'),values:fc,dash:true}];
+  const lg=[['Факт',cssv('--s1')],['Прогноз',cssv('--s1'),'dash']];
+  if(ly.some(v=>v!=null)){series.push({name:'Год назад',color:cssv('--s2'),values:ly});lg.push(['Год назад',cssv('--s2')])}
+  if(f.plan){series.push({name:'План',color:cssv('--muted'),values:plan,dash:true});lg.push(['План',cssv('--muted'),'dash'])}
+  h+=`<div class="grid g-2"><div class="panel sec" id="sum-fc"><h2>Прогноз на ${monName(f.month)}</h2>
+    <div class="hero"><span class="big">${fmt(f.forecast)}</span><span class="rng">заявок · коридор ${fmt(f.low)}–${fmt(f.high)} · осталось дней: ${f.days_left}</span></div>
+    <p class="sub" style="margin-top:6px">${planTxt} · прошлый месяц ${fmt(f.prev_month)} · год назад ${f.last_year==null?'—':fmt(f.last_year)}${f.paid_forecast!=null?` · ожидаем оплат ≈ ${fmt(f.paid_forecast)} (доля оплат ${pct(f.pay_rate,0)})`:''}</p>
+    ${legend(lg)}${lineChart('c-fc',{labels,series,ticks:i=>(i===0||(i+1)%5===0)?String(i+1):''})}
+    <p class="note">Прогноз: факт + оставшиеся дни × среднее в день за 28 дней с поправкой на день недели.</p></div>`;
+  // где отвал
+  const sg=D.signals,groups=['Заявки','Сайт','Обращения','После заявки'];
+  h+=`<div class="panel sec" id="sum-sig"><h2>Где отвал</h2><p class="sub">Последние 7 дней (${dShort(sg.window[0])}–${dShort(sg.window[1])}) против нормы — 28 дней до них. Красный — падение больше 15% и не случайное. Нажмите на строку — откроется вкладка с подробностями.</p>
+    <div class="grid" style="margin:0">${groups.filter(g=>sg.sides[g]).map(g=>`<div class="side"><h3 data-go="${SIG_GO[g]||''}" title="Подробнее">${g}<span class="pill l-${sg.sides[g]}">${LEVEL_TXT[sg.sides[g]]}</span></h3>
+      <ul class="sig">${sg.items.filter(s=>s.group===g).map(s=>`<li class="${s.level}" data-go="${SIG_GO[g]||''}" title="Подробнее"><i></i><span>${esc(s.name)}</span><span class="v">${s.kind==='pct'?pct(s.value,s.value<0.05?2:1):fmt(s.value,1)}<small>норма ${s.kind==='pct'?pct(s.norm,s.norm<0.05?2:1):fmt(s.norm,1)}</small></span></li>`).join('')}</ul></div>`).join('')}</div></div></div>`;
+  // заявки по дням
+  const from=Math.max(0,ti-59),lab=D.days.slice(from),vals=z.slice(from),avg=ma7(z).slice(from);
+  h+=`<div class="panel sec" id="sum-daily"><h2>Заявки по дням</h2><p class="sub">60 дней; сегодня — неполный день</p>
+    ${legend([['Заявки за день',cssv('--s1'),'bar'],['Среднее за 7 дней',cssv('--s2')]])}
+    ${barChart('c-daily',{name:'Заявок',color:cssv('--s1'),bars:vals.map((v,i)=>({label:dShort(lab[i])+(from+i===ti?' (сегодня)':''),value:v})),line:{name:'Среднее за 7 дней',color:cssv('--s2'),values:avg},ticks:i=>i%7===0?dShort(lab[i]):''})}</div>`;
+  $('#view').innerHTML=withJump(h,[['sum-fc','Прогноз'],['sum-sig','Где отвал'],['sum-daily','По дням']]);
+}
+
+function vZav(){
+  const r=range(S.period),cur=reqIn(r.a,r.b),okZ=since(r,D.zav_from),prev=okZ?reqIn(r.pa,r.pb):[];
+  const stat=rows=>{const paid=rows.filter(x=>x[1]===1),lost=rows.filter(x=>x[1]===0||x[1]===3);
+    return{n:rows.length,paid:paid.length,lost:lost.length,rub:sum(paid.map(x=>x[2])),margin:sum(paid.map(x=>x[3])),check:paid.length?sum(paid.map(x=>x[2]))/paid.length:null}};
+  const c=stat(cur),p=okZ?stat(prev):{n:null,paid:null,lost:null,check:null};
+  let h=`<div class="grid g-kpi">
+    <div class="panel kpi go" data-go="zav-mon" title="Заявки по месяцам"><div class="lbl">Заявок</div><div class="val">${fmt(c.n)}<small>${delta(c.n,p.n)}</small></div>${cmpLine(r,okZ,nw(p.n,'заявка','заявки','заявок'))}${mutedLine('заявки сайта в букинге, по дате создания')}</div>
+    <div class="panel kpi go" data-go="@pay" title="Открыть «Оплаты»"><div class="lbl">Оплачено и предоплата</div><div class="val">${fmt(c.paid)}<small>${delta(c.paid,p.paid)}</small></div>${cmpLine(r,okZ,nw(p.paid,'заявка','заявки','заявок'))}${mutedLine(`${pct(c.n?c.paid/c.n:null,0)} от заявок · на ${rub(c.rub)}`)}</div>
+    <div class="panel kpi go" data-go="@pay" title="Открыть «Оплаты»"><div class="lbl">Аннулировано и возвраты</div><div class="val">${fmt(c.lost)}<small>${delta(c.lost,p.lost,{inverse:true})}</small></div>${cmpLine(r,okZ,nw(p.lost,'заявка','заявки','заявок'))}${mutedLine(`${pct(c.n?c.lost/c.n:null,0)} от заявок`)}</div>
+    <div class="panel kpi go" data-go="zav-ship" title="Чек по теплоходам"><div class="lbl">Средний чек оплаченных</div><div class="val">${rub(c.check)}<small>${delta(c.check,p.check)}</small></div>${cmpLine(r,okZ,rub(p.check))}${mutedLine(`маржа ${rub(c.margin)}`)}</div>
+  </div><!--jump-->`;
+  // по месяцам
+  const ms=monthsOf().filter(m=>!D.zav_from||m.m>=D.zav_from.slice(0,7));
+  h+=`<div class="panel sec" id="zav-mon" style="margin-bottom:16px"><h2>Заявки по месяцам</h2><p class="sub">По дате создания заявки; оплаченные — текущий статус «Оплачено» / «Предоплата». Последний месяц неполный. Нажмите на столбик — период станет этим месяцем.</p>
+    ${legend([['Оплачены',cssv('--s3'),'bar'],['Остальные: аннулированы, возвраты, в работе',cssv('--s1'),'bar'],['Тренд всех заявок',cssv('--s2'),'dash']])}
+    ${barChart('c-mon',{name:'Всего заявок',line:monTrend(ms),color:cssv('--s1'),bars:ms.map(m=>{const t=rs(D.zav.total,m.a,m.b),pd=rs(D.zav.paid,m.a,m.b);return{label:monName(m.m),value:t,inner:pd,innerColor:cssv('--s3'),tip:`<i style="background:${cssv('--s3')}"></i>Оплачены: <b>${fmt(pd)}</b> (${pct(t?pd/t:null,0)})<br><i style="background:${cssv('--s1')}"></i>Остальные: <b>${fmt(t-pd)}</b>`}}),ticks:i=>monShort(ms[i].m)})}</div>`;
+  // разрезы
+  const cut=(title,keyFn,order,all)=>{const g={};cur.forEach(x=>{const k=keyFn(x);if(k==null)return;(g[k]=g[k]||[]).push(x)});
+    let keys=Object.keys(g);keys=order?order.filter(k=>g[k]):keys.sort((a,b)=>g[b].length-g[a].length);
+    if(!keys.length)return`<div class="panel"><h2>${title}</h2><div class="empty">Нет заявок за период.</div></div>`;
+    return`<div class="panel"><h2>${title}</h2><div class="tbl"><table><thead><tr><th></th><th class="r">Заявок</th><th class="r">Доля</th><th class="r">Оплачено</th><th class="r">Ср. чек</th></tr></thead><tbody>${(all?keys:keys.slice(0,12)).map(k=>{const s=stat(g[k]);
+      return`<tr><td class="b">${esc(k)}</td><td class="r">${fmt(s.n)}</td><td class="r">${pct(s.n/c.n,0)}</td><td class="r">${pct(s.n?s.paid/s.n:null,0)}</td><td class="r">${rub(s.check)}</td></tr>`}).join('')}</tbody></table></div></div>`};
+  const lead=x=>x[7]==null?null:x[7]<=14?'до 14 дней':x[7]<=30?'15–30 дней':x[7]<=60?'31–60 дней':x[7]<=120?'61–120 дней':'больше 120 дней';
+  const dur=x=>x[8]==null?null:x[8]<=3?'1–3 дня':x[8]<=7?'4–7 дней':x[8]<=14?'8–14 дней':'15+ дней';
+  h+=`<div class="grid g-two sec" id="zav-cuts">${cut('Первая заявка или уже оформлял',x=>x[5]?'Первая заявка':'Уже оформлял')}${cut('Оператор',x=>x[6]?'Созвездие':'Другие операторы через сайт')}
+    ${cut('За сколько до отплытия',lead,['до 14 дней','15–30 дней','31–60 дней','61–120 дней','больше 120 дней'])}${cut('Длительность круиза',dur,['1–3 дня','4–7 дней','8–14 дней','15+ дней'])}
+</div>
+    <div class="sec" id="zav-ship">${cut('Теплоход',x=>D.requests.ships[x[4]],null,true)}</div>`;
+  $('#view').innerHTML=withJump(h,[['zav-mon','По месяцам'],['zav-cuts','Клиенты, сроки, длительность'],['zav-ship','Теплоходы']]);
+  chartPick('c-mon',ms.length,i=>pickState({period:'m:'+ms[i].m},'zav-mon'));
+}
+
+function vSite(){
+  const r0=range(S.period),b=Math.min(r0.b,D.days.length-2);   // без сегодняшнего неполного дня
+  const r=Object.assign({},r0,{pb:r0.pb>=0?r0.pb-(r0.b-b):r0.pb});   // и в прошлом периоде столько же дней
+  const steps=Object.keys(D.site.steps);
+  // с какого дня периода есть данные: конверсию считаем только там, где есть и визиты, и заявки (и шаги воронки)
+  const startIdx=d=>d?Math.max(r.a,D.days.indexOf(d)<0?(d>D.today?Infinity:0):D.days.indexOf(d)):r.a;
+  const za=startIdx(D.zav_from),fa=Math.max(za,startIdx(D.site.steps_from));
+  const hasSteps=!!D.site.steps_from&&fa<=b;
+  const vis=rs(D.site.visits,r.a,b),pvis=rs(D.site.visits,r.pa,r.pb);
+  const okZ=since(r,D.zav_from);
+  const zav=rs(D.zav.total,r.a,b),pzav=okZ?rs(D.zav.total,r.pa,r.pb):null;
+  const visZ=rs(D.site.visits,za,b);   // визиты за те же дни, где уже есть заявки
+  let h=`<div class="grid g-kpi">
+    <div class="panel kpi go" data-go="site-days" title="Визиты по дням"><div class="lbl">Визиты</div><div class="val">${fmt(vis)}<small>${delta(vis,pvis)}</small></div>${cmpLine(r,r.pa>=0,nw(pvis,'визит','визита','визитов'))}${mutedLine('Метрика · без сегодняшнего дня')}</div>
+    <div class="panel kpi go" data-go="@zav" title="Открыть «Заявки»"><div class="lbl">Заявки с сайта</div><div class="val">${fmt(zav)}<small>${delta(zav,pzav)}</small></div>${cmpLine(r,okZ,nw(pzav,'заявка','заявки','заявок'))}${mutedLine('букинг · без сегодняшнего дня')}</div>
+    <div class="panel kpi go" data-go="site-funnel" title="Воронка сайта"><div class="lbl">Визит → заявка</div><div class="val">${pct(visZ?zav/visZ:null,2)}<small>${delta(visZ?zav/visZ:null,pvis&&pzav!=null?pzav/pvis:null)}</small></div>${cmpLine(r,okZ&&!!pvis,pct(pvis&&pzav!=null?pzav/pvis:null,2))}${mutedLine('заявки / визиты'+(za>r.a?` · с ${dShort(D.days[za])} ${D.days[za].slice(0,4)}, когда появились заявки`:''))}</div>
+  </div><!--jump-->`;
+  // воронка
+  if(steps.length&&hasSteps){
+    const rows=[['Визиты',D.site.visits]].concat(steps.map(g=>[g.replace(/^VBI_Клик_/,''),D.site.steps[g]])).concat([['Заявка создана',D.zav.total]]);
+    const okP=since(r,D.site.steps_from)&&since(r,D.zav_from);
+    const vals=rows.map(([_,arr])=>rs(arr,fa,b)),pvals=rows.map(([_,arr])=>okP?rs(arr,r.pa,r.pb):0);
+    let worst=-1,worstCh=0;
+    const html=rows.map(([name],i)=>{const v=vals[i],cr=i?(vals[i-1]?v/vals[i-1]:null):null,pcr=i?(pvals[i-1]?pvals[i]/pvals[i-1]:null):null;
+      const ch=cr!=null&&pcr?(cr-pcr)/pcr:null;if(i&&ch!=null&&ch<worstCh){worstCh=ch;worst=i}
+      return{name,v,cr,pcr,ch}});
+    h+=`<div class="panel sec" id="site-funnel" style="margin-bottom:16px"><h2>Воронка сайта: от визита до заявки</h2><p class="sub">${fa>r.a?`Считается с ${dShort(D.days[fa])} ${D.days[fa].slice(0,4)} — раньше целей воронки в Метрике нет. `:''}Цифра справа — конверсия из предыдущего шага и её изменение к прошлому периоду${worst>0?`. Сильнее всего просел шаг «${esc(html[worst].name)}»`:''}.</p>
+      <div class="funnel">${html.map((s,i)=>`<div class="row"><span>${esc(s.name)}</span><div class="bar"><i style="width:${i===0?100:Math.max(0.5,Math.min(100,s.v/(vals[1]||1)*100))}%;${i===0?'background:var(--s1-soft)':''}"></i></div><span class="n">${fmt(s.v)}</span><span class="cr">${i?`${pct(s.cr,1)} ${s.ch==null?'':`<span class="delta ${s.ch<-0.005?'dn':s.ch>0.005?'up':'eq'}">${s.ch>0?'▲':s.ch<0?'▼':'='}${fmt(Math.abs(s.ch)*100,0)}%</span>`}`:''}</span></div>`).join('')}</div>
+      <p class="note">Полоса визитов — светлая и в своём масштабе; шаги сравниваются с первым кликом «Цены и бронирование».${(html[html.length-1].cr||0)>1?' Заявок больше, чем «Оформлений» в Метрике: заявки считаются по букингу, а цель Метрики срабатывает не у всех (блокировщики, отказ от cookie) — поэтому последний шаг выше 100%.':''}</p></div>`;
+  } else h+=`<div class="panel sec" id="site-funnel" style="margin-bottom:16px"><h2>Воронка сайта</h2><div class="empty">Цели воронки в Метрике есть с ${D.site.steps_from?dShort(D.site.steps_from)+' '+D.site.steps_from.slice(0,4):'—'}. Выберите период позже этой даты.</div></div>`;
+  // источники и устройства: месяцы, попадающие в период
+  const mi=D.site.months.map((m,i)=>[m,i]).filter(([m])=>m>=D.days[r.a].slice(0,7)&&m<=D.days[b].slice(0,7)).map(x=>x[1]);
+  const tbl=(title,obj)=>{const rows=Object.entries(obj).map(([k,v])=>[k,sum(mi.map(i=>v.visits[i])),sum(mi.map(i=>v.final[i]))]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);const tv=sum(rows.map(x=>x[1]));
+    return`<div class="panel"><h2>${title}</h2><p class="sub">Целые месяцы периода; «Оформление» — последний шаг воронки</p><div class="tbl"><table><thead><tr><th></th><th class="r">Визиты</th><th class="r">Доля</th><th class="r">Оформление</th><th class="r">CR</th></tr></thead><tbody>${rows.map(x=>`<tr><td class="b">${esc(x[0])}</td><td class="r">${fmt(x[1])}</td><td class="r">${pct(x[1]/tv,0)}</td><td class="r">${fmt(x[2])}</td><td class="r">${pct(x[1]?x[2]/x[1]:null,2)}</td></tr>`).join('')}</tbody></table></div></div>`};
+  h+=`<div class="grid g-2 sec" id="site-src">${tbl('Источники трафика',D.site.by_source)}${tbl('Устройства',D.site.by_device)}</div>`;
+  const from=r.a,lab=D.days.slice(from,b+1);
+  h+=`<div class="panel sec" id="site-days"><h2>Визиты по дням</h2>${barChart('c-vis',{name:'Визитов',color:cssv('--s1'),bars:D.site.visits.slice(from,b+1).map((v,i)=>({label:dShort(lab[i]),value:v})),line:{name:'Среднее за 7 дней',color:cssv('--s2'),values:ma7(D.site.visits).slice(from,b+1)},ticks:i=>i%Math.max(1,Math.ceil(lab.length/10))===0?dShort(lab[i]):''})}</div>`;
+  $('#view').innerHTML=withJump(h,[['site-funnel','Воронка'],['site-src','Источники и устройства'],['site-days','По дням']]);
+}
+
+function vObr(){
+  const r=range(S.period),o=obrDaily();
+  const k=(arr,a,b)=>rs(arr,a,b);
+  const t=k(o.t,r.a,r.b),tg=k(o.tg,r.a,r.b),bk=k(o.bk,r.a,r.b),pd=k(o.pd,r.a,r.b);
+  const okO=since(r,obrFrom());
+  const pt=okO?k(o.t,r.pa,r.pb):null,ptg=okO?k(o.tg,r.pa,r.pb):null,pbk=okO?k(o.bk,r.pa,r.pb):null,ppd=okO?k(o.pd,r.pa,r.pb):null;
+  let h=`<div class="grid g-kpi">
+    <div class="panel kpi go" data-go="obr-days" title="Обращения по дням"><div class="lbl">Обращения</div><div class="val">${fmt(t)}<small>${delta(t,pt)}</small></div>${cmpLine(r,okO,nw(pt,'обращение','обращения','обращений'))}${mutedLine('без дублей и ошибок')}</div>
+    <div class="panel kpi go" data-go="obr-src" title="По каналам"><div class="lbl">Целевые</div><div class="val">${fmt(tg)}<small>${delta(tg,ptg)}</small></div>${cmpLine(r,okO,nw(ptg,'обращение','обращения','обращений'))}${mutedLine(`${pct(t?tg/t:null,0)} от всех обращений`)}</div>
+    <div class="panel kpi go" data-go="obr-src" title="По каналам"><div class="lbl">Дошли до заявки</div><div class="val">${fmt(bk)}<small>${delta(bk,pbk)}</small></div>${cmpLine(r,okO,nw(pbk,'обращение','обращения','обращений'))}${mutedLine(`${pct(tg?bk/tg:null,0)} от целевых`)}</div>
+    <div class="panel kpi go" data-go="obr-src" title="По каналам и статусам"><div class="lbl">Оплачены</div><div class="val">${fmt(pd)}<small>${delta(pd,ppd)}</small></div>${cmpLine(r,okO,nw(ppd,'обращение','обращения','обращений'))}${mutedLine(`${pct(bk?pd/bk:null,0)} дошедших до заявки`)}</div>
+  </div><!--jump-->`;
+  const rows=D.obr.rows.filter(x=>x[0]>=r.a&&x[0]<=r.b);
+  const bySrc={};rows.forEach(x=>{const s=D.obr.sources[x[1]];const v=bySrc[s]||(bySrc[s]=[0,0,0,0]);v[0]++;v[1]+=x[2];v[2]+=x[3];v[3]+=x[4]});
+  const bySt={};rows.forEach(x=>{const s=D.obr.statuses[x[5]];bySt[s]=(bySt[s]||0)+1});
+  h+=`<div class="grid g-2 sec" id="obr-src"><div class="panel"><h2>По каналам</h2><div class="tbl"><table><thead><tr><th></th><th class="r">Обращений</th><th class="r">Целевых</th><th class="r">→ заявка</th><th class="r">Оплачено</th></tr></thead><tbody>${Object.entries(bySrc).sort((a,b)=>b[1][0]-a[1][0]).map(([s,v])=>`<tr><td class="b">${esc(s)}</td><td class="r">${fmt(v[0])}</td><td class="r">${fmt(v[1])} <span class="muted">${pct(v[0]?v[1]/v[0]:null,0)}</span></td><td class="r">${fmt(v[2])}</td><td class="r">${fmt(v[3])}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">Нет обращений за период</td></tr>'}</tbody></table></div></div>
+    <div class="panel"><h2>Чем закончились</h2><p class="sub">Статус лида — где теряются обращения</p><div class="tbl"><table><tbody>${Object.entries(bySt).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([s,v])=>`<tr><td>${esc(s)}</td><td class="r b">${fmt(v)}</td><td class="r muted">${pct(v/rows.length,0)}</td></tr>`).join('')}</tbody></table></div></div></div>`;
+  const lab=D.days.slice(r.a,r.b+1);
+  h+=`<div class="panel sec" id="obr-days"><h2>Обращения по дням</h2>${barChart('c-obr',{name:'Обращений',color:cssv('--s1'),bars:o.t.slice(r.a,r.b+1).map((v,i)=>({label:dShort(lab[i]),value:v,tip:`Целевых: <b>${fmt(o.tg[r.a+i])}</b>`})),ticks:i=>i%Math.max(1,Math.ceil(lab.length/10))===0?dShort(lab[i]):''})}
+    <p class="note">Источник — лист «Обращения». Исключены статусы: дубли, ошибки, сотрудничество/трудоустройство (${fmt(D.obr.junk)} за всё время).</p></div>`;
+  $('#view').innerHTML=withJump(h,[['obr-src','Каналы и статусы'],['obr-days','По дням']]);
+}
+
+/* ---------- Мероприятия (вебинары и экскурсия; до 14.10.2026 — «Вебинары») ---------- */
+const WB_DIMS=[['med','Канал'],['src','Источник'],['brand','Бренд'],['camp','Кампания']];
+function vWeb(){
+  const W=D.webinars||{list:[]},L=(W.list||[]).filter(w=>w.rows);
+  if(W.error&&!L.length){$('#view').innerHTML=`<div class="err"><b>Мероприятия не загрузились.</b> ${esc(W.error)}</div>`;return}
+  if(!L.length){$('#view').innerHTML='<div class="empty">В справочнике мероприятий пока нет мероприятий с регистрациями.</div>';return}
+  if(!L.some(w=>w.name===S.web))S.web=L[0].name;
+  if(!WB_DIMS.some(d=>d[0]===S.wdim))S.wdim='med';
+  const w=L.find(x=>x.name===S.web),c=Object.fromEntries(w.cols.map((k,i)=>[k,i]));
+  const rows=w.rows,n=rows.length,cnt=k=>rows.reduce((a,r)=>a+(r[c[k]]?1:0),0);
+  const k={inIF:cnt('inIF'),paid:cnt('paid'),inB24:cnt('inB24'),req:cnt('req'),booked:cnt('booked'),newBooked:cnt('newBooked'),newIF:cnt('newIF'),newContact:cnt('newContact')};
+  const enriched=k.inIF+k.paid+k.inB24+k.req>0,sz=w.srez,ex=w.type==='экскурсия';
+  const kind=ex?'Экскурсия':'Вебинар';
+  const share=v=>n?pct(v/n,1):'—';
+  const dd=x=>x?x.slice(8,10)+'.'+x.slice(5,7)+'.'+x.slice(0,4):'—';
+  let h=`<span class="flbl">Мероприятия · ${L.length}</span>
+    <details class="panel dq pick" id="web-pick"><summary><span>${esc(w.name)}</span><span class="muted pick-n"> · ${fmt(n)} ${plural(n,'регистрация','регистрации','регистраций')}</span></summary>
+    <ul class="pick-list">${L.map(x=>`<li><button type="button" data-w="${esc(x.name)}" aria-current="${x.name===w.name}"><span>${esc(x.name)}</span><span class="muted">${dd(x.date)} · ${fmt(x.rows.length)} рег.${x.srez?` · продаж ${fmt(x.srez.sold)}`:''}</span></button></li>`).join('')}</ul></details>
+    <p class="muted" style="font-size:12.5px;margin:6px 0 16px">${kind} ${dd(w.date)}${ex&&w.guests!=null?` · гостей в действующих бронях: ${fmt(w.guests)}`:''} · регистрации ${dd(w.start)} – ${dd(w.end)}${w.dups?` · повторных регистраций убрано: ${fmt(w.dups)}`:''}</p>`;
+  if(!enriched)h+=`<div class="empty" style="margin-bottom:16px"><b>Регистрации ещё не сверены с базами.</b> ${ex?'Проверка «Букинг» для экскурсии идёт ночью — появятся база ИФ и оплаты.':'В таблице мероприятий запустите проверки «Букинг» и «Битрикс» для этого листа — появятся база ИФ, оплаты, заявки и стадии.'}</div>`;
+  h+=`<div class="grid g-kpi">
+    <div class="panel kpi go" data-go="${ex&&w.seats?'web-seats':'web-days'}" title="${ex&&w.seats?'Места по сеансам':'Регистрации по дням'}"><div class="lbl">Регистраций</div><div class="val">${fmt(n)}</div><div class="foot"><span>${ex?'уникальные по почте или телефону':'уникальные по почте'}</span></div>${mutedLine(w.extra?`ещё ${nw(w.extra,'лид','лида','лидов')} Б24 без регистрации`:'')}</div>
+    <div class="panel kpi go" data-go="web-cut" title="Разрез по каналам"><div class="lbl">Уже в базе Инфофлота</div><div class="val">${fmt(k.inIF)}</div><div class="foot"><span>${share(k.inIF)} регистраций</span></div>${mutedLine(`раньше оплачивали: ${fmt(k.paid)} (${share(k.paid)})`)}</div>
+    <div class="panel kpi go" data-go="web-funnel" title="Воронка и стадии"><div class="lbl">${ex?'Бронь в Б24':'Заявка в Б24'}</div><div class="val">${fmt(k.req)}</div><div class="foot"><span>${share(k.req)} регистраций</span></div>${mutedLine(ex?`действующих: ${fmt(rows.filter(r=>r[c.stage]>=0&&w.dict.stage[r[c.stage]]!=='Аннулировано').length)}`:`забронировали круиз: ${fmt(k.booked)}, из них новых: ${fmt(k.newBooked)}`)}</div>
+    <div class="panel kpi go" data-go="${L.length>1?'web-cmp':'web-funnel'}" title="${L.length>1?'Сравнение мероприятий':'Воронка'}"><div class="lbl">${ex?'Оплачено броней':'Продажи по срезу Б24'}</div>${sz?`<div class="val">${fmt(sz.sold)}<small>на ${rub(sz.sum)}</small></div><div class="foot"><span>${ex?`из ${nw(sz.leads,'сделки','сделок','сделок')} экскурсии`:`из ${nw(sz.leads,'лида','лидов','лидов')} вебинара`}</span></div>${mutedLine(`новых клиентов: ${fmt(sz.soldNew)}${sz.soldNoContact?` · без контакта: ${fmt(sz.soldNoContact)}`:''}`)}`:`<div class="val muted" style="font-size:24px">нет среза</div><div class="foot muted">в таблице мероприятий — меню «Созвездие» → срез Б24</div>`}</div>
+  </div><!--jump-->`;
+  // места экскурсии по сеансам (Букинг: вместимость − свободно; гости — действующие брони)
+  if(ex&&w.seats&&w.seats.list&&w.seats.list.length){
+    const SL=w.seats.list,sum=f=>SL.reduce((a,x)=>a+(x[f]||0),0),tk=SL.every(x=>x.taken!=null);
+    const T={cap:sum('cap'),free:sum('free'),taken:tk?sum('taken'):null,guests:sum('guests'),paid:sum('paid'),manager:sum('manager')};
+    const diff=x=>x.taken==null?'—':(x.taken-x.guests?`<b>${x.taken-x.guests>0?'+':''}${fmt(x.taken-x.guests)}</b>`:'0');
+    const sl=(name,x,b)=>`<tr${b?' class="b"':''}><td class="nw">${name}</td><td class="r">${x.cap!=null?fmt(x.cap):'—'}</td><td class="r b">${x.taken!=null?fmt(x.taken):'—'}</td><td class="r">${x.free!=null?fmt(x.free):'—'}</td><td class="r">${fmt(x.guests)}${x.manager?` <span class="muted">· менеджеры ${fmt(x.manager)}</span>`:''}</td><td class="r">${fmt(x.paid)}</td><td class="r">${diff(x)}</td></tr>`;
+    h+=`<div class="panel sec" id="web-seats" style="margin-bottom:16px"><h2>Места по сеансам</h2><p class="sub">Занято и свободно — по Букингу (снимок ${esc(w.seats.snapshot||'—')}); гости — по действующим броням с формы и от менеджеров. «Разница» — места, которые Букинг держит без действующей брони.</p>
+      <div class="tbl"><table><thead><tr><th>Сеанс</th><th class="r">Вместимость</th><th class="r">Занято</th><th class="r">Свободно</th><th class="r">Гостей в бронях</th><th class="r">Оплачено</th><th class="r">Разница</th></tr></thead>
+      <tbody>${SL.map(x=>sl(dd(x.date).slice(0,5)+', '+x.time,x)).join('')}${sl('Итого',T,true)}</tbody></table></div></div>`;
+  } else if(ex&&w.seatsError)h+=`<div class="empty" style="margin-bottom:16px">Места по сеансам не прочитаны: ${esc(w.seatsError)}</div>`;
+  // воронка мероприятия
+  const steps=ex?[['Регистрации',n],['Бронь в Б24',k.req]].concat(sz?[['Оплачено броней',sz.sold]]:[])
+    :[['Регистрации',n],['Есть в Б24',k.inB24],['Заявка в Б24',k.req],['Забронировали круиз',k.booked]].concat(sz?[['Продажи (срез)',sz.sold]]:[]);
+  h+=`<div class="grid g-2 sec" id="web-funnel"><div class="panel"><h2>${ex?'Воронка экскурсии':'Воронка вебинара'}</h2><p class="sub">Справа — доля от регистраций и конверсия из предыдущего шага</p>
+    <div class="funnel">${steps.map(([name,v],i)=>`<div class="row"><span>${esc(name)}</span><div class="bar"><i style="width:${n?Math.max(v?0.5:0,Math.min(100,v/n*100)):0}%"></i></div><span class="n">${fmt(v)}</span><span class="cr">${i?`${pct(n?v/n:null,1)} <span class="muted">· ${pct(steps[i-1][1]?v/steps[i-1][1]:null,0)}</span>`:''}</span></div>`).join('')}</div></div>`;
+  // стадии лидов
+  const st={};rows.forEach(r=>{if(r[c.stage]>=0){const s=w.dict.stage[r[c.stage]];st[s]=(st[s]||0)+1}});
+  const stl=Object.entries(st).sort((a,b)=>b[1]-a[1]);
+  h+=`<div class="panel"><h2>${ex?'Статусы броней':'Стадии лидов'}</h2><p class="sub">${ex?'Статус брони участника в Букинге (через Б24); у повторных броней — действующая':'Где сейчас лиды, пришедшие с вебинара'}</p>${stl.length?`<div class="tbl"><table><tbody>${stl.map(([s,v])=>`<tr><td${s===D_BOOKED?' class="b"':''}>${esc(s)}</td><td class="r b">${fmt(v)}</td><td class="r muted">${pct(v/n,1)}</td></tr>`).join('')}</tbody></table></div>`:(ex?'<div class="empty">Статусов пока нет — их пишет импорт регистраций экскурсии.</div>':'<div class="empty">Стадий пока нет — нужна проверка «Битрикс».</div>')}</div></div>`;
+  // регистрации по дням
+  const days=[];if(w.start&&w.end){for(let d=new Date(w.start+'T00:00:00');;d.setDate(d.getDate()+1)){const x=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');days.push(x);if(x>=w.end||days.length>120)break}}
+  const byDay=Object.fromEntries(days.map(x=>[x,0]));rows.forEach(r=>{if(r[c.day]in byDay)byDay[r[c.day]]++});
+  if(days.length)h+=`<div class="panel sec" id="web-days" style="margin-bottom:16px"><h2>Регистрации по дням</h2>${barChart('c-web',{name:'Регистраций',color:cssv('--s1'),bars:days.map(x=>({label:dShort(x)+' '+x.slice(0,4)+(x===w.date?(ex?' · день экскурсии':' · день вебинара'):''),value:byDay[x],color:x===w.date?cssv('--s2'):undefined})),ticks:i=>i%Math.max(1,Math.ceil(days.length/10))===0?dShort(days[i]):''})}
+    ${days.includes(w.date)?legend([['Регистрации',cssv('--s1'),'bar'],[ex?'День экскурсии':'День вебинара',cssv('--s2'),'bar']]):''}</div>`;
+  // разрез
+  const di=c[S.wdim],g={};rows.forEach(r=>{const key=w.dict[S.wdim][r[di]];const x=g[key]||(g[key]={n:0,inIF:0,paid:0,req:0,booked:0,nb:0});x.n++;x.inIF+=r[c.inIF];x.paid+=r[c.paid];x.req+=r[c.req];x.booked+=r[c.booked];x.nb+=r[c.newBooked]});
+  const gl=Object.entries(g).sort((a,b)=>b[1].n-a[1].n);
+  const line=(name,x,b)=>`<tr><td class="${b?'b':''}">${esc(name)}</td><td class="r">${fmt(x.n)}</td><td class="r">${pct(x.n/n,0)}</td><td class="r">${fmt(x.inIF)} <span class="muted">${pct(x.n?x.inIF/x.n:null,0)}</span></td><td class="r">${fmt(x.paid)} <span class="muted">${pct(x.n?x.paid/x.n:null,0)}</span></td><td class="r">${fmt(x.req)} <span class="muted">${pct(x.n?x.req/x.n:null,0)}</span></td><td class="r">${fmt(x.booked)}</td><td class="r">${fmt(x.nb)}</td></tr>`;
+  h+=`<div class="panel sec" id="web-cut" style="margin-bottom:16px"><div class="filters" style="margin-bottom:8px"><div><span class="flbl">Разрез</span><div class="seg" id="seg-wdim">${WB_DIMS.map(([key,l])=>`<button type="button" data-d="${key}" aria-pressed="${S.wdim===key}">${l}</button>`).join('')}</div></div></div>
+    <div class="tbl"><table><thead><tr><th></th><th class="r">Регистраций</th><th class="r">Доля</th><th class="r">В базе ИФ</th><th class="r">Оплата СЗ</th><th class="r">Заявка Б24</th><th class="r">Забронировали</th><th class="r">Из них новые</th></tr></thead>
+    <tbody>${gl.map(([name,x])=>line(name,x)).join('')}${line('Итого',{n,inIF:k.inIF,paid:k.paid,req:k.req,booked:k.booked,nb:k.newBooked},true)}</tbody></table></div></div>`;
+  // сравнение вебинаров
+  if(L.length>1)h+=`<div class="panel sec" id="web-cmp"><h2>Сравнение мероприятий</h2><p class="sub">Нажмите на строку — откроется это мероприятие</p><div class="tbl"><table><thead><tr><th>Мероприятие</th><th>Дата</th><th class="r">Регистраций</th><th class="r">Заявка Б24</th><th class="r">Забронировали</th><th class="r">Продажи</th><th class="r">Сумма продаж</th></tr></thead><tbody>
+    ${L.map(x=>{const cc=Object.fromEntries(x.cols.map((kk,i)=>[kk,i])),nn=x.rows.length,rq=x.rows.reduce((a,r)=>a+r[cc.req],0),bk=x.rows.reduce((a,r)=>a+r[cc.booked],0);
+      return`<tr data-pick="w:${esc(x.name)}" title="Открыть это мероприятие"><td class="b">${esc(x.name)}${x.name===w.name?' ✓':''}</td><td class="nw">${dd(x.date)}</td><td class="r">${fmt(nn)}</td><td class="r">${fmt(rq)} <span class="muted">${pct(nn?rq/nn:null,0)}</span></td><td class="r">${fmt(bk)}</td><td class="r">${x.srez?fmt(x.srez.sold):'—'}</td><td class="r">${x.srez?rub(x.srez.sum):'—'}</td></tr>`}).join('')}
+    </tbody></table></div></div>`;
+  $('#view').innerHTML=withJump(h,[...(ex&&w.seats?[['web-seats','Места']]:[]),['web-funnel','Воронка и стадии'],['web-days','По дням'],['web-cut','Разрез'],['web-cmp','Сравнение']]);
+  $('#web-pick').onclick=e=>{const b=e.target.closest('[data-w]');if(!b)return;S.web=b.dataset.w;save();render()};
+  $('#seg-wdim').onclick=e=>{const b=e.target.closest('[data-d]');if(!b)return;if(e.detail)b.blur();S.wdim=b.dataset.d;save();render()};
+}
+const D_BOOKED='Забронирован круиз';
+function plural(n,one,few,many){const a=Math.abs(n)%100,b=a%10;return a>10&&a<20?many:b===1?one:b>=2&&b<=4?few:many}
+
+function vPay(){
+  const ms=monthsOf().filter(m=>!D.zav_from||m.m>=D.zav_from.slice(0,7)).reverse();
+  const rows=ms.map(m=>{const rr=reqIn(m.a,m.b),paid=rr.filter(x=>x[1]===1),lost=rr.filter(x=>x[1]===0||x[1]===3),open=rr.filter(x=>x[1]===2);
+    return{m:m.m,n:rr.length,paid:paid.length,lost:lost.length,open:open.length,rub:sum(paid.map(x=>x[2])),margin:sum(paid.map(x=>x[3])),days:median(rr.map(x=>x[9]).filter(v=>v!=null))}});
+  const mx=Math.max(1,...rows.map(r=>r.n));
+  let h=`<div class="panel" style="margin-bottom:16px"><h2>Судьба заявок по месяцам создания</h2><p class="sub">Сколько заявок месяца оплачено, аннулировано и ещё в работе на сегодня. Свежие месяцы ещё «дозревают». Нажмите на месяц — он откроется в «Заявках».</p>
+    <div class="tbl"><table><thead><tr><th>Месяц</th><th class="r">Заявок</th><th class="r">Оплачено</th><th class="r">Аннул. и возврат</th><th class="r">В работе</th><th class="r">Оплачено, ₽</th><th class="r">Маржа, ₽</th><th class="r">Дней до оплаты</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr data-pick="p:m:${r.m}@zav" title="Открыть ${monName(r.m)} в «Заявках»"><td class="b">${monName(r.m)}</td><td class="r">${fmt(r.n)}</td><td class="r">${fmt(r.paid)} <span class="muted">${pct(r.n?r.paid/r.n:null,0)}</span></td><td class="r">${fmt(r.lost)} <span class="muted">${pct(r.n?r.lost/r.n:null,0)}</span></td><td class="r">${fmt(r.open)}</td><td class="r">${rub(r.rub)}</td><td class="r">${rub(r.margin)}</td><td class="r">${r.days==null?'—':fmt(r.days,1)}</td></tr>`).join('')}
+    </tbody></table></div><p class="note">«Дней до оплаты» — медиана от создания заявки до первого платежа. Суммы — полная стоимость оплаченных заявок.</p></div>`;
+  $('#view').innerHTML=h;
+}
+
+/* ---------- Продажи с бортов: презентации на теплоходах (таблица «График PRO_движ», все листы) ---------- */
+// агрегаты по строкам: доходимость и конверсия — только по строкам, где заполнены и каюты, и люди / заявки
+function obAgg(rows){
+  const a={n:rows.length,held:0,off:0,wait:0,ppl:0,tot:0,pres:0,gen:0,qr:0,flat:0,lead:0,cabP:0,pplC:0,cabT:0,totC:0,rub:0,rubN:0};
+  rows.forEach(r=>{if(r.st===1)a.held++;else if(r.st===0)a.off++;else if(r.tot==null)a.wait++;
+    a.ppl+=r.ppl||0;
+    if(r.tot!=null){a.tot+=r.tot;a.lead++;if(r.pres==null&&r.gen==null&&r.qr==null)a.flat+=r.tot}
+    a.pres+=r.pres||0;a.gen+=r.gen||0;a.qr+=r.qr||0;
+    if(r.cab>0&&r.ppl!=null){a.cabP+=r.cab;a.pplC+=r.ppl}
+    if(r.cab>0&&r.tot!=null){a.cabT+=r.cab;a.totC+=r.tot}
+    if(r.rub!=null){a.rub+=r.rub;if(r.rub>0)a.rubN++}});
+  a.reach=a.cabP?a.pplC/a.cabP:null;a.conv=a.cabT?a.totC/a.cabT:null;a.per=a.lead?a.tot/a.lead:null;
+  return a;
+}
+// рейс в одном виде: «26–28 июня», «25 июня – 1 июля»; пометка из таблицы («(до Казани)», «часть 2») — отдельно
+const MON_G=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+function obCruise(r){
+  if(!r.cs||!r.ce)return{range:r.cr,rest:''};
+  const d1=+r.cs.slice(8),d2=+r.ce.slice(8),m1=+r.cs.slice(5,7)-1,m2=+r.ce.slice(5,7)-1;
+  const range=m1===m2?`${d1}–${d2}\u00a0${MON_G[m2]}`:`${d1}\u00a0${MON_G[m1]} – ${d2}\u00a0${MON_G[m2]}`;
+  let rest=r.cr.replace(/^\s*\d{1,2}\s*[а-яё]*\.?\s*[-–—]\s*\d{1,2}\s*[а-яё]+\.?\s*/i,'').replace(/^[.,;\s]+/,'').replace(/^\((.*)\)$/,'$1').trim();
+  if(rest)rest=rest.charAt(0).toUpperCase()+rest.slice(1);
+  return{range,rest};
+}
+// откуда заявки: с презентации / общие / QR / без разбивки — строки по месяцам (сезон) или по теплоходам (месяц)
+function obMix(all,rows,inS,months){
+  const C={pres:cssv('--s3'),gen:cssv('--s1'),qr:cssv('--s2'),flat:cssv('--muted')};
+  const split=all.filter(r=>r.pres!=null||r.gen!=null||r.qr!=null).map(r=>r.d).sort()[0];
+  const groups=S.bm==='all'?months.map(m=>[monName(m).replace(/^./,c=>c.toUpperCase()),all.filter(r=>inS(r)&&r.d.slice(0,7)===m),'m:'+m])
+    :[...new Set(rows.map(r=>r.ship))].map(sh=>[sh,rows.filter(r=>r.ship===sh),'s:'+sh]);
+  const G=[['Итого',rows,'']].concat(groups).map(([name,rs,key])=>({name,key,a:obAgg(rs)})).filter(x=>x.a.tot>0);
+  if(!G.length)return'';
+  const body=G.slice(1).sort((x,y)=>S.bm==='all'?0:y.a.tot-x.a.tot);
+  const mx=Math.max(...body.map(x=>x.a.tot),1);
+  const seg=(v,c,t,lbl)=>v>0?`<i style="width:${v/t*100}%;background:${c}" title="${lbl}: ${fmt(v)}"></i>`:'';
+  const row=(x,tot)=>{const a=x.a,sp=a.pres+a.gen+a.qr;
+    return`<div class="row${tot?' tot':''}"${x.key?` data-pick="${esc(x.key)}" title="${x.key[0]==='m'?'Открыть месяц':'Оставить один теплоход'}"`:''}><span class="${tot?'b':''}">${esc(x.name)}</span><div class="bar"><div style="display:flex;width:${tot?100:a.tot/mx*100}%">${seg(a.pres,C.pres,a.tot,'С презентации')}${seg(a.gen,C.gen,a.tot,'Общие')}${seg(a.qr,C.qr,a.tot,'QR')}${seg(a.flat,C.flat,a.tot,'Без разбивки')}</div></div><span class="n">${fmt(a.tot)}</span><span class="cr">${sp?`с презентации <b>${pct(a.pres/sp,0)}</b>`:'<span class="muted">без разбивки</span>'}</span></div>`};
+  const t=G[0].a;
+  return`<div class="panel sec" id="ob-mix" style="margin-bottom:16px"><h2>Откуда заявки с бортов</h2>
+    <p class="sub">${S.bm==='all'?'По месяцам — нажмите на месяц, чтобы открыть его':'По теплоходам — нажмите на теплоход, чтобы оставить только его'}; длина полосы — число заявок. Справа — доля заявок с презентации среди строк, где заявки разбиты по видам.</p>
+    ${legend([['С презентации — '+fmt(t.pres),C.pres,'bar'],['Общие — '+fmt(t.gen),C.gen,'bar']].concat(t.qr?[['QR — '+fmt(t.qr),C.qr,'bar']]:[]).concat(t.flat?[['Без разбивки — '+fmt(t.flat),C.flat,'bar']]:[]))}
+    <div class="mix" style="margin-top:8px">${row(G[0],true)}${body.map(x=>row(x)).join('')}</div>
+    <dl class="note" style="display:grid;grid-template-columns:max-content 1fr;gap:4px 10px;margin-top:14px">
+      <dt class="b">С презентации</dt><dd style="margin:0">заявки, оставленные на самой презентации (в т.ч. «молнии»)</dd>
+      <dt class="b">Общие</dt><dd style="margin:0">остальные заявки с этого рейса — у стойки, позже в круизе (в т.ч. «молнии»)</dd>
+      ${t.qr?'<dt class="b">QR</dt><dd style="margin:0">заявки по QR-коду на борту</dd>':''}
+      ${t.flat?`<dt class="b">Без разбивки</dt><dd style="margin:0">в графике внесено только общее число заявок${split?` — так записаны рейсы до ${dShort(split)}, с этой даты заявки делят на виды`:''}</dd>`:''}
+    </dl></div>`;
+}
+function vBoard(){
+  const O=D.onboard||{rows:[]},all=O.rows||[];
+  if(O.error&&!all.length){$('#view').innerHTML=`<div class="err"><b>Презентации на бортах не загрузились.</b> ${esc(O.error)}</div>`;return}
+  if(!all.length){$('#view').innerHTML='<div class="empty">В таблице «График PRO_движ» пока нет презентаций.</div>';return}
+  const months=[...new Set(all.map(r=>r.d.slice(0,7)))].sort(),ships=O.ships||[...new Set(all.map(r=>r.ship))];
+  if(S.bm!=='all'&&!months.includes(S.bm))S.bm='all';
+  if(S.bs!=='all'&&!ships.includes(S.bs))S.bs='all';
+  const inM=r=>S.bm==='all'||r.d.slice(0,7)===S.bm,inS=r=>S.bs==='all'||r.ship===S.bs;
+  const rows=all.filter(r=>inM(r)&&inS(r)),k=obAgg(rows);
+  const dm=x=>x.slice(8,10)+'.'+x.slice(5,7);
+  const what=(S.bm==='all'?'сезон '+months[0].slice(0,4):monName(S.bm))+(S.bs==='all'?'':' · '+S.bs);
+  let h=`<div class="filters">
+    <div><span class="flbl">Месяц</span><div class="seg" id="seg-bm"><button type="button" data-m="all" aria-pressed="${S.bm==='all'}">Весь сезон</button>${months.map(m=>`<button type="button" data-m="${m}" aria-pressed="${S.bm===m}">${MON[+m.slice(5)-1].replace(/^./,c=>c.toUpperCase())}</button>`).join('')}</div></div>
+    <label><span class="flbl">Теплоход</span><select id="sel-ship"><option value="all">Все теплоходы</option>${ships.map(x=>`<option value="${esc(x)}"${S.bs===x?' selected':''}>${esc(x)}</option>`).join('')}</select></label>
+    <div class="muted" style="font-size:12.5px;padding-bottom:10px;flex-basis:100%">${esc(what)} · месяц — по дате презентации (если её нет — по началу рейса)</div></div>`;
+  if(!rows.length){$('#view').innerHTML=h+'<div class="empty">За выбранный месяц у этого теплохода презентаций нет.</div>';bindBoard();return}
+  h+=`<div class="grid g-kpi">
+    <div class="panel kpi go" data-go="ob-list" title="К списку презентаций"><div class="lbl">Презентаций проведено</div><div class="val">${fmt(k.held)}<small>из ${fmt(k.n)} в графике</small></div><div class="foot"><span>${k.off||k.wait?[k.off?`не проведено: ${fmt(k.off)}`:'',k.wait?`ждут данных: ${fmt(k.wait)}`:''].filter(Boolean).join(' · '):'все из графика проведены или впереди'}</span></div>${mutedLine(`теплоходов: ${fmt(new Set(rows.map(r=>r.ship)).size)}`)}</div>
+    <div class="panel kpi go" data-go="ob-ships-p" title="К доходимости по теплоходам"><div class="lbl">Людей на презентациях</div><div class="val">${fmt(k.ppl)}</div><div class="foot"><span>доходимость ${pct(k.reach,0)} от занятых кают</span></div>${mutedLine('по теплоходам — ниже')}</div>
+    <div class="panel kpi go" data-go="ob-mix" title="Откуда заявки"><div class="lbl">Заявок с бортов</div><div class="val">${fmt(k.tot)}</div><div class="foot"><span>${fmt(k.per,1)} на рейс · ${k.pres+k.gen+k.qr?`с презентации <b>${pct(k.pres/(k.pres+k.gen+k.qr),0)}</b>`:'по видам не разбиты'}</span></div>${mutedLine(k.flat?`без разбивки на виды: ${nw(k.flat,'заявка','заявки','заявок')}`:'')}</div>
+    <div class="panel kpi go" data-go="${(O.summaries||[]).length?'ob-yoy':'ob-ships-p'}" title="Сравнение с прошлыми годами"><div class="lbl">Конверсия кают в заявки</div><div class="val">${pct(k.conv,1)}</div><div class="foot"><span>заявки / занятые каюты</span></div>${mutedLine(`продажи ${rub(k.rub)} по ${fmt(k.rubN)} ${plural(k.rubN,'презентации','презентациям','презентациям')}`)}</div>
+  </div><!--jump-->`;
+  h+=obMix(all,rows,inS,months);
+  h+=obYoY(O,inS,months);
+  // по месяцам (с учётом выбранного теплохода)
+  const ms=months.map(m=>{const a=obAgg(all.filter(r=>inS(r)&&r.d.slice(0,7)===m));return{m,...a}});
+  h+=`<div class="panel sec" id="ob-mon" style="margin-bottom:16px"><h2>Заявки с бортов по месяцам${S.bs==='all'?'':' — '+esc(S.bs)}</h2><p class="sub">Высота столбика — все заявки; снизу — заявки с презентации. Нажмите на столбик — откроется этот месяц.</p>
+    ${legend([['С презентации',cssv('--s3'),'bar'],['Общие, QR и без разбивки',cssv('--s1'),'bar']])}
+    ${barChart('c-board',{name:'Заявок',color:cssv('--s1'),height:200,bars:ms.map(x=>({label:monName(x.m),value:x.tot,inner:x.pres,innerColor:cssv('--s3'),tip:`<i style="background:${cssv('--s3')}"></i>С презентации: <b>${fmt(x.pres)}</b><br><i style="background:${cssv('--s1')}"></i>Общие и QR: <b>${fmt(x.gen+x.qr)}</b>${x.flat?` · без разбивки: <b>${fmt(x.flat)}</b>`:''}<br>Презентаций: <b>${fmt(x.held)}</b> · конверсия кают: <b>${pct(x.conv,1)}</b>`})),ticks:i=>monShort(ms[i].m)})}</div>`;
+  // по теплоходам (за выбранный месяц, все теплоходы; клик — выбрать теплоход)
+  const bySh=ships.map(x=>({x,...obAgg(all.filter(r=>inM(r)&&r.ship===x))})).filter(x=>x.n).sort((a,b)=>b.tot-a.tot);
+  const tAll=obAgg(all.filter(inM)),SPK=O.speakers||{};
+  const shRow=(name,a,b,key)=>`<tr${key?` data-pick="s:${esc(key)}" title="Оставить один теплоход"`:''}${key&&S.bs===key?' aria-current="true"':''}><td class="nw${b||S.bs===key?' b':''}">${esc(name)}${key&&S.bs===key?' ✓':''}${key&&SPK[key]?`<div class="muted" style="font-size:12px;font-weight:400;white-space:normal;max-width:220px">${esc(SPK[key])}</div>`:''}</td><td class="r">${fmt(a.held)}</td><td class="r">${fmt(a.ppl)}</td><td class="r">${pct(a.reach,0)}</td><td class="r b">${fmt(a.tot)}</td><td class="r">${fmt(a.per,1)}</td><td class="r">${pct(a.conv,1)}</td><td class="r">${rub(a.rub)}</td></tr>`;
+  h+=`<div class="panel sec" id="ob-ships-p" style="margin-bottom:16px"><h2>По теплоходам — ${S.bm==='all'?'весь сезон':monName(S.bm)}</h2><p class="sub">По графику презентаций; под названием — кто ведёт презентации (лист «Спикеры»). Нажмите на строку, чтобы оставить один теплоход; ещё раз — снять выбор</p>
+    <div class="tbl"><table><thead><tr><th>Теплоход</th><th class="r">Презентаций</th><th class="r">Людей</th><th class="r">Доходимость</th><th class="r">Заявок</th><th class="r">На рейс</th><th class="r">Конверсия кают</th><th class="r">Продажи</th></tr></thead>
+    <tbody id="ob-ships">${bySh.map(a=>shRow(a.x,a,false,a.x)).join('')}${shRow('Итого',tAll,true)}</tbody></table></div></div>`;
+  h+=obSales(O,inS);
+  // список презентаций
+  const list=[...rows].sort((a,b)=>b.d.localeCompare(a.d)||a.ship.localeCompare(b.ship));
+  const z=r=>r.tot==null?'—':`<b>${fmt(r.tot)}</b>${r.pres!=null||r.gen!=null||r.qr!=null?` <span class="muted">${[r.pres,r.gen,r.qr].map(v=>v==null?0:v).slice(0,r.qr?3:2).join(' + ')}</span>`:''}`;
+  const st=r=>r.st===0?' <span class="muted">· не проведена</span>':r.st==null&&r.tot==null?' <span class="muted">· ждёт данных</span>':'';
+  h+=`<div class="panel sec" id="ob-list"><h2>Презентации · ${fmt(list.length)}</h2><p class="sub">Заявки: всего, серым — с презентации + общие${k.qr?' + QR':''}. Звёздочка — дата в таблице с опечаткой, поправлена по датам рейса.</p>
+    <div class="tbl"><table><thead><tr><th>Дата</th><th>Теплоход</th><th>Рейс</th><th class="r">Каюты</th><th class="r">Людей</th><th class="r">Доходимость</th><th class="r">Заявки</th><th class="r">Конверсия</th><th class="r">Продажи</th><th>Отзывы</th></tr></thead><tbody>
+    ${list.map(r=>`<tr><td class="nw">${dm(r.d)}${r.fx?'<span class="muted" title="дата поправлена по датам рейса">*</span>':''}${r.t?` <span class="muted">${r.t}</span>`:''}</td><td class="b nw">${esc(r.ship)}</td><td>${(c=>`${c.range.split(' – ').map(x=>`<span class="nw">${esc(x)}</span>`).join(' – ')}${c.rest?`<div class="muted" style="font-size:12px">${esc(c.rest)}</div>`:''}`)(obCruise(r))}${st(r)}${r.note?`<div class="muted" style="font-size:12px">${esc(r.note)}</div>`:''}</td><td class="r">${fmt(r.cab)}</td><td class="r">${fmt(r.ppl)}</td><td class="r">${r.cab>0&&r.ppl!=null?pct(r.ppl/r.cab,0):'—'}</td><td class="r nw">${z(r)}</td><td class="r">${r.cab>0&&r.tot!=null?pct(r.tot/r.cab,1):'—'}</td><td class="r nw">${r.rub==null?'—':rub(r.rub)}</td><td class="muted" style="font-size:12.5px">${esc(r.rev)}</td></tr>`).join('')}
+    </tbody></table></div><p class="note">Источник — таблица «График PRO_движ 2026», лист «График ПРОдвиж_2026» (только чтение). «0 ₽» в продажах — так в таблице: продаж нет или они ещё не внесены.</p></div>`;
+  // навигация по блокам вкладки — только по тем, что есть на странице
+  h=withJump(h,[['ob-mix','Откуда заявки'],['ob-yoy','Год к году'],['ob-mon','По месяцам'],['ob-ships-p','По теплоходам'],['ob-sales','Брони'],['ob-list','Презентации']]);
+  $('#view').innerHTML=h;bindBoard(months);
+}
+// сводки «Продвижение на бортах …»: период листа — «04-05» (апрель–май) или «06»; месяц отчёта → период
+const OB_P=p=>p.split('-').map(m=>MON[+m-1]).join('–');
+const obPeriodOf=m=>m==='all'?null:(+m.slice(5)<=5?'04-05':m.slice(5));
+function obSum(list){const a={n:list.length,trips:0,leads:0,cab:0,lc:0,qr:0};list.forEach(x=>{a.trips+=x.trips||0;a.leads+=x.leads||0;a.qr+=x.qr||0;if(x.cab>0&&x.leads!=null){a.cab+=x.cab;a.lc+=x.leads}});
+  a.conv=a.cab&&list.filter(x=>x.cab>0).length>=list.length*0.8?a.lc/a.cab:null;return a}
+function obYoY(O,inS,months){
+  const L=(O.summaries||[]).filter(x=>inS({ship:x.ship}));if(!L.length)return'';
+  const years=[...new Set(L.map(x=>x.year))].sort((a,b)=>b-a),Y=years[0],Y1=years[1],Y2=years[2];
+  const periods=[...new Set(L.map(x=>x.p))].sort(),cur=obPeriodOf(S.bm);
+  const get=(y,p,sh)=>L.filter(x=>x.year===y&&x.p===p&&(sh==null||x.ship===sh));
+  const dl=(a,b)=>a==null||!b?'':delta(a,b);
+  // итог: только периоды, которые есть в обоих годах
+  const both=periods.filter(p=>(!cur||!periods.includes(cur)||p===cur)&&get(Y,p).length&&get(Y1,p).length),sY=obSum(both.flatMap(p=>get(Y,p))),sY1=obSum(both.flatMap(p=>get(Y1,p)));
+  let h=`<div class="panel sec" id="ob-yoy" style="margin-bottom:16px"><h2>Год к году — сводки по теплоходам${S.bs==='all'?'':' · '+esc(S.bs)}</h2>
+    <p class="sub">Из листов «Продвижение на бортах ${Y}_…»: заявки за рейсы месяца (подсчёт «Мария»), занятые каюты без офиса и агентов. Это отдельный от графика подсчёт — цифры могут расходиться.</p>`;
+  if(both.length&&Y1)h+=`<div class="hero" style="margin-bottom:12px"><span class="big">${fmt(sY.leads)}</span><span class="rng">заявок за ${both.map(OB_P).join(', ')} ${Y} · ${Y1}: ${fmt(sY1.leads)} ${dl(sY.leads,sY1.leads)} · заявок от кают ${pct(sY.conv,1)} против ${pct(sY1.conv,1)}</span></div>`;
+  if(!cur||!periods.includes(cur)){
+    h+=`<div class="tbl"><table><thead><tr><th>Период</th><th class="r">Заявок ${Y}</th>${Y1?`<th class="r">${Y1}</th><th class="r">к ${Y1}</th>`:''}${Y2?`<th class="r">${Y2}</th>`:''}<th class="r">От кают ${Y}</th>${Y1?`<th class="r">От кают ${Y1}</th>`:''}<th class="r">Рейсов ${Y}</th></tr></thead><tbody>
+      ${periods.map(p=>{const a=obSum(get(Y,p)),b=obSum(get(Y1,p)),c=obSum(get(Y2,p));
+        const mk=Y+'-'+p.slice(-2),go=(months||[]).includes(mk);
+        return`<tr${go?` data-pick="m:${mk}" title="Открыть ${monName(mk)}"`:''}><td class="b nw">${OB_P(p).replace(/^./,x=>x.toUpperCase())}</td><td class="r b">${a.n?fmt(a.leads):'—'}</td>${Y1?`<td class="r">${b.n?fmt(b.leads):'—'}</td><td class="r">${a.n&&b.n?dl(a.leads,b.leads):'—'}</td>`:''}${Y2?`<td class="r">${c.n?fmt(c.leads):'—'}</td>`:''}<td class="r">${pct(a.conv,1)}</td>${Y1?`<td class="r">${pct(b.conv,1)}</td>`:''}<td class="r">${a.n?fmt(a.trips):'—'}</td></tr>`}).join('')}
+      </tbody></table></div>`;
+    if(S.bm!=='all')h+=`<p class="note">За ${monName(S.bm)} сводки ещё нет — показаны все периоды.</p>`;
+  } else {
+    const ships=[...new Set(L.filter(x=>x.p===cur).map(x=>x.ship))];
+    const rowsT=ships.map(sh=>({sh,a:obSum(get(Y,cur,sh)),b:obSum(get(Y1,cur,sh)),c:obSum(get(Y2,cur,sh)),note:L.filter(x=>x.p===cur&&x.ship===sh&&x.note).map(x=>x.year+': '+x.note).join(' · ')})).sort((x,y)=>y.a.leads-x.a.leads);
+    const tr=(name,r,b)=>`<tr${b?'':` data-pick="s:${esc(name)}" title="Оставить один теплоход"`}><td class="nw${b||S.bs===name?' b':''}">${esc(name)}${S.bs===name?' ✓':''}${r.note?`<div class="muted" style="font-size:12px;white-space:normal;max-width:240px">${esc(r.note)}</div>`:''}</td><td class="r">${r.a.n?fmt(r.a.trips):'—'}</td><td class="r b">${r.a.n?fmt(r.a.leads):'—'}</td>${Y1?`<td class="r">${r.b.n?fmt(r.b.leads):'—'}</td><td class="r">${r.a.n&&r.b.n?dl(r.a.leads,r.b.leads):'—'}</td>`:''}${Y2?`<td class="r">${r.c.n?fmt(r.c.leads):'—'}</td>`:''}<td class="r">${pct(r.a.conv,1)}</td>${Y1?`<td class="r">${pct(r.b.conv,1)}</td>`:''}</tr>`;
+    const tot={a:obSum(get(Y,cur)),b:obSum(get(Y1,cur)),c:obSum(get(Y2,cur))};
+    h+=`<p class="sub" style="margin-top:-4px"><b>${OB_P(cur).replace(/^./,x=>x.toUpperCase())}</b> по теплоходам</p><div class="tbl"><table><thead><tr><th>Теплоход</th><th class="r">Рейсов ${Y}</th><th class="r">Заявок ${Y}</th>${Y1?`<th class="r">${Y1}</th><th class="r">к ${Y1}</th>`:''}${Y2?`<th class="r">${Y2}</th>`:''}<th class="r">От кают ${Y}</th>${Y1?`<th class="r">${Y1}</th>`:''}</tr></thead>
+      <tbody>${rowsT.map(r=>tr(r.sh,r)).join('')}${tr('Итого',tot,true)}</tbody></table></div>`;
+  }
+  return h+'</div>';
+}
+// «<Месяц>_продажи с бортов»: брони по теплоходам; «из заявок» — брони / заявки сводки того же месяца
+function obSales(O,inS){
+  const ms=[...new Set((O.sales||[]).map(x=>x.month))].sort();
+  const L=(O.sales||[]).filter(x=>inS({ship:x.ship})&&(S.bm==='all'||x.month===S.bm));
+  if(!ms.length)return'';
+  if(!L.length)return`<div class="panel sec" id="ob-sales" style="margin-bottom:16px"><h2>Брони с бортов</h2><div class="empty">Листы продаж есть за: ${ms.map(m=>monName(m)).join(', ')}. За выбранный месяц листа «…_продажи с бортов» нет.</div></div>`;
+  const by={};L.forEach(x=>{const a=by[x.ship]||(by[x.ship]={n:0,prepay:0,total:0,leads:0});a.n+=x.n;a.prepay+=x.prepay;a.total+=x.total;
+    a.leads+=sum((O.summaries||[]).filter(s=>s.year===+x.month.slice(0,4)&&s.p===obPeriodOf(x.month)&&s.ship===x.ship).map(s=>s.leads||0))});
+  const rows=Object.entries(by).sort((a,b)=>b[1].total-a[1].total),t={n:0,prepay:0,total:0,leads:0};rows.forEach(([,a])=>{t.n+=a.n;t.prepay+=a.prepay;t.total+=a.total;t.leads+=a.leads});
+  const tr=(name,a,b)=>`<tr${b?'':` data-pick="s:${esc(name)}" title="Оставить один теплоход"`}><td class="nw${b||S.bs===name?' b':''}">${esc(name)}${S.bs===name?' ✓':''}</td><td class="r b">${fmt(a.n)}</td><td class="r">${a.leads?pct(a.n/a.leads,1):'—'}</td><td class="r">${rub(a.prepay)}</td><td class="r">${rub(a.total)}</td><td class="r">${rub(a.n?a.total/a.n:null)}</td><td class="r">${pct(a.total?a.prepay/a.total:null,0)}</td></tr>`;
+  const mm=[...new Set(L.map(x=>x.month))];
+  return`<div class="panel sec" id="ob-sales" style="margin-bottom:16px"><h2>Брони с бортов — ${mm.map(m=>monName(m)).join(', ')}</h2>
+    <div class="hero" style="margin-bottom:12px"><span class="big">${rub(t.total)}</span><span class="rng">стоимость ${fmt(t.n)} ${plural(t.n,'брони','броней','броней')} · предоплата ${rub(t.prepay)}${t.leads?` · ${pct(t.n/t.leads,1)} заявок месяца дошли до брони`:''}</span></div>
+    <div class="tbl"><table><thead><tr><th>Теплоход</th><th class="r">Броней</th><th class="r">Из заявок</th><th class="r">Предоплата</th><th class="r">Стоимость</th><th class="r">Средний чек</th><th class="r">Доля предоплаты</th></tr></thead>
+    <tbody>${rows.map(([k,a])=>tr(k,a)).join('')}${rows.length>1?tr('Итого',t,true):''}</tbody></table></div>
+    <p class="note">Из листа «…_продажи с бортов» (сейчас есть за ${ms.map(m=>monName(m)).join(', ')}); номера броней в отчёт не попадают. «Из заявок» — брони / заявки этого теплохода в сводке месяца.</p></div>`;
+}
+function bindBoard(months){
+  const set=(k,v)=>{if(S[k]===v)return;S[k]=v;save();render()};
+  if(months)chartPick('c-board',months.length,i=>pickState({bm:S.bm===months[i]?'all':months[i]},'ob-mon'));
+  $('#seg-bm').onclick=e=>{const b=e.target.closest('[data-m]');if(!b)return;if(e.detail)b.blur();set('bm',b.dataset.m)};
+  $('#sel-ship').onchange=e=>set('bs',e.target.value);
+}
+
+function vChan(){
+  const sp=D.spend||[],ms=monthsOf().filter(m=>!D.zav_from||m.m>=D.zav_from.slice(0,7)).reverse();
+  let h='';
+  const card=(lbl,txt)=>`<div class="panel kpi"><div class="lbl">${lbl}</div><div class="val muted" style="font-size:26px">${txt}</div><div class="foot muted">появится, когда заполнится лист «Расходы»</div></div>`;
+  if(!sp.length){
+    h+=`<div class="grid g-kpi">${card('Расход','нет данных')}${card('Цена заявки (CPA)','нет данных')}${card('ДРР','нет данных')}${card('ROMI','нет данных')}</div>
+      <div class="empty" style="margin-bottom:16px"><b>Расходов пока нет.</b> Лист «Расходы» в таблице: дата (или 1-е число месяца), канал, кампания, UTM, показы, клики, расход без НДС. После заполнения здесь появятся расход по каналам, цена обращения и заявки, ДРР = расход / оплачено ₽, ROMI = (маржа − расход) / расход.</div>`;
+  } else {
+    const byM={};sp.forEach(r=>{const m=r[0].slice(0,7);(byM[m]=byM[m]||{sum:0,ch:{}}).sum+=r[6];byM[m].ch[r[1]]=(byM[m].ch[r[1]]||0)+r[6]});
+    h+=`<div class="panel" style="margin-bottom:16px"><h2>Расходы и отдача по месяцам</h2><div class="tbl"><table><thead><tr><th>Месяц</th><th class="r">Расход</th><th class="r">Заявок</th><th class="r">CPA</th><th class="r">Оплачено</th><th class="r">Цена оплаты</th><th class="r">ДРР</th><th class="r">ROMI</th></tr></thead><tbody>
+    ${ms.filter(m=>byM[m.m]).map(m=>{const s=byM[m.m].sum,rr=reqIn(m.a,m.b),paid=rr.filter(x=>x[1]===1),rubP=sum(paid.map(x=>x[2])),mar=sum(paid.map(x=>x[3]));
+      return`<tr data-pick="p:m:${m.m}@zav" title="Открыть ${monName(m.m)} в «Заявках»"><td class="b">${monName(m.m)}</td><td class="r">${rub(s)}</td><td class="r">${fmt(rr.length)}</td><td class="r">${rub(rr.length?s/rr.length:null)}</td><td class="r">${fmt(paid.length)}</td><td class="r">${rub(paid.length?s/paid.length:null)}</td><td class="r">${pct(rubP?s/rubP:null,1)}</td><td class="r">${pct(s?(mar-s)/s:null,0)}</td></tr>`}).join('')}
+    </tbody></table></div><p class="note">Пока без привязки заявки к каналу: расход сопоставлен со всеми заявками сайта месяца.</p></div>`;
+  }
+  // трафик по источникам за последний полный месяц
+  const mIdx=D.site.months.length-2;
+  if(mIdx>=0){const m=D.site.months[mIdx];const rows=Object.entries(D.site.by_source).map(([k,v])=>[k,v.visits[mIdx],v.final[mIdx]]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);
+    h+=`<div class="panel go-site" data-go="@site#site-src" title="Открыть источники на вкладке «Сайт»" style="cursor:pointer"><h2>Трафик и оформление по источникам — ${monName(m)} <span class="muted" style="font-size:13px;font-weight:500">→ «Сайт»</span></h2><p class="sub">Последний полный месяц. Привязка каждой заявки к источнику по ClientID (с августа 2026) — следующий шаг.</p><div class="tbl"><table><thead><tr><th>Источник</th><th class="r">Визиты</th><th class="r">Оформление</th><th class="r">CR</th></tr></thead><tbody>${rows.map(x=>`<tr><td class="b">${esc(x[0])}</td><td class="r">${fmt(x[1])}</td><td class="r">${fmt(x[2])}</td><td class="r">${pct(x[1]?x[2]/x[1]:null,2)}</td></tr>`).join('')}</tbody></table></div></div>`}
+  $('#view').innerHTML=h;
+}
+
+/** «Качество данных» внизу каждой вкладки, свёрнуто (как в NPS). Раскрывается само при ошибке или устаревшем источнике. */
+function dqBlock(){
+  const d=x=>x?dShort(x)+' '+x.slice(0,4):'—';
+  const ageH=a=>a?(Date.now()-new Date(a).getTime())/36e5:null;
+  const age=h=>h==null?'—':h<1?'меньше часа назад':h<48?Math.round(h)+' ч назад':Math.round(h/24)+' дн назад';
+  const W=[];
+  (D.updates||[]).forEach(u=>{const h=ageH(u.at);
+    if(u.error)W.push({level:'bad',text:`${u.source}: ошибка обновления — ${u.error}`});
+    else if(h!=null&&h>30)W.push({level:'warn',text:`${u.source}: обновлено ${age(h)} (${u.at.replace('T',' ')}) — ночное обновление не сработало?`});
+    else W.push({level:'ok',text:`${u.source}: обновлено ${age(h)}, ${fmt(u.rows)} строк`})});
+  W.push({level:'info',text:`Визиты из Метрики — с ${d(D.days[0])}; шаги воронки сайта (цели VBI) — с ${d(D.site.steps_from)}`});
+  W.push({level:'info',text:`Заявки с сайта из букинга — с ${d(D.zav_from)}; обращения из Битрикса — в основном с декабря 2025 (${fmt(D.obr.junk)} дублей и ошибок исключено)`});
+  const WB=D.webinars||{};W.push(WB.error?{level:'warn',text:'Мероприятия: '+WB.error}:{level:'ok',text:`Мероприятия: ${(WB.list||[]).length} в справочнике, прочитаны при сборке отчёта`});
+  const OB=D.onboard||{};W.push(OB.error?{level:'warn',text:'Продажи с бортов: '+OB.error}:{level:'ok',text:`Продажи с бортов: прочитано листов ${fmt((OB.used||[]).length||1)} — ${fmt((OB.rows||[]).length)} ${plural((OB.rows||[]).length,'строка','строки','строк')} графика, ${fmt((OB.summaries||[]).length)} ${plural((OB.summaries||[]).length,'строка','строки','строк')} сводок, броней ${fmt(sum((OB.sales||[]).map(x=>x.n)))}${OB.fixed?`; дат с опечаткой поправлено по датам рейса: ${OB.fixed}`:''}`});
+  {const bad=(OB.rows||[]).filter(x=>x.tot!=null&&(x.pres!=null||x.gen!=null||x.qr!=null)&&x.tot!==(x.pres||0)+(x.gen||0)+(x.qr||0));
+   if(bad.length)W.push({level:'warn',text:`Продажи с бортов: в ${fmt(bad.length)} ${plural(bad.length,'строке','строках','строках')} главного графика «общее кол-во заявок» не равно сумме видов — `+bad.slice(0,5).map(x=>`${x.ship}, ${x.cr}: ${fmt(x.pres||0)}+${fmt(x.gen||0)}${x.qr?'+'+fmt(x.qr):''} ≠ ${fmt(x.tot)}`).join('; ')+(bad.length>5?' …':'')+'. В итоги идёт «общее кол-во».'})}
+  (OB.checks||[]).forEach(c=>W.push(c.same+c.missing===c.rows&&!c.missing&&!c.diffs.length?{level:'ok',text:`Продажи с бортов: лист «${c.sheet}» совпадает с главным графиком (${fmt(c.rows)} ${plural(c.rows,'строка','строки','строк')})`}:{level:'warn',text:`Продажи с бортов: лист «${c.sheet}» расходится с главным графиком — ${c.diffs.join('; ')}`}));
+  if((OB.dupSheets||[]).length)W.push({level:'info',text:`Продажи с бортов: лист ${OB.dupSheets.map(x=>'«'+x+'»').join(', ')} повторяет месячные сводки — новых строк не дал`});
+  if((OB.skipped||[]).length)W.push({level:'warn',text:`Продажи с бортов: не прочитаны листы ${OB.skipped.map(x=>'«'+x+'»').join(', ')} — новый вид листа, нужна доработка`});
+  W.push({level:'info',text:'Источник каждой заявки по ClientID — есть с августа 2026, в отчёт ещё не подключён'});
+  W.push({level:(D.spend||[]).length?'ok':'info',text:(D.spend||[]).length?'Расходы: лист «Расходы» заполнен':'Расходов нет — лист «Расходы»; карточки CPA, ДРР, ROMI пока серые'});
+  W.push({level:(D.plan||[]).length?'ok':'info',text:(D.plan||[]).length?'План: лист «План» заполнен':'Плана нет — лист «План»'});
+  W.push({level:'info',text:'Сравнения с периодами до начала данных не показываются, чтобы конверсия не искажалась'});
+  const lv={bad:0,warn:1,ok:2,info:3},open=W.some(w=>w.level==='bad'||w.level==='warn');
+  return`<details class="panel dq"${open?' open':''}><summary>Качество данных · ${W.length}</summary><p class="sub" style="margin-top:6px">Откуда данные, когда обновлялись и с какой даты есть</p><ul>${[...W].sort((a,b)=>lv[a.level]-lv[b.level]).map(w=>`<li class="${w.level}"><span>${esc(w.text)}</span></li>`).join('')}</ul></details>`;
+}
+
+/* ---------- Переход из уведомления бота: обёртка передаёт go = «вкладка» или «вкладка__блок» (zav__zav-mon) ---------- */
+let GO=null;
+function applyGo(){if(!GO)return;const[t,sec]=GO.split('__');GO=null;
+  if(!TABS.some(x=>x[0]===t))return;
+  S.tab=t;save();render();navState();
+  if(sec)requestAnimationFrame(()=>jumpTo(sec,false,true));else window.scrollTo({top:0});return true}
+
+/* ---------- Telegram: initData из страницы-обёртки ---------- */
+/* Обёртка может быть не самым верхним окном: в веб-версии Telegram цепочка web.telegram.org → обёртка → script.google.com → отчёт.
+   Поэтому сообщения шлём всем родительским окнам, а ответ принимаем от любого из них. */
+const SZ_UP=(()=>{const a=[];let w=window;try{while(w!==w.parent&&a.length<6){w=w.parent;a.push(w)}}catch(e){}return a})();
+function toWrap(msg){SZ_UP.forEach(w=>{try{w.postMessage(msg,'*')}catch(e){}})}
+let SZ_LOGIN='';   // вход из браузера (виджет Telegram Login в обёртке): «login:…»
+const TG_INIT=new Promise(res=>{
+  if(window.top===window){res('');return}
+  let got=false;
+  addEventListener('message',e=>{if(SZ_UP.indexOf(e.source)<0||!e.data)return;
+    if(e.data.type==='sz-tg'){got=true;fsState(e.data);if(e.data.go)GO=String(e.data.go);res(e.data.initData||'')}
+    if(e.data.type==='sz-fs')fsState(e.data);
+    if(e.data.type==='sz-login'&&/^login:/.test(e.data.initData||'')){SZ_LOGIN=String(e.data.initData);load(false)}
+    if(e.data.type==='sz-go'){GO=String(e.data.go);if(D){histPush();applyGo()}}});   // новая ссылка в открытом приложении
+  try{toWrap({type:'sz-hello'})}catch(e){}
+  setTimeout(()=>{if(!got)res('')},800);
+});
+function authMsg(e){
+  const m=String(e&&e.message||e);
+  if(/AUTH_DENIED:(\d+)/.test(m))return`<b>Нет доступа к отчёту.</b> Ваш Telegram ID: <b>${m.match(/AUTH_DENIED:(\d+)/)[1]}</b>. `+({sent:'Запрос отправлен администратору — когда он подтвердит, бот пришлёт сообщение.',repeat:'Запрос уже отправлен недавно.',noadmin:'В списке доступа нет администратора — передайте этот ID ему.'}[(m.match(/AUTH_DENIED:\d+:(\w+)/)||[])[1]]||'Передайте этот ID администратору.');
+  if(/AUTH_TG/.test(m)){   // нужен вход: обёртка в браузере покажет кнопку «Войти через Telegram» для этого бота
+    const bot=(m.match(/AUTH_TG:([A-Za-z0-9_]{3,})/)||[])[1]||'';
+    if(window.top!==window&&bot)try{toWrap({type:'sz-need-login',bot:bot})}catch(e){}
+    return'<b>Нужен вход.</b> В Telegram — откройте отчёт заново кнопкой в чате с ботом. В браузере — нажмите «Войти через Telegram» и подтвердите вход в Telegram (вход запомнится на 7 дней).'}
+  if(/AUTH_SETUP/.test(m))return'<b>Доступ ещё не настроен.</b> '+esc(m.replace(/^.*AUTH_SETUP:\s*/,''));
+  return null;
+}
+/* Последний ответ сервера хранится на устройстве (IndexedDB, {v: метка содержимого, d: JSON}): при открытии отчёт рисуется
+   сразу из него, свежие данные приходят следом и заменяют его, только если отличаются. Нет доступа — копия стирается. */
+const LC_KEY='sa-last';let LC_SHOWN='';
+function lcDb(){return new Promise((res,rej)=>{const r=indexedDB.open('sz-cache',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+function lcGet(){if(!window.indexedDB)return Promise.resolve(null);return lcDb().then(db=>new Promise(res=>{const q=db.transaction('kv').objectStore('kv').get(LC_KEY);q.onsuccess=()=>{const v=q.result;res(v?typeof v==='string'?{v:'',d:v}:v:null)};q.onerror=()=>res(null)})).catch(()=>null)}
+function lcPut(v){lcDb().then(db=>{const s=db.transaction('kv','readwrite').objectStore('kv');v==null?s.delete(LC_KEY):s.put(v,LC_KEY)}).catch(()=>{})}
+/* Этап 2 (#58): страница лежит на GitHub Pages рядом с обёрткой, данные — запросом к Apps Script: GET ?fn=data
+   (doGet → saApiGet_; doPost занят экспортом CRS). SZ_API (адрес /exec) подставляет сборка tools/miniapp_build.py.
+   have — метка содержимого копии на устройстве: сервер ответит {"__same":1,"g":…} без данных, если она не изменилась.
+   Обёртка начинает тот же запрос сразу при открытии (SZ_PREFETCH) — страница забирает его ответ, а не ждёт свой. */
+function szApi(fn,args){
+  const q=new URLSearchParams({fn});Object.keys(args).forEach(k=>{if(args[k]!==''&&args[k]!=null&&args[k]!==false)q.set(k,args[k]===true?'1':args[k])});
+  return fetch(window.SZ_API+'?'+q,{redirect:'follow',credentials:'omit',cache:'no-store'})
+    .then(r=>{if(!r.ok)throw new Error('Сервер ответил '+r.status);return r.text()}).then(szErr)}
+function szErr(t){if(t.startsWith('{"__error"'))throw new Error(JSON.parse(t).__error);return t}
+function szPrefetch(init){try{const p=parent!==window&&parent.SZ_PREFETCH;if(p&&p.init===init){parent.SZ_PREFETCH=null;return p.res.then(szErr)}}catch(e){}return null}
+function load(force){
+  const btns=document.querySelectorAll('.js-refresh:not(.js-refresh-m)'),mb=document.querySelector('.js-refresh-m');
+  btns.forEach(b=>{b.disabled=true;b.textContent='Обновляю…'});
+  if(mb){mb.disabled=true;mb.classList.add('busy');mb.querySelector('.t-full').textContent='Обновляю…';mb.querySelector('.t-short').textContent='Обновляю…'}
+  const reset=()=>{btns.forEach(b=>{b.disabled=false;b.textContent='Обновить данные'});
+    if(mb){mb.disabled=false;mb.classList.remove('busy');mb.querySelector('.t-full').textContent='Обновить данные';mb.querySelector('.t-short').textContent='Обновить'}};
+  let fresh=false;   // ответ сервера уже пришёл — копию с устройства не показываем
+  const fail=e=>{reset();fresh=true;const a=authMsg(e);
+    if(a){lcPut(null);LC_SHOWN='';D=null}
+    else if(D&&LC_SHOWN){stamp(false);$('#stamp').textContent+=' · не удалось обновить';return}   // остаются показанные данные
+    $('#filters').innerHTML='';$('#view').innerHTML=a?`<div class="err">${a}</div>`:`<div class="err"><b>Не удалось загрузить данные.</b> ${esc(e&&e.message||e)}</div>`};
+  const done=(res,cached,ver)=>{if(cached&&fresh)return;
+    const str=typeof res==='string'?res:JSON.stringify(res);
+    if(!cached){reset();fresh=true;lcPut({v:ver||'',d:str});if(str===LC_SHOWN&&D){stamp(false);return}}
+    try{D=JSON.parse(str);LC_SHOWN=str;stamp(cached);
+    const dd=x=>x?x.slice(8,10)+'.'+x.slice(5,7)+'.'+x.slice(0,4):'—';
+    const pe=$('#period');pe.hidden=false;pe.innerHTML=`<b>Объём данных.</b> Заявки с сайта ${dd(D.zav_from)}–${dd(D.today)} · ${nf.format(sum(D.zav.total))} заявок · визиты с ${dd(D.days[0])} · ${nf.format(D.obr.rows.length)} обращений`;
+    if(!applyGo())render()}catch(e){if(cached){D=null;LC_SHOWN='';lcPut(null);return}fail(e)}};
+  const stamp=wait=>{const g=new Date(D.generated_at),p2=n=>String(n).padStart(2,'0');
+    $('#stamp').textContent=`Данные на ${p2(g.getDate())}.${p2(g.getMonth()+1)}.${g.getFullYear()} ${p2(g.getHours())}:${p2(g.getMinutes())}`+(wait?' · обновляю…':'')};
+  const lc=!force&&!D?lcGet():Promise.resolve(null);
+  lc.then(v=>{if(v)done(v.d,true)});
+  // ответ сервера: {"__v":"…","d":{…}} — данные; {"__same":1,"g":"…"} — копия на устройстве актуальна, сборка от g
+  const got=(t,init)=>{
+    if(t.startsWith('{"__same"'))return lc.then(v=>{if(!v)return szApi('data',{init}).then(t2=>got(t2,init));
+      const g=JSON.parse(t).g;if(D&&LC_SHOWN===v.d){reset();fresh=true;if(g)D.generated_at=g;stamp(false);return}
+      done(v.d,false,v.v);if(g&&D){D.generated_at=g;stamp(false)}});
+    const m=t.match(/^\{"__v":("(?:[^"\\]|\\.)*"),"d":/);
+    return m?done(t.slice(m[0].length,-1),false,JSON.parse(m[1])):done(t,false,'')};
+  if(window.google&&google.script&&google.script.run)TG_INIT.then(i=>SZ_LOGIN||i).then(init=>google.script.run.withSuccessHandler(done).withFailureHandler(fail).getReportData(!!force,init));
+  else if(window.SZ_API)Promise.all([TG_INIT.then(i=>SZ_LOGIN||i),lc]).then(([init,v])=>
+    ((!force&&szPrefetch(init))||szApi('data',{force:!!force,init,have:v&&v.v||''})).then(t=>got(t,init))).catch(fail);   // страница с GitHub Pages
+  else if(window.SA_PAYLOAD)setTimeout(()=>done(window.SA_PAYLOAD),0);
+  else fail('Страница открыта вне Apps Script, данных нет.');
+}
+document.querySelectorAll('.js-refresh').forEach(b=>b.onclick=e=>{if(e.detail)b.blur();load(true)});
+
+/* ---------- масштаб 80–130 % и полный экран (кнопка видна, если обёртка Telegram это умеет) ---------- */
+const ZOOMS=[0.8,0.9,1,1.1,1.2,1.3];
+let zoom=1;try{const z=+localStorage.getItem('sa-zoom');if(ZOOMS.includes(z))zoom=z}catch(e){}
+function applyZoom(z){zoom=z;document.documentElement.style.zoom=z;const v=document.querySelector('.zoom-val');if(v)v.textContent=Math.round(z*100)+'%';
+  document.querySelector('[data-zoom="-1"]').disabled=z<=ZOOMS[0];document.querySelector('[data-zoom="1"]').disabled=z>=ZOOMS[ZOOMS.length-1];
+  try{localStorage.setItem('sa-zoom',z)}catch(e){}
+  if(typeof fitHeader==='function')fitHeader();if(typeof navHeight==='function')navHeight()}
+function stepZoom(d){const i=ZOOMS.indexOf(zoom);applyZoom(d===0?1:ZOOMS[Math.max(0,Math.min(ZOOMS.length-1,i+d))]);hideTip()}
+document.querySelector('.zoom').onclick=e=>{const b=e.target.closest('[data-zoom]');if(!b)return;if(e.detail)b.blur();stepZoom(+b.dataset.zoom)};
+if(window.top!==window)addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey))return;
+  const d={'=':1,'+':1,'-':-1,'_':-1,'0':0}[e.key];if(d===undefined)return;e.preventDefault();stepZoom(d)});
+applyZoom(zoom);
+const FS_ICON={
+  on:'<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  off:'<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'};
+function fsState(d){if(!d.canFullscreen)return;document.querySelectorAll('#btn-fs,.js-fs').forEach(b=>{b.hidden=false;b.innerHTML=d.isFullscreen?FS_ICON.off:FS_ICON.on;b.title=b.ariaLabel=d.isFullscreen?'Открыть в окне':'Во весь экран'});if(typeof fitHeader==='function')fitHeader()}
+document.querySelectorAll('#btn-fs,.js-fs').forEach(b=>b.onclick=e=>{if(e.detail)e.currentTarget.blur();try{toWrap({type:'sz-fs-toggle'})}catch(err){}});
+
+/* ---------- тема ---------- */
+// Значки темы с заливкой: луна — цветом значков, солнце — фирменным оранжевым
+const ICON={moon:'<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20.5 12.8A8.5 8.5 0 1 1 11.2 3.5a6.6 6.6 0 0 0 9.3 9.3z" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>',
+  sun:'<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" style="color:var(--orange)"><circle cx="12" cy="12" r="4.6" fill="currentColor"/><path d="M12 2.5v2.3M12 19.2v2.3M2.5 12h2.3M19.2 12h2.3M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'};
+function applyTheme(t){document.documentElement.dataset.theme=t;document.querySelectorAll('#btn-theme,.js-theme').forEach(b=>{b.innerHTML=t==='dark'?ICON.sun:ICON.moon;b.title=b.ariaLabel='Включить '+(t==='dark'?'светлую':'тёмную')+' тему'});
+  if(window.top!==window)try{toWrap({type:'sz-theme',theme:t,bg:cssv('--bg')})}catch(e){}}
+let theme='light';try{if(localStorage.getItem('sa-theme')==='dark')theme='dark'}catch(e){}
+applyTheme(theme);
+document.querySelectorAll('#btn-theme,.js-theme').forEach(b=>b.onclick=e=>{if(e.detail)e.currentTarget.blur();theme=theme==='dark'?'light':'dark';try{localStorage.setItem('sa-theme',theme)}catch(err){}applyTheme(theme);render()});
+
+// Подвал «Как считается» — как в NPS: короткие пункты сеткой (на телефоне — столбиком)
+$('#method').innerHTML='<div id="dq-slot"></div><p id="period" class="ref-info" hidden></p><h3>Как считается</h3><dl>'+[
+  ['Заявка','Заявка из букинга, созданная на сайте (отметка «создана на сайте»), по дате создания. Номера и данные клиентов в отчёт не попадают.'],
+  ['Оплачена','Текущий статус «Оплачено» или «Предоплата». Аннулированные и возвраты — отдельно. Сумма — полная стоимость заявки, маржа — из букинга.'],
+  ['Первая заявка или уже оформлял','«Первая заявка» — первая заявка пользователя в букинге за всё время. Иначе — «уже оформлял» (была любая заявка раньше, даже неоплаченная). Повторный покупатель (была оплаченная заявка раньше) — в отчёте «Продукт».'],
+  ['Воронка сайта','Визиты и цели Метрики по дням: цены и бронирование → бронирование → оформление → данные туристов → данные заказчика → оформить. Конверсия шага — от предыдущего шага.'],
+  ['Визит → заявка','Заявки с сайта / визиты за те же дни. Сегодняшний неполный день не учитывается.'],
+  ['Обращения','Лиды Битрикса из листа «Обращения» без дублей, ошибок и вопросов о сотрудничестве. Целевое — отметка «Целевой»; до заявки — есть номер заявки букинга.'],
+  ['Заявок вчера','Последний будний день: в воскресенье и понедельник — пятница, заявки субботы и воскресенья показаны отдельно. Ниже — сколько было в будний день перед ним. Норма — среднее число заявок в будний день за последние 4 недели. Сегодняшний день не показывается: букинг обновляется раз в сутки.'],
+  ['Прогноз месяца','Факт + оставшиеся дни × среднее число заявок в день за 28 дней с поправкой на день недели (12 недель). Коридор — около 80% по разбросу дневных значений.'],
+  ['Где отвал','Последние 7 полных дней против нормы — 28 дней до них. Жёлтый — падение на 7%+, красный — на 15%+, и только если оно больше случайного разброса.'],
+  ['Сравнение','Текущий месяц — с теми же днями прошлого; месяц — с предыдущим; остальные периоды — с таким же отрезком перед ними. До начала данных сравнение не показывается.'],
+  ['Мероприятия','Таблица мероприятий (вебинары и экскурсия на теплоход). Экскурсия: регистрации с формы и брони менеджеров, участник — по почте или телефону, гости — по действующим броням, статус — статус брони, срез — по номерам броней, «оплачено» — билет на экскурсию. Вебинары: регистрации без повторов по почте; база ИФ, оплата СЗ, заявка и стадия Б24 — из проверок «Букинг» и «Битрикс»; «новые» — первая заявка в ИФ после старта регистрации; продажи — срез Б24 (предоплата или оплата сделки).'],
+  ['Продажи с бортов','Таблица «График PRO_движ», все листы. График: строка — презентация; доходимость — люди / занятые каюты, конверсия — заявки / занятые каюты (где каюты заполнены). Год к году — месячные сводки («Мария»). Брони — листы «…_продажи с бортов». Рабочие листы месяцев сверяются с графиком.'],
+  ['Расходы и окупаемость','CPA — расход / заявки; ДРР — расход / оплачено ₽; ROMI — (маржа − расход) / расход. Из листа «Расходы», пока без привязки заявки к каналу.'],
+  ['Обновление','Букинг и Метрика — каждую ночь около 5:00. Данные на странице хранятся 15 минут; «Обновить данные» перечитывает таблицу не чаще раза в минуту.']
+].map(([t,d])=>`<div><dt>${t}</dt><dd>${esc(d)}</dd></div>`).join('')+'</dl>';
+
+/** Телефон: название — в одну строку; кнопка обновления ужимается, пока строка заголовка не влезет. */
+function fitHeader(){
+  const h1=document.querySelector('.brand h1'),ma=document.querySelector('.m-actions'),t=h1&&h1.querySelector('.h1-title');
+  if(!h1||!ma||!t)return;
+  t.style.fontSize='';
+  if(getComputedStyle(ma).display==='none')return;
+  // название не сжимается: сравниваем его полную ширину + кнопки с шириной строки
+  const fits=()=>{const gap=parseFloat(getComputedStyle(h1).columnGap)||12;return t.scrollWidth+gap+ma.getBoundingClientRect().width<=h1.clientWidth+1};
+  for(const mode of ['','fit-short','fit-icon']){
+    ma.classList.remove('fit-short','fit-icon');if(mode)ma.classList.add(mode);
+    if(fits())return;
+  }
+  // кнопка уже кружок, а не влезает — уменьшаем шрифт названия (не мельче 17 px)
+  for(let px=parseFloat(getComputedStyle(t).fontSize)-1;px>=17&&!fits();px--)t.style.fontSize=px+'px';
+}
+addEventListener('resize',fitHeader);
+function navHeight(){const n=document.getElementById('tabs');if(n)document.documentElement.style.setProperty('--nav-h',n.getBoundingClientRect().height+'px')}
+addEventListener('resize',navHeight);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitHeader);
+
+render();load(false);navState();fitHeader();navHeight();
+window.__szBoot=1;
+</script>
+</body>
+</html>
