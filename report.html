@@ -195,6 +195,13 @@ thead th{position:sticky;z-index:3;background:var(--surface);box-shadow:inset 0 
 @media (max-width:760px){.tbl{max-height:75vh;overflow:auto;overscroll-behavior:contain}thead th{top:0}}
 /* «Места по сеансам» экскурсии: группы колонок (Букинг | брони CRM | кто оформил | сверка), формулы над таблицей, полоса заполненности */
 .seats .gl{border-left:2px solid var(--line)}
+/* 12 колонок: заголовки в две строки, плотнее отступы; если всё равно шире панели — прокрутка внутри рамки, а не наружу */
+.seats .tbl{overflow-x:auto;max-height:none}
+.seats thead th{position:static}
+.seats th{white-space:normal;line-height:1.25;vertical-align:bottom;min-width:56px}
+.seats th,.seats td{padding:8px 7px}
+.seats th:first-child,.seats td:first-child{padding-left:0}
+.seats th:last-child,.seats td:last-child{padding-right:2px}
 .seats td.eq{color:var(--ink);font-weight:700}
 .seats-f{display:grid;gap:8px;margin:2px 0 14px;font-size:13.5px;color:var(--ink2)}
 .seats-f>div{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline}
@@ -203,8 +210,9 @@ thead th{position:sticky;z-index:3;background:var(--surface);box-shadow:inset 0 
 .seats-f b{color:var(--ink)}
 .seats-f .op{color:var(--muted);font-weight:600}
 @media (max-width:560px){.seats-f .k{flex-basis:100%}}
-.sbar{display:flex;width:120px;height:10px;border-radius:5px;overflow:hidden;background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line)}
+.sbar{display:flex;width:96px;height:10px;border-radius:5px;overflow:hidden;background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line)}
 .sbar i{display:block;height:100%}
+@media (max-width:1100px){.sbar{width:64px}}
 .empty{padding:18px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-size:13px;background:var(--surface2)}
 .empty b{color:var(--ink2)}
 .muted{color:var(--muted)}
@@ -752,11 +760,11 @@ function vWeb(){
         <div><span class="k">Кто оформил</span><span>с формы на сайте <b>${fmt(T.guests-T.manager)}</b> <span class="op">+</span> менеджеры в Букинге <b>${fmt(T.manager)}</b> <span class="op">=</span> <b>${fmt(T.guests)}</b></span></div>
         <div><span class="k">Сверка</span><span>занято в Букинге <b>${T.taken!=null?fmt(T.taken):'—'}</b> <span class="op">−</span> в бронях <b>${fmt(T.guests)}</b> <span class="op">=</span> <b>${dT==null?'—':(dT>0?'+':'')+fmt(dT)}</b>${dT?` <span class="muted">· ${dT<0?'в CRM гостей больше, чем держит Букинг: менеджер поменял число гостей или бронь не отменена':'Букинг держит места без действующей брони в CRM'}</span>`:''}</span></div>
       </div>
-      ${legend([['Оплачено',C.paid,'bar'],['Подтверждено',C.conf,'bar'],['В обработке',C.proc,'bar'],['Свободно',cssv('--surface2'),'bar']])}
+      ${legend([['Оплачено',C.paid,'bar'],['Подтверждено',C.conf,'bar'],['В обработке',C.proc,'bar'],['Свободно',cssv('--line'),'bar']])}
       <div class="tbl"><table><thead><tr><th>Сеанс</th><th>Заполненность</th>
-        <th class="r gl" title="Вместимость сеанса — лист «Сеансы»">Мест</th><th class="r" title="Свободно по Букингу">− Свободно</th><th class="r" title="Мест − свободно: сколько мест держит Букинг">= Занято в Букинге</th>
-        <th class="r gl" title="Гости броней со статусом CRM «В обработке»">В обработке</th><th class="r" title="«Подтверждено»: место за гостем, не оплачено">+ Подтверждено</th><th class="r" title="«Оплачено» / «Предоплата»">+ Оплачено</th><th class="r" title="Гости во всех действующих бронях (без отменённых)">= Всего в бронях</th>
-        <th class="r gl" title="Из всего в бронях: заявки с формы на сайте">С формы</th><th class="r" title="Из всего в бронях: брони, созданные менеджером в Букинге">+ Менеджеры</th>
+        <th class="r gl" title="Вместимость сеанса — лист «Сеансы»">Мест</th><th class="r" title="Свободно по Букингу">−&nbsp;Свободно</th><th class="r" title="Мест − свободно: сколько мест держит Букинг">=&nbsp;Занято в&nbsp;Букинге</th>
+        <th class="r gl" title="Гости броней со статусом CRM «В обработке»">В&nbsp;обработке</th><th class="r" title="«Подтверждено»: место за гостем, не оплачено">+&nbsp;Подтверждено</th><th class="r" title="«Оплачено» / «Предоплата»">+&nbsp;Оплачено</th><th class="r" title="Гости во всех действующих бронях (без отменённых)">=&nbsp;Всего в&nbsp;бронях</th>
+        <th class="r gl" title="Из всего в бронях: заявки с формы на сайте">С&nbsp;формы</th><th class="r" title="Из всего в бронях: брони, созданные менеджером в Букинге">+&nbsp;Менеджеры</th>
         <th class="r gl" title="Занято в Букинге − всего в бронях">Разница</th></tr></thead>
       <tbody>${SL.map(x=>sl(dd(x.date).slice(0,5)+', '+x.time,x)).join('')}${sl('Итого',T,true)}</tbody></table></div></div>`;
   } else if(ex&&w.seatsError)h+=`<div class="empty" style="margin-bottom:16px">Места по сеансам не прочитаны: ${esc(w.seatsError)}</div>`;
