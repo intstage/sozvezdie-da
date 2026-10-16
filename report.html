@@ -212,6 +212,10 @@ thead th{position:sticky;z-index:3;background:var(--surface);box-shadow:inset 0 
 @media (max-width:560px){.seats-f .k{flex-basis:100%}}
 .sbar{display:flex;width:96px;height:10px;border-radius:5px;overflow:hidden;background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line)}
 .sbar i{display:block;height:100%}
+.crmtag{display:inline-block;margin-left:4px;padding:1px 6px;border-radius:6px;font-size:11px;font-weight:600;color:var(--warn);background:var(--warn-soft);white-space:nowrap}
+.crmfix{margin-top:16px;padding:12px 14px;border-radius:10px;background:var(--warn-soft);border:1px solid var(--warn)}
+.crmfix h3{margin:0 0 4px;font-size:14px;color:var(--warn)}
+.crmfix table{background:var(--surface);border-radius:8px}
 @media (max-width:1100px){.sbar{width:64px}}
 .empty{padding:18px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-size:13px;background:var(--surface2)}
 .empty b{color:var(--ink2)}
@@ -739,7 +743,8 @@ function vWeb(){
   if(ex&&w.seats&&w.seats.list&&w.seats.list.length){
     const SL=w.seats.list,sum=f=>SL.reduce((a,x)=>a+(x[f]||0),0),tk=SL.every(x=>x.taken!=null);
     const hasSt=SL.every(x=>x.proc!=null&&x.conf!=null);   // статусы есть в данных с v72; в старом кэше — нет
-    const T={cap:sum('cap'),free:sum('free'),taken:tk?sum('taken'):null,guests:sum('guests'),paid:sum('paid'),proc:hasSt?sum('proc'):null,conf:hasSt?sum('conf'):null,manager:sum('manager')};
+    const FX=w.seats.fix||[], hasCrm=SL.every(x=>x.crm!=null);
+    const T={cap:sum('cap'),free:sum('free'),taken:tk?sum('taken'):null,guests:sum('guests'),paid:sum('paid'),proc:hasSt?sum('proc'):null,conf:hasSt?sum('conf'):null,manager:sum('manager'),crm:hasCrm?sum('crm'):null};
     const C={paid:cssv('--s3'),conf:cssv('--s1'),proc:cssv('--s1-soft')};
     const v0=v=>v==null?'<span class="muted">—</span>':v?fmt(v):'<span class="muted">0</span>';
     const dif=x=>x.taken==null?null:x.taken-x.guests;
@@ -748,17 +753,18 @@ function vWeb(){
       return`<span class="sbar" title="оплачено ${fmt(x.paid)} · подтверждено ${x.conf==null?'—':fmt(x.conf)} · в обработке ${x.proc==null?'—':fmt(x.proc)} · свободно по Букингу ${x.free==null?'—':fmt(x.free)} из ${x.cap==null?'—':fmt(x.cap)}">${hasSt?`<i style="width:${w(x.paid)};background:${C.paid}"></i><i style="width:${w(x.conf)};background:${C.conf}"></i><i style="width:${w(x.proc)};background:${C.proc}"></i>`:`<i style="width:${w(x.guests)};background:${C.conf}"></i>`}</span>`};
     const sl=(name,x,b)=>`<tr${b?' class="b"':''}><td class="nw">${name}</td><td>${bar(x)}</td>
       <td class="r gl">${x.cap!=null?fmt(x.cap):'—'}</td><td class="r">${x.free!=null?fmt(x.free):'—'}</td><td class="r b">${x.taken!=null?fmt(x.taken):'—'}</td>
-      <td class="r gl">${v0(x.proc)}</td><td class="r">${v0(x.conf)}</td><td class="r">${v0(x.paid)}</td><td class="r eq">${fmt(x.guests)}</td>
+      <td class="r gl">${v0(x.proc)}</td><td class="r">${v0(x.conf)}</td><td class="r">${v0(x.paid)}</td><td class="r eq">${fmt(x.guests)}${x.crm!=null&&x.crm!==x.guests?` <span class="crmtag" title="В CRM пассажиров ${fmt(x.crm)} — ручная правка, см. «Правки в CRM» ниже">CRM ${fmt(x.crm)}</span>`:''}</td>
       <td class="r gl">${v0(x.guests-(x.manager||0))}</td><td class="r">${v0(x.manager||0)}</td>
       <td class="r gl">${difTxt(dif(x))}</td></tr>`;
     const dT=dif(T);
     h+=`<div class="panel sec seats" id="web-seats" style="margin-bottom:16px"><h2>Места по сеансам</h2>
-      <p class="sub">Два разных источника: сколько мест держит Букинг (сервис записи) и сколько гостей в действующих бронях в CRM. Обычно они равны; «Разница» показывает, где нет.</p>
+      <p class="sub">Два источника: сколько мест держит Букинг (сервис записи) и сколько гостей в действующих бронях. Статус брони — из CRM, число гостей — из заявки (столько мест держит Букинг). Если в CRM пассажиров другое число — это ручная правка, она подсвечена отдельно.</p>
       <div class="seats-f">
         <div><span class="k">Букинг · снимок ${esc((w.seats.snapshot||'').slice(11,16)||'—')}</span><span>мест <b>${fmt(T.cap)}</b> <span class="op">−</span> свободно <b>${fmt(T.free)}</b> <span class="op">=</span> занято <b>${T.taken!=null?fmt(T.taken):'—'}</b></span></div>
-        <div><span class="k">Брони в CRM · гости</span><span>${hasSt?`в обработке <b>${fmt(T.proc)}</b> <span class="op">+</span> подтверждено <b>${fmt(T.conf)}</b> <span class="op">+</span> оплачено <b>${fmt(T.paid)}</b> <span class="op">=</span> всего в бронях <b>${fmt(T.guests)}</b>`:`всего в бронях <b>${fmt(T.guests)}</b>, из них оплачено <b>${fmt(T.paid)}</b> <span class="muted">(разбивка по статусам — после обновления данных)</span>`}</span></div>
+        <div><span class="k">Брони · гости</span><span>${hasSt?`в обработке <b>${fmt(T.proc)}</b> <span class="op">+</span> подтверждено <b>${fmt(T.conf)}</b> <span class="op">+</span> оплачено <b>${fmt(T.paid)}</b> <span class="op">=</span> всего в бронях <b>${fmt(T.guests)}</b>`:`всего в бронях <b>${fmt(T.guests)}</b>, из них оплачено <b>${fmt(T.paid)}</b> <span class="muted">(разбивка по статусам — после обновления данных)</span>`}</span></div>
         <div><span class="k">Кто оформил</span><span>с формы на сайте <b>${fmt(T.guests-T.manager)}</b> <span class="op">+</span> менеджеры в Букинге <b>${fmt(T.manager)}</b> <span class="op">=</span> <b>${fmt(T.guests)}</b></span></div>
-        <div><span class="k">Сверка</span><span>занято в Букинге <b>${T.taken!=null?fmt(T.taken):'—'}</b> <span class="op">−</span> в бронях <b>${fmt(T.guests)}</b> <span class="op">=</span> <b>${dT==null?'—':(dT>0?'+':'')+fmt(dT)}</b>${dT?` <span class="muted">· ${dT<0?'в CRM гостей больше, чем держит Букинг: менеджер поменял число гостей или бронь не отменена':'Букинг держит места без действующей брони в CRM'}</span>`:''}</span></div>
+        ${FX.length?`<div><span class="k" style="color:var(--warn)">Правки в CRM</span><span>в ${nw(FX.length,'брони','бронях','бронях')} число пассажиров в CRM не совпадает с заявкой: по CRM гостей было бы <b>${fmt(T.crm)}</b> (${T.crm-T.guests>0?'+':''}${fmt(T.crm-T.guests)}) — так считает колонка «Гостей без отмены (CRM)» в «Аналитике» таблицы экскурсии. <a href="#web-crmfix" data-go="web-crmfix">Список ↓</a></span></div>`:''}
+        <div><span class="k">Сверка</span><span>занято в Букинге <b>${T.taken!=null?fmt(T.taken):'—'}</b> <span class="op">−</span> в бронях <b>${fmt(T.guests)}</b> <span class="op">=</span> <b>${dT==null?'—':(dT>0?'+':'')+fmt(dT)}</b>${dT?` <span class="muted">· ${dT<0?'Букинг держит меньше мест, чем гостей в бронях: бронь не отменена в CRM или места освобождены в Букинге':'Букинг держит места без действующей брони'}</span>`:''}</span></div>
       </div>
       ${legend([['Оплачено',C.paid,'bar'],['Подтверждено',C.conf,'bar'],['В обработке',C.proc,'bar'],['Свободно',cssv('--line'),'bar']])}
       <div class="tbl"><table><thead><tr><th>Сеанс</th><th>Заполненность</th>
@@ -766,7 +772,12 @@ function vWeb(){
         <th class="r gl" title="Гости броней со статусом CRM «В обработке»">В&nbsp;обработке</th><th class="r" title="«Подтверждено»: место за гостем, не оплачено">+&nbsp;Подтверждено</th><th class="r" title="«Оплачено» / «Предоплата»">+&nbsp;Оплачено</th><th class="r" title="Гости во всех действующих бронях (без отменённых)">=&nbsp;Всего в&nbsp;бронях</th>
         <th class="r gl" title="Из всего в бронях: заявки с формы на сайте">С&nbsp;формы</th><th class="r" title="Из всего в бронях: брони, созданные менеджером в Букинге">+&nbsp;Менеджеры</th>
         <th class="r gl" title="Занято в Букинге − всего в бронях">Разница</th></tr></thead>
-      <tbody>${SL.map(x=>sl(dd(x.date).slice(0,5)+', '+x.time,x)).join('')}${sl('Итого',T,true)}</tbody></table></div></div>`;
+      <tbody>${SL.map(x=>sl(dd(x.date).slice(0,5)+', '+x.time,x)).join('')}${sl('Итого',T,true)}</tbody></table></div>
+      ${FX.length?`<div class="crmfix" id="web-crmfix"><h3>Правки в CRM — число пассажиров не совпадает с заявкой</h3>
+        <p class="sub">В отчёте гости считаются по заявке (так держит места Букинг). Здесь брони, где в CRM пассажиров другое число: либо гость правда добавился — тогда поправить Букинг, либо ошибка в CRM — тогда поправить CRM.</p>
+        <div class="tbl"><table><thead><tr><th>Бронь</th><th>Сеанс</th><th>Статус CRM</th><th>Откуда</th><th class="r">Заявка и Букинг</th><th class="r">CRM</th><th class="r">Разница</th></tr></thead>
+        <tbody>${FX.map(f=>`<tr><td class="b">${esc(f.num)}</td><td class="nw">${dd(f.date).slice(0,5)}, ${esc(f.time)}</td><td>${esc(f.status)}</td><td>${f.src==='Менеджер'?'менеджер':'форма'}</td><td class="r">${f.form==null?'<span class="muted">нет в заявках</span>':fmt(f.form)}</td><td class="r b">${fmt(f.crm)}</td><td class="r"><b>${f.form==null?'—':(f.crm-f.form>0?'+':'')+fmt(f.crm-f.form)}</b></td></tr>`).join('')}</tbody></table></div></div>`:''}
+    </div>`;
   } else if(ex&&w.seatsError)h+=`<div class="empty" style="margin-bottom:16px">Места по сеансам не прочитаны: ${esc(w.seatsError)}</div>`;
   // воронка мероприятия
   const steps=ex?[['Регистрации',n],['Бронь в Б24',k.req]].concat(sz?[['Оплачено броней',sz.sold]]:[])
