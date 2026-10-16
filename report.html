@@ -193,7 +193,7 @@ td.b{color:var(--ink);font-weight:600}
 thead th{position:sticky;z-index:3;background:var(--surface);box-shadow:inset 0 -1px 0 var(--line)}
 @media (min-width:761px){.tbl{overflow:visible}thead th{top:var(--nav-h,57px)}}
 @media (max-width:760px){.tbl{max-height:75vh;overflow:auto;overscroll-behavior:contain}thead th{top:0}}
-/* «Места по сеансам» экскурсии: группы колонок (Букинг | брони CRM | кто оформил | сверка), формулы над таблицей, полоса заполненности */
+/* «Места по сеансам» экскурсии: группы колонок (Букинг | брони | кто оформил | сверка), формулы над таблицей, полоса заполненности */
 .seats .gl{border-left:2px solid var(--line)}
 /* 12 колонок: заголовки в две строки, плотнее отступы; если всё равно шире панели — прокрутка внутри рамки, а не наружу */
 .seats .tbl{overflow-x:auto;max-height:none}
@@ -841,7 +841,7 @@ function vWeb(){
   if(ex&&w.seats&&w.seats.list&&w.seats.list.length){
     const SL=w.seats.list,sum=f=>SL.reduce((a,x)=>a+(x[f]||0),0),tk=SL.every(x=>x.taken!=null);
     const hasSt=SL.every(x=>x.proc!=null&&x.conf!=null);   // статусы есть в данных с v72; в старом кэше — нет
-    const FX=w.seats.fix||[], hasCrm=SL.every(x=>x.crm!=null);   // FX — брони, где в CRM другое число гостей
+    const FX=w.seats.fix||[], hasCrm=SL.every(x=>x.crm!=null);   // FX — брони, где в заявке и в «Статусах броней» (Букинг) разное число гостей
     const T={cap:sum('cap'),free:sum('free'),taken:tk?sum('taken'):null,guests:sum('guests'),paid:sum('paid'),proc:hasSt?sum('proc'):null,conf:hasSt?sum('conf'):null,manager:sum('manager'),crm:hasCrm?sum('crm'):null};
     const C={paid:cssv('--s3'),conf:cssv('--s1'),proc:cssv('--s1-soft')};
     const v0=v=>v==null?'<span class="muted">—</span>':v?fmt(v):'<span class="muted">0</span>';
@@ -851,7 +851,7 @@ function vWeb(){
       return`<span class="sbar" title="оплачено ${fmt(x.paid)} · подтверждено ${x.conf==null?'—':fmt(x.conf)} · в обработке ${x.proc==null?'—':fmt(x.proc)} · свободно по Букингу ${x.free==null?'—':fmt(x.free)} из ${x.cap==null?'—':fmt(x.cap)}">${hasSt?`<i style="width:${w(x.paid)};background:${C.paid}"></i><i style="width:${w(x.conf)};background:${C.conf}"></i><i style="width:${w(x.proc)};background:${C.proc}"></i>`:`<i style="width:${w(x.guests)};background:${C.conf}"></i>`}</span>`};
     const sl=(name,x,b)=>`<tr${b?' class="b"':''}><td class="nw">${name}</td><td>${bar(x)}</td>
       <td class="r gl">${x.cap!=null?fmt(x.cap):'—'}</td><td class="r">${x.free!=null?fmt(x.free):'—'}</td><td class="r b">${x.taken!=null?fmt(x.taken):'—'}</td>
-      <td class="r gl">${v0(x.proc)}</td><td class="r">${v0(x.conf)}</td><td class="r">${v0(x.paid)}</td><td class="r eq">${fmt(x.guests)}${x.crm!=null&&x.crm!==x.guests?` <span class="crmtag" title="В CRM пассажиров ${fmt(x.crm)} — расхождение с заявкой, см. «Расхождения» ниже">CRM ${fmt(x.crm)}</span>`:''}</td>
+      <td class="r gl">${v0(x.proc)}</td><td class="r">${v0(x.conf)}</td><td class="r">${v0(x.paid)}</td><td class="r eq">${fmt(x.guests)}${x.crm!=null&&x.crm!==x.guests?` <span class="crmtag" title="В Букинге пассажиров ${fmt(x.crm)} — в заявке другое число, см. «Расхождения» ниже">Букинг ${fmt(x.crm)}</span>`:''}</td>
       <td class="r gl">${v0(x.guests-(x.manager||0))}</td><td class="r">${v0(x.manager||0)}</td>
       <td class="r gl">${difTxt(dif(x))}</td></tr>`;
     const dT=dif(T), DS=SL.filter(x=>dif(x));                   // DS — сеансы, где Букинг не сходится с бронями
@@ -859,7 +859,7 @@ function vWeb(){
       ${legend([['Оплачено',C.paid,'bar'],['Подтверждено',C.conf,'bar'],['В обработке',C.proc,'bar'],['Свободно',cssv('--line'),'bar']])}
       <div class="tbl"><table><thead><tr><th>Сеанс</th><th>Заполненность</th>
         <th class="r gl" title="Вместимость сеанса — лист «Сеансы»">Мест</th><th class="r" title="Свободно по Букингу">−&nbsp;Свободно</th><th class="r" title="Мест − свободно: сколько мест держит Букинг">=&nbsp;Занято в&nbsp;Букинге</th>
-        <th class="r gl" title="Гости броней со статусом CRM «В обработке»">В&nbsp;обработке</th><th class="r" title="«Подтверждено»: место за гостем, не оплачено">+&nbsp;Подтверждено</th><th class="r" title="«Оплачено» / «Предоплата»">+&nbsp;Оплачено</th><th class="r" title="Гости во всех действующих бронях (без отменённых)">=&nbsp;Всего в&nbsp;бронях</th>
+        <th class="r gl" title="Гости броней со статусом Букинга «В обработке»">В&nbsp;обработке</th><th class="r" title="«Подтверждено»: место за гостем, не оплачено">+&nbsp;Подтверждено</th><th class="r" title="«Оплачено» / «Предоплата»">+&nbsp;Оплачено</th><th class="r" title="Гости во всех действующих бронях (без отменённых)">=&nbsp;Всего в&nbsp;бронях</th>
         <th class="r gl" title="Из всего в бронях: заявки с формы на сайте">С&nbsp;формы</th><th class="r" title="Из всего в бронях: брони, созданные менеджером в Букинге">+&nbsp;Менеджеры</th>
         <th class="r gl" title="Занято в Букинге − всего в бронях">Разница</th></tr></thead>
       <tbody>${SL.map(x=>sl(dd(x.date).slice(0,5)+', '+x.time,x)).join('')}${sl('Итого',T,true)}</tbody></table></div>
@@ -878,19 +878,19 @@ function vWeb(){
             <div class="ss-v">${dT==null?'—':(dT>0?'+':'')+fmt(dT)}</div>
             <div class="ss-d">${dT==null?'нет снимка Букинга':!dT?'места в Букинге совпадают с бронями':dT<0?`Букинг держит на ${nw(-dT,'место','места','мест')} меньше, чем гостей в бронях`:`Букинг держит ${nw(dT,'место','места','мест')} без брони`}</div></div>
         </div>
-        <p class="sub ss-note">Места — по Букингу, статус брони — по CRM, число гостей — по заявке (по нему Букинг держит места).</p>
+        <p class="sub ss-note">Места, статус брони и число гостей — из Букинга (таблица экскурсии сверяет заявки с Букингом).</p>
       </div>
-      ${FX.length||DS.length?`<details class="dq disc" id="web-disc"><summary><span>Расхождения · ${fmt(FX.length+DS.length)}</span><span class="muted disc-sum">${[FX.length?`${nw(FX.length,'бронь','брони','броней')}: в CRM другое число гостей (по CRM было бы ${fmt(T.crm)})`:'',DS.length?`${nw(DS.length,'сеанс','сеанса','сеансов')}: Букинг не сходится с бронями`:''].filter(Boolean).join(' · ')}</span></summary>
-                ${FX.length?`<h4>Число гостей: в CRM не так, как в заявке</h4>
-        <p class="sub">Гость правда добавился — поправить Букинг; ошибка в CRM — поправить CRM. Когда числа совпадут, бронь уйдёт из списка.</p>
-        <div class="tbl"><table><thead><tr><th>Бронь</th><th>Сеанс</th><th>Статус CRM</th><th>Откуда</th><th class="r nw">Заявка и Букинг</th><th class="r nw">CRM</th><th class="r nw">Разница</th></tr></thead>
+      ${FX.length||DS.length?`<details class="dq disc" id="web-disc"><summary><span>Расхождения · ${fmt(FX.length+DS.length)}</span><span class="muted disc-sum">${[FX.length?`${nw(FX.length,'бронь','брони','броней')}: в заявке и в Букинге разное число гостей (по Букингу ${fmt(T.crm)})`:'',DS.length?`${nw(DS.length,'сеанс','сеанса','сеансов')}: Букинг не сходится с бронями`:''].filter(Boolean).join(' · ')}</span></summary>
+                ${FX.length?`<h4>Число гостей: в заявке не так, как в Букинге</h4>
+        <p class="sub">Таблица экскурсии ещё не забрала новое число гостей из Букинга — обычно это исправляется при следующей сверке. Если держится долго — проверить бронь в Букинге.</p>
+        <div class="tbl"><table><thead><tr><th>Бронь</th><th>Сеанс</th><th>Статус Букинга</th><th>Откуда</th><th class="r nw">Заявка</th><th class="r nw">Букинг</th><th class="r nw">Разница</th></tr></thead>
         <tbody>${FX.map(f=>`<tr><td class="b">${esc(f.num)}</td><td class="nw">${dd(f.date).slice(0,5)}, ${esc(f.time)}</td><td>${esc(f.status)}</td><td>${f.src==='Менеджер'?'менеджер':'форма'}</td><td class="r">${f.form==null?'<span class="muted">нет в заявках</span>':fmt(f.form)}</td><td class="r b">${fmt(f.crm)}</td><td class="r"><b>${f.form==null?'—':(f.crm-f.form>0?'+':'')+fmt(f.crm-f.form)}</b></td></tr>`).join('')}</tbody></table></div>`:''}
         ${DS.length?`<h4>Места: Букинг держит не столько мест, сколько гостей в бронях</h4>
-        <p class="sub">Минус — Букинг держит меньше мест, чем гостей в действующих бронях: бронь освобождена в Букинге, но не отменена в CRM. Плюс — Букинг держит места без действующей брони. Какая именно бронь — по таблицам не видно: проверить в Букинге брони сеанса; жирным — брони, в которых гостей ровно столько, сколько составляет разница.</p>
+        <p class="sub">Минус — Букинг держит меньше мест, чем гостей в действующих бронях: места освобождены в Букинге, а бронь не отменена (или число пассажиров изменили без пересчёта мест). Плюс — Букинг держит места без действующей брони. Какая именно бронь — по таблицам не видно: проверить в Букинге брони сеанса; жирным — брони, в которых гостей ровно столько, сколько составляет разница.</p>
         <div class="tbl"><table><thead><tr><th>Сеанс</th><th class="r nw">Букинг</th><th class="r nw">В бронях</th><th class="r nw">Разница</th><th>Брони сеанса: номер · статус · гостей</th></tr></thead>
         <tbody>${DS.map(x=>{const d=dif(x),need=Math.abs(d),it=(x.items||[]).slice().sort((p,q)=>(q.g===need)-(p.g===need)||String(p.num).localeCompare(String(q.num)));
           return`<tr><td class="nw b">${dd(x.date).slice(0,5)}, ${esc(x.time)}</td><td class="r">${fmt(x.taken)}</td><td class="r">${fmt(x.guests)}</td><td class="r"><b>${d>0?'+':''}${fmt(d)}</b></td>
-          <td>${d<0?(it.length?it.map(i=>`<span class="bk${i.g===need?' fit':''}">${esc(i.num)} · ${esc(String(i.st).toLowerCase())} · ${fmt(i.g)}${i.src==='Менеджер'?' · менеджер':''}</span>`).join(''):'<span class="muted">броней нет</span>'):'<span class="muted">в CRM нет брони под эти места — найти в Букинге бронь, которой нет в CRM или которая там отменена</span>'}</td></tr>`}).join('')}</tbody></table></div>`:''}
+          <td>${d<0?(it.length?it.map(i=>`<span class="bk${i.g===need?' fit':''}">${esc(i.num)} · ${esc(String(i.st).toLowerCase())} · ${fmt(i.g)}${i.src==='Менеджер'?' · менеджер':''}</span>`).join(''):'<span class="muted">броней нет</span>'):'<span class="muted">в таблице нет действующей брони под эти места — найти её в Букинге</span>'}</td></tr>`}).join('')}</tbody></table></div>`:''}
       </details>`:''}
     </div>`;
   } else if(ex&&w.seatsError)h+=`<div class="empty" style="margin-bottom:16px">Места по сеансам не прочитаны: ${esc(w.seatsError)}</div>`;
@@ -1275,7 +1275,7 @@ $('#method').innerHTML='<div id="dq-slot"></div><p id="period" class="ref-info" 
   ['Прогноз месяца','Факт + оставшиеся дни × среднее число заявок в день за 28 дней с поправкой на день недели (12 недель). Коридор — около 80% по разбросу дневных значений.'],
   ['Где отвал','Последние 7 полных дней против нормы — 28 дней до них. Жёлтый — падение на 7%+, красный — на 15%+, и только если оно больше случайного разброса.'],
   ['Сравнение','Текущий месяц — с теми же днями прошлого; месяц — с предыдущим; остальные периоды — с таким же отрезком перед ними. До начала данных сравнение не показывается.'],
-  ['Мероприятия','Таблица мероприятий (вебинары и экскурсия на теплоход). Экскурсия: регистрации с формы и брони менеджеров, участник — по почте или телефону (одна почта или один телефон — один человек), гости — по действующим броням, число гостей и статус — по CRM; места по сеансам — в обработке / подтверждено / оплачено (в сумме = гостей в бронях) («Статусы броней» таблицы экскурсии), обновляется каждые 15 минут с 8 до 22, срез — по номерам броней, «оплачено» — билет на экскурсию. Вебинары: регистрации без повторов по почте; база ИФ, оплата СЗ, заявка и стадия Б24 — из проверок «Букинг» и «Битрикс»; «новые» — первая заявка в ИФ после старта регистрации; продажи — срез Б24 (предоплата или оплата сделки).'],
+  ['Мероприятия','Таблица мероприятий (вебинары и экскурсия на теплоход). Экскурсия: регистрации с формы и брони менеджеров, участник — по почте или телефону (одна почта или один телефон — один человек), гости — по действующим броням, число гостей и статус — по Букингу; места по сеансам — в обработке / подтверждено / оплачено (в сумме = гостей в бронях) («Статусы броней» таблицы экскурсии), обновляется каждые 15 минут с 8 до 22, срез — по номерам броней, «оплачено» — билет на экскурсию. Вебинары: регистрации без повторов по почте; база ИФ, оплата СЗ, заявка и стадия Б24 — из проверок «Букинг» и «Битрикс»; «новые» — первая заявка в ИФ после старта регистрации; продажи — срез Б24 (предоплата или оплата сделки).'],
   ['Продажи с бортов','Таблица «График PRO_движ», все листы. График: строка — презентация; доходимость — люди / занятые каюты, конверсия — заявки / занятые каюты (где каюты заполнены). Год к году — месячные сводки («Мария»). Брони — листы «…_продажи с бортов». Рабочие листы месяцев сверяются с графиком.'],
   ['Расходы и окупаемость','CPA — расход / заявки; ДРР — расход / оплачено ₽; ROMI — (маржа − расход) / расход. Из листа «Расходы», пока без привязки заявки к каналу.'],
   ['Обновление','Букинг и Метрика — каждую ночь около 5:00. Данные на странице хранятся 15 минут; «Обновить данные» перечитывает таблицу не чаще раза в минуту.']
