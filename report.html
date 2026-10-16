@@ -213,8 +213,19 @@ thead th{position:sticky;z-index:3;background:var(--surface);box-shadow:inset 0 
 .sbar{display:flex;width:96px;height:10px;border-radius:5px;overflow:hidden;background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line)}
 .sbar i{display:block;height:100%}
 .crmtag{display:inline-block;margin-left:4px;padding:0 6px;border-radius:6px;font-size:11px;font-weight:600;color:var(--ink2);background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line);white-space:nowrap}
-.seats-after{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
-.seats-after .seats-f{margin:8px 0 0;font-size:13px;gap:6px}
+.seats-after{margin-top:16px}
+.ss-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:760px){.ss-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.ss{padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.ss-k{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.ss-v{font-size:22px;font-weight:700;color:var(--ink);margin:4px 0 2px;line-height:1.15}
+.ss-v small{font-size:12.5px;font-weight:500;color:var(--muted);margin-left:6px}
+.ss-d{font-size:12.5px;color:var(--ink2);line-height:1.35}
+.ss.ss-diff{background:var(--surface2)}
+.ss-note{margin:10px 0 0}
+details.dq.disc summary{flex-wrap:wrap;row-gap:2px}
+.disc-sum{font-weight:400;font-size:12.5px}
+.disc th{white-space:nowrap}
 .disc{margin-top:14px;padding:12px 14px;border-radius:10px;background:var(--surface2);border:1px solid var(--line)}
 details.dq.disc summary{font-size:14px}
 .disc h3{margin:0 0 2px;font-size:15px;color:var(--ink)}
@@ -851,24 +862,30 @@ function vWeb(){
         <th class="r gl" title="Занято в Букинге − всего в бронях">Разница</th></tr></thead>
       <tbody>${SL.map(x=>sl(dd(x.date).slice(0,5)+', '+x.time,x)).join('')}${sl('Итого',T,true)}</tbody></table></div>
       <div class="seats-after">
-        <p class="sub">Два источника: сколько мест держит Букинг (сервис записи) и сколько гостей в действующих бронях. Статус брони — из CRM, число гостей — из заявки (столько мест держит Букинг). Всё, что между системами не сходится, — в свёрнутом блоке «Расхождения» ниже.</p>
-      <div class="seats-f">
-        <div><span class="k">Букинг · снимок ${esc((w.seats.snapshot||'').slice(11,16)||'—')}</span><span>мест <b>${fmt(T.cap)}</b> <span class="op">−</span> свободно <b>${fmt(T.free)}</b> <span class="op">=</span> занято <b>${T.taken!=null?fmt(T.taken):'—'}</b></span></div>
-        <div><span class="k">Брони · гости</span><span>${hasSt?`в обработке <b>${fmt(T.proc)}</b> <span class="op">+</span> подтверждено <b>${fmt(T.conf)}</b> <span class="op">+</span> оплачено <b>${fmt(T.paid)}</b> <span class="op">=</span> всего в бронях <b>${fmt(T.guests)}</b>`:`всего в бронях <b>${fmt(T.guests)}</b>, из них оплачено <b>${fmt(T.paid)}</b> <span class="muted">(разбивка по статусам — после обновления данных)</span>`}</span></div>
-        <div><span class="k">Кто оформил</span><span>с формы на сайте <b>${fmt(T.guests-T.manager)}</b> <span class="op">+</span> менеджеры в Букинге <b>${fmt(T.manager)}</b> <span class="op">=</span> <b>${fmt(T.guests)}</b></span></div>
-        ${FX.length||DS.length?`<div><span class="k">Расхождения</span><span>${[FX.length?`число гостей в CRM не как в заявке — ${nw(FX.length,'бронь','брони','броней')} (по CRM гостей было бы <b>${fmt(T.crm)}</b>, ${T.crm-T.guests>0?'+':''}${fmt(T.crm-T.guests)}; так считает «Аналитика» таблицы экскурсии)`:'',DS.length?`места в Букинге не сходятся с бронями — ${nw(DS.length,'сеанс','сеанса','сеансов')}`:''].filter(Boolean).join(' · ')}. <a href="#web-disc" data-go="web-disc">Открыть список ↓</a></span></div>`:''}
-        <div><span class="k">Сверка</span><span>занято в Букинге <b>${T.taken!=null?fmt(T.taken):'—'}</b> <span class="op">−</span> в бронях <b>${fmt(T.guests)}</b> <span class="op">=</span> <b>${dT==null?'—':(dT>0?'+':'')+fmt(dT)}</b>${dT?` <span class="muted">· ${dT<0?'Букинг держит меньше мест, чем гостей в бронях: бронь не отменена в CRM или места освобождены в Букинге':'Букинг держит места без действующей брони'}</span>`:''}</span></div>
+        <div class="ss-grid">
+          <div class="ss"><div class="ss-k">Букинг · снимок ${esc((w.seats.snapshot||'').slice(11,16)||'—')}</div>
+            <div class="ss-v">${T.taken!=null?fmt(T.taken):'—'}<small>из ${fmt(T.cap)} занято</small></div>
+            <div class="ss-d">свободно ${fmt(T.free)}</div></div>
+          <div class="ss"><div class="ss-k">Гостей в бронях</div>
+            <div class="ss-v">${fmt(T.guests)}</div>
+            <div class="ss-d">${hasSt?`оплачено ${fmt(T.paid)} · подтверждено ${fmt(T.conf)} · в обработке ${fmt(T.proc)}`:`оплачено ${fmt(T.paid)}`}</div></div>
+          <div class="ss"><div class="ss-k">Кто оформил</div>
+            <div class="ss-v">${fmt(T.guests-T.manager)}<small>с формы</small></div>
+            <div class="ss-d">менеджеры в Букинге ${fmt(T.manager)}</div></div>
+          <div class="ss${dT?' ss-diff':''}"><div class="ss-k">Сверка</div>
+            <div class="ss-v">${dT==null?'—':(dT>0?'+':'')+fmt(dT)}</div>
+            <div class="ss-d">${dT==null?'нет снимка Букинга':!dT?'места в Букинге совпадают с бронями':dT<0?`Букинг держит на ${nw(-dT,'место','места','мест')} меньше, чем гостей в бронях`:`Букинг держит ${nw(dT,'место','места','мест')} без брони`}</div></div>
+        </div>
+        <p class="sub ss-note">Места — по Букингу, статус брони — по CRM, число гостей — по заявке (по нему Букинг держит места).</p>
       </div>
-      </div>
-      ${FX.length||DS.length?`<details class="dq disc" id="web-disc"><summary>Расхождения · ${fmt(FX.length+DS.length)}</summary>
-        <p class="sub" style="margin-top:6px">Гости в отчёте считаются по заявке — столько мест держит Букинг; статус брони — по CRM. Здесь всё, что между системами не сходится.</p>
-        ${FX.length?`<h4>Число гостей: в CRM не так, как в заявке</h4>
+      ${FX.length||DS.length?`<details class="dq disc" id="web-disc"><summary><span>Расхождения · ${fmt(FX.length+DS.length)}</span><span class="muted disc-sum">${[FX.length?`${nw(FX.length,'бронь','брони','броней')}: в CRM другое число гостей (по CRM было бы ${fmt(T.crm)})`:'',DS.length?`${nw(DS.length,'сеанс','сеанса','сеансов')}: Букинг не сходится с бронями`:''].filter(Boolean).join(' · ')}</span></summary>
+                ${FX.length?`<h4>Число гостей: в CRM не так, как в заявке</h4>
         <p class="sub">Гость правда добавился — поправить Букинг; ошибка в CRM — поправить CRM. Когда числа совпадут, бронь уйдёт из списка.</p>
-        <div class="tbl"><table><thead><tr><th>Бронь</th><th>Сеанс</th><th>Статус CRM</th><th>Откуда</th><th class="r">Заявка и Букинг</th><th class="r">CRM</th><th class="r">Разница</th></tr></thead>
+        <div class="tbl"><table><thead><tr><th>Бронь</th><th>Сеанс</th><th>Статус CRM</th><th>Откуда</th><th class="r nw">Заявка и Букинг</th><th class="r nw">CRM</th><th class="r nw">Разница</th></tr></thead>
         <tbody>${FX.map(f=>`<tr><td class="b">${esc(f.num)}</td><td class="nw">${dd(f.date).slice(0,5)}, ${esc(f.time)}</td><td>${esc(f.status)}</td><td>${f.src==='Менеджер'?'менеджер':'форма'}</td><td class="r">${f.form==null?'<span class="muted">нет в заявках</span>':fmt(f.form)}</td><td class="r b">${fmt(f.crm)}</td><td class="r"><b>${f.form==null?'—':(f.crm-f.form>0?'+':'')+fmt(f.crm-f.form)}</b></td></tr>`).join('')}</tbody></table></div>`:''}
         ${DS.length?`<h4>Места: Букинг держит не столько мест, сколько гостей в бронях</h4>
         <p class="sub">Минус — Букинг держит меньше мест, чем гостей в действующих бронях: бронь освобождена в Букинге, но не отменена в CRM. Плюс — Букинг держит места без действующей брони. Какая именно бронь — по таблицам не видно: проверить в Букинге брони сеанса; жирным — брони, в которых гостей ровно столько, сколько составляет разница.</p>
-        <div class="tbl"><table><thead><tr><th>Сеанс</th><th class="r">Занято в Букинге</th><th class="r">Гостей в бронях</th><th class="r">Разница</th><th>Действующие брони сеанса (номер · статус · гостей)</th></tr></thead>
+        <div class="tbl"><table><thead><tr><th>Сеанс</th><th class="r nw">Букинг</th><th class="r nw">В бронях</th><th class="r nw">Разница</th><th>Брони сеанса: номер · статус · гостей</th></tr></thead>
         <tbody>${DS.map(x=>{const d=dif(x),need=Math.abs(d),it=(x.items||[]).slice().sort((p,q)=>(q.g===need)-(p.g===need)||String(p.num).localeCompare(String(q.num)));
           return`<tr><td class="nw b">${dd(x.date).slice(0,5)}, ${esc(x.time)}</td><td class="r">${fmt(x.taken)}</td><td class="r">${fmt(x.guests)}</td><td class="r"><b>${d>0?'+':''}${fmt(d)}</b></td>
           <td>${d<0?(it.length?it.map(i=>`<span class="bk${i.g===need?' fit':''}">${esc(i.num)} · ${esc(String(i.st).toLowerCase())} · ${fmt(i.g)}${i.src==='Менеджер'?' · менеджер':''}</span>`).join(''):'<span class="muted">броней нет</span>'):'<span class="muted">в CRM нет брони под эти места — найти в Букинге бронь, которой нет в CRM или которая там отменена</span>'}</td></tr>`}).join('')}</tbody></table></div>`:''}
