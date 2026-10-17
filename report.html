@@ -558,6 +558,15 @@ function ma7(arr){return arr.map((_,i)=>i<6?null:sum(arr.slice(i-6,i+1))/7)}
 function obrDaily(){const n=D.days.length,t=new Array(n).fill(0),tg=new Array(n).fill(0),bk=new Array(n).fill(0),pd=new Array(n).fill(0);
   D.obr.rows.forEach(r=>{t[r[0]]++;tg[r[0]]+=r[2];bk[r[0]]+=r[3];pd[r[0]]+=r[4]});return{t,tg,bk,pd}}
 function reqIn(a,b){return D.requests.rows.filter(r=>r[0]>=a&&r[0]<=b)}
+// Оплаченные заявки, созданные в днях a..b, — какими они были на день asOf: первая оплата не позже asOf (с той же долей суток,
+// что прошла сегодня к сборке). Прошлый период иначе «созревает» дольше текущего и всегда выглядит лучше (Т1, ревью 17.10).
+// shortcut: время создания внутри дня неизвестно (только день) — прошлый период может получить +1 оплату на границе суток
+function paidAsOf(a,b,asOf){
+  const g=new Date(D.generated_at),frac=(((g.getUTCHours()+3)%24)*60+g.getUTCMinutes())/1440,lim=asOf+frac;
+  let n=0,rubS=0;
+  D.requests.rows.forEach(r=>{if(r[0]<a||r[0]>b||r[1]!==1)return;if(r[9]!=null&&r[0]+r[9]>lim)return;n++;rubS+=r[2]});
+  return{n,rub:rubS};
+}
 /** Линейный тренд заявок по полным месяцам (первый неполный месяц данных и текущий не участвуют в расчёте, но линия идёт через все). */
 function monTrend(ms){
   const vals=ms.map(m=>rs(D.zav.total,m.a,m.b));
@@ -657,7 +666,9 @@ function vSummary(){
   const f=D.forecast,n=D.days.length,ti=n-1,z=D.zav.total;
   const mStart=D.days.indexOf(f.month+'-01');
   const r=range('month');
-  const paidM=rs(D.zav.paid,r.a,r.b),paidPrev=rs(D.zav.paid,r.pa,r.pb);
+  // сравнение с теми же днями прошлого месяца — только по полным дням (сегодня неполный, Т12); оплаты прошлого месяца — на тот же день (Т1)
+  const zFull=rs(z,r.a,r.b-1),zPrev=rs(z,r.pa,r.pb-1),fullTxt=perTxt(r.a,r.b-1),prevTxt=perTxt(r.pa,r.pb-1);
+  const paidNow=paidAsOf(r.a,r.b,ti),paidM=paidNow.n,paidFull=paidAsOf(r.a,r.b-1,ti).n,paidPrev=r.pa>=0?paidAsOf(r.pa,r.pb-1,r.pb).n:null;
   const visM=rs(D.site.visits,r.a,r.b-1),visPrev=rs(D.site.visits,r.pa,r.pb-1);   // без сегодняшнего дня — и в прошлом месяце на день меньше
   const crM=visM?rs(z,r.a,r.b-1)/visM:null,crPrev=visPrev?rs(z,r.pa,r.pb-1)/visPrev:null;
   const pPer=r.pa>=0&&r.pb>=0?`${+D.days[r.pa].slice(8)}–${+D.days[r.pb].slice(8)}\u00a0${MON_G[+D.days[r.pb].slice(5,7)-1]}`:"прошлый месяц";   // те же дни прошлого месяца: «1–8 сен»
@@ -673,12 +684,12 @@ function vSummary(){
     <div class="panel kpi go" data-go="sum-daily" title="Заявки по дням"><div class="lbl">${wdLbl}, ${dShort(D.days[wd1])}</div><div class="val">${fmt(z[wd1])}<small>${delta(z[wd1],wdMean)}</small></div>
       <div class="foot"><span>к норме: ${fmt(wdMean,1)} заявки в будний день (среднее за 4 недели)</span></div>
       <div class="foot"><span class="muted">${dShort(D.days[wd2])} было ${fmt(z[wd2])} ${plural(z[wd2],'заявка','заявки','заявок')}${wd1===ti-1?'':(n=>` · за выходные ${fmt(n)} ${plural(n,'заявка','заявки','заявок')}`)(rs(z,wd1+1,ti-1))}</span></div></div>
-    <div class="panel kpi go" data-go="sum-fc" title="Прогноз месяца"><div class="lbl">Заявок за ${MON[+f.month.slice(5)-1]}</div><div class="val">${fmt(f.fact)}<small>${delta(f.fact,rs(z,r.pa,r.pb))}</small></div>
-      <div class="foot"><span>к ${pPer}: ${fmt(rs(z,r.pa,r.pb))} ${plural(rs(z,r.pa,r.pb),'заявка','заявки','заявок')}</span></div>
-      <div class="foot"><span class="muted">прогноз на месяц — ${fmt(f.forecast)} ${plural(f.forecast,'заявка','заявки','заявок')}</span></div></div>
-    <div class="panel kpi go" data-go="@pay" title="Открыть «Оплаты»"><div class="lbl">Оплачено и предоплата</div><div class="val">${fmt(paidM)}<small>${delta(paidM,paidPrev)}</small></div>
-      <div class="foot"><span>к ${pPer}: ${fmt(paidPrev)} ${plural(paidPrev,'заявка','заявки','заявок')}</span></div>
-      <div class="foot"><span class="muted">на ${rub(rs(D.zav.paid_rub,r.a,r.b))} · из заявок этого месяца</span></div></div>
+    <div class="panel kpi go" data-go="sum-fc" title="Прогноз месяца"><div class="lbl">Заявок за ${MON[+f.month.slice(5)-1]}</div><div class="val">${fmt(f.fact)}<small>${fullTxt&&prevTxt?delta(zFull,zPrev):delta(null,null)}</small></div>
+      <div class="foot"><span>${fullTxt&&prevTxt?`к ${prevTxt}: ${fmt(zPrev)} ${plural(zPrev,'заявка','заявки','заявок')}`:'сравнение — со 2-го числа'}</span></div>
+      <div class="foot"><span class="muted">без сегодняшнего дня · прогноз на месяц — ${fmt(f.forecast)} ${plural(f.forecast,'заявка','заявки','заявок')}</span></div></div>
+    <div class="panel kpi go" data-go="@pay" title="Открыть «Оплаты»"><div class="lbl">Оплачено и предоплата</div><div class="val">${fmt(paidM)}<small>${fullTxt&&prevTxt?delta(paidFull,paidPrev):delta(null,null)}</small></div>
+      <div class="foot"><span>${fullTxt&&prevTxt?`к ${prevTxt}: ${fmt(paidPrev)} ${plural(paidPrev,'заявка','заявки','заявок')}`:'сравнение — со 2-го числа'}</span></div>
+      <div class="foot"><span class="muted" title="Прошлый месяц — какими были оплаты на тот же день: у его заявок не должно быть лишнего времени">заявки на ${rub(paidNow.rub)} · без сегодня, прошлый — оплаты к ${+D.days[Math.max(0,r.pb)].slice(8)}-му</span></div></div>
     <div class="panel kpi go" data-go="@site#site-funnel" title="Открыть воронку сайта"><div class="lbl">Визит → заявка</div><div class="val">${pct(crM,2)}<small>${delta(crM,crPrev)}</small></div>
       <div class="foot"><span>к ${perTxt(r.pa,r.pb-1)||pPer}: ${pct(crPrev,2)}</span></div>
       <div class="foot"><span class="muted">заявки с сайта / визиты · без сегодняшнего дня</span></div></div>
@@ -934,7 +945,7 @@ function vPay(){
     return{m:m.m,n:rr.length,paid:paid.length,lost:lost.length,open:open.length,rub:sum(paid.map(x=>x[2])),margin:sum(paid.map(x=>x[3])),days:median(rr.map(x=>x[9]).filter(v=>v!=null))}});
   const mx=Math.max(1,...rows.map(r=>r.n));
   let h=`<div class="panel" style="margin-bottom:16px"><h2>Судьба заявок по месяцам создания</h2><p class="sub">Сколько заявок месяца оплачено, аннулировано и ещё в работе на сегодня. Свежие месяцы ещё «дозревают». Нажмите на месяц — он откроется в «Заявках».</p>
-    <div class="tbl"><table><thead><tr><th>Месяц</th><th class="r">Заявок</th><th class="r">Оплачено</th><th class="r">Аннул. и возврат</th><th class="r">В работе</th><th class="r">Оплачено, ₽</th><th class="r">Маржа, ₽</th><th class="r">Дней до оплаты</th></tr></thead><tbody>
+    <div class="tbl"><table><thead><tr><th>Месяц</th><th class="r">Заявок</th><th class="r">Оплачено</th><th class="r">Аннул. и возврат</th><th class="r">В работе</th><th class="r" title="Полная стоимость оплаченных заявок, а не поступившие деньги">Стоимость оплаченных, ₽</th><th class="r">Маржа, ₽</th><th class="r">Дней до оплаты</th></tr></thead><tbody>
     ${rows.map(r=>`<tr data-pick="p:m:${r.m}@zav" title="Открыть ${monName(r.m)} в «Заявках»"><td class="b">${monName(r.m)}</td><td class="r">${fmt(r.n)}</td><td class="r">${fmt(r.paid)} <span class="muted">${pct(r.n?r.paid/r.n:null,0)}</span></td><td class="r">${fmt(r.lost)} <span class="muted">${pct(r.n?r.lost/r.n:null,0)}</span></td><td class="r">${fmt(r.open)}</td><td class="r">${rub(r.rub)}</td><td class="r">${rub(r.margin)}</td><td class="r">${r.days==null?'—':fmt(r.days,1)}</td></tr>`).join('')}
     </tbody></table></div><p class="note">«Дней до оплаты» — медиана от создания заявки до первого платежа. Суммы — полная стоимость оплаченных заявок.</p></div>`;
   $('#view').innerHTML=h;
@@ -1273,6 +1284,7 @@ $('#method').innerHTML='<div id="dq-slot"></div><p id="period" class="ref-info" 
   ['Визит → заявка','Заявки с сайта / визиты за те же дни. Сегодняшний неполный день не учитывается.'],
   ['Обращения','Лиды Битрикса из листа «Обращения» без дублей, ошибок и вопросов о сотрудничестве. Целевое — отметка «Целевой»; до заявки — есть номер заявки букинга.'],
   ['Заявок вчера','Последний будний день: в воскресенье и понедельник — пятница, заявки субботы и воскресенья показаны отдельно. Ниже — сколько было в будний день перед ним. Норма — среднее число заявок в будний день за последние 4 недели. Сегодняшний день не показывается: букинг обновляется раз в сутки.'],
+  ['Сравнение с прошлым месяцем','В сводке — те же полные дни прошлого месяца, без сегодняшнего (он ещё идёт). Оплаты прошлого месяца — какими они были на тот же день: заявка считается оплаченной, если первый платёж пришёл не позже. Иначе прошлый месяц всегда выглядел бы лучше — у его заявок было больше времени.'],
   ['Прогноз месяца','Факт + оставшиеся дни × среднее число заявок в день за 28 дней с поправкой на день недели (12 недель). Коридор — около 80% по разбросу дневных значений.'],
   ['Где отвал','Последние 7 полных дней против нормы — 28 дней до них. Жёлтый — падение на 7%+, красный — на 15%+, и только если оно больше случайного разброса.'],
   ['Сравнение','Текущий месяц — с теми же днями прошлого; месяц — с предыдущим; остальные периоды — с таким же отрезком перед ними. До начала данных сравнение не показывается.'],
