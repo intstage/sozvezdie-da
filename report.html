@@ -694,7 +694,7 @@ function vSummary(){
     `. ${sigBad.length?`За неделю просело: ${sigBad.slice(0,2).map(s=>`<b>${esc(s.name.toLowerCase())}</b>`).join(', ')}.`:'За неделю всё в норме.'}`;
   let h=`<p class="verdict">${verdict}</p><div class="grid g-kpi">
     <div class="panel kpi go" data-go="sum-daily" title="Заявки по дням"><div class="lbl">${wdLbl}, ${dShort(D.days[wd1])}</div><div class="val">${fmt(z[wd1])}<small>${delta(z[wd1],wdMean)}</small></div>
-      <div class="foot"><span>к норме: ${fmt(wdMean,1)} заявки в будний день (среднее за 4 недели)</span></div>
+      <div class="foot"><span>обычно ${fmt(wdMean,1)} в будний день (среднее за 4 недели)</span></div>
       <div class="foot"><span class="muted">${dShort(D.days[wd2])} было ${fmt(z[wd2])} ${plural(z[wd2],'заявка','заявки','заявок')}${wd1===ti-1?'':(n=>` · за выходные ${fmt(n)} ${plural(n,'заявка','заявки','заявок')}`)(rs(z,wd1+1,ti-1))}</span></div></div>
     <div class="panel kpi go" data-go="sum-fc" title="Прогноз месяца"><div class="lbl">Заявок за ${MON[+f.month.slice(5)-1]}</div><div class="val">${fmt(f.fact)}<small>${fullTxt&&prevTxt?delta(zFull,zPrev):delta(null,null)}</small></div>
       <div class="foot"><span>${fullTxt&&prevTxt?`к ${prevTxt}: ${fmt(zPrev)} ${plural(zPrev,'заявка','заявки','заявок')}`:'сравнение — со 2-го числа'}</span></div>
@@ -731,7 +731,7 @@ function vSummary(){
   const sg=D.signals,groups=['Заявки','Сайт','Обращения','После заявки'];
   h+=`<div class="panel sec" id="sum-sig"><h2>Где отвал</h2><p class="sub">Последние 7 дней (${dShort(sg.window[0])}–${dShort(sg.window[1])}) против нормы — 28 дней до них. Красный — падение больше 15% и не случайное. Нажмите на строку — откроется вкладка с подробностями.</p>
     <div class="grid" style="margin:0">${groups.filter(g=>sg.sides[g]).map(g=>`<div class="side"><h3 data-go="${SIG_GO[g]||''}" title="Подробнее">${g}<span class="pill l-${sg.sides[g]}">${LEVEL_TXT[sg.sides[g]]}</span></h3>
-      <ul class="sig">${sg.items.filter(s=>s.group===g).map(s=>`<li class="${s.level}" data-go="${SIG_GO[g]||''}" title="Подробнее"><i></i><span>${esc(s.name)}</span><span class="v">${s.kind==='pct'?pct(s.value,s.value<0.05?2:1):fmt(s.value,1)}<small>норма ${s.kind==='pct'?pct(s.norm,s.norm<0.05?2:1):fmt(s.norm,1)}</small></span></li>`).join('')}</ul></div>`).join('')}</div></div></div>`;
+      <ul class="sig">${sg.items.filter(s=>s.group===g).map(s=>`<li class="${s.level}" data-go="${SIG_GO[g]||''}" title="Подробнее"><i></i><span>${esc(s.name)}</span><span class="v">${s.kind==='pct'?pct(s.value,s.value<0.05?2:1):fmt(s.value,1)}<small>обычно ${s.kind==='pct'?pct(s.norm,s.norm<0.05?2:1):fmt(s.norm,1)}</small></span></li>`).join('')}</ul></div>`).join('')}</div></div></div>`;
   // заявки по дням
   const from=Math.max(0,ti-59),lab=D.days.slice(from),vals=z.slice(from),avg=ma7(z).slice(from);
   h+=`<div class="panel sec" id="sum-daily"><h2>Заявки по дням</h2><p class="sub">60 дней; сегодня — неполный день</p>
