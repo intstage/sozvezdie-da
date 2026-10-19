@@ -942,32 +942,41 @@ function vWeb(){
       </details>`:''}
     </div>`;
   } else if(ex&&w.seatsError)h+=`<div class="empty" style="margin-bottom:16px">Места по сеансам не прочитаны: ${esc(w.seatsError)}</div>`;
-  // воронка мероприятия
-  const steps=ex?[['Регистрации',n],['Бронь в Б24',k.req]].concat(sz?[['Оплачено броней',sz.sold]]:[])
+  // воронка мероприятия: с сегментами — по Букингу (люди: заявка → покупка → Созвездие), Битрикс — строкой под ней
+  const SG=w.seg&&w.seg.seg,A=SG&&SG.all;
+  const steps=A?(ex?[['Регистрации',n],['Забронировали экскурсию',k.req],['Оставили заявку на круиз',A.ppl],['Купили круиз',A.buyers],['из них Созвездие',A.buyersSz]]
+      :[['Регистрации',n],['Оставили заявку на круиз',A.ppl],['Купили круиз',A.buyers],['из них Созвездие',A.buyersSz]])
+    :ex?[['Регистрации',n],['Бронь в Б24',k.req]].concat(sz?[['Оплачено броней',sz.sold]]:[])
     :[['Регистрации',n],['Есть в Б24',k.inB24],['Заявка в Б24',k.req],['Забронировали круиз',k.booked]].concat(sz?[['Продажи (срез)',sz.sold]]:[]);
-  h+=`<div class="grid g-2 sec" id="web-funnel"><div class="panel"><h2>${ex?'Воронка экскурсии':'Воронка вебинара'}</h2><p class="sub">Справа — доля от регистраций и конверсия из предыдущего шага</p>
-    <div class="funnel">${steps.map(([name,v],i)=>`<div class="row"><span>${esc(name)}</span><div class="bar"><i style="width:${n?Math.max(v?0.5:0,Math.min(100,v/n*100)):0}%"></i></div><span class="n">${fmt(v)}</span><span class="cr">${i?`${pct(n?v/n:null,1)} <span class="muted">· ${pct(steps[i-1][1]?v/steps[i-1][1]:null,0)}</span>`:''}</span></div>`).join('')}</div></div>`;
+  const fsub=A?`Считаем людей. Заявки и оплаты — все, что эти люди оформили в Букинге с дня регистрации${ex?' (кроме броней самой экскурсии)':''}; Созвездие — вместе с Речными линиями. Справа — доля от регистраций · переход с предыдущего шага.`
+    :'Справа — доля от регистраций и конверсия из предыдущего шага';
+  const fb24=A&&!ex?`<p class="sub" style="margin-top:12px">В Битриксе по этому вебинару: лид — ${fmt(k.req)}, «Забронирован круиз» — ${fmt(k.booked)}${sz?`, продажи по срезу — ${fmt(sz.sold)}`:''}. Срез видит только сделки, привязанные к лиду вебинара, а Букинг — все покупки этих людей, поэтому «Купили круиз» больше.</p>`:'';
+  h+=`<div class="grid g-2 sec" id="web-funnel"><div class="panel"><h2>${ex?'Воронка экскурсии':'Воронка вебинара'}</h2><p class="sub">${fsub}</p>
+    <div class="funnel">${steps.map(([name,v],i)=>`<div class="row"><span>${esc(name)}</span><div class="bar"><i style="width:${n?Math.max(v?0.5:0,Math.min(100,v/n*100)):0}%${A&&i===steps.length-1?';background:var(--s2)':''}"></i></div><span class="n">${fmt(v)}</span><span class="cr">${i?`${pct(n?v/n:null,1)} <span class="muted">· ${pct(steps[i-1][1]?v/steps[i-1][1]:null,0)}</span>`:''}</span></div>`).join('')}</div>${fb24}</div>`;
   // стадии лидов
   const st={};rows.forEach(r=>{if(r[c.stage]>=0){const s=w.dict.stage[r[c.stage]];st[s]=(st[s]||0)+1}});
   const stl=Object.entries(st).sort((a,b)=>b[1]-a[1]);
   h+=`<div class="panel"><h2>${ex?'Статусы броней':'Стадии лидов'}</h2><p class="sub">${ex?'Статус брони участника в Букинге (через Б24); у повторных броней — действующая':'Где сейчас лиды, пришедшие с вебинара'}</p>${stl.length?`<div class="tbl"><table><tbody>${stl.map(([s,v])=>`<tr><td${s===D_BOOKED?' class="b"':''}>${esc(s)}</td><td class="r b">${fmt(v)}</td><td class="r muted">${pct(v/n,1)}</td></tr>`).join('')}</tbody></table></div>`:(ex?'<div class="empty">Статусов пока нет — их пишет импорт регистраций экскурсии.</div>':'<div class="empty">Стадий пока нет — нужна проверка «Битрикс».</div>')}</div></div>`;
-  // от регистрации до покупки: сегменты по Букингу (лист «Мероприятия: Букинг», считается ночью)
-  const SG=w.seg&&w.seg.seg;
-  const SEG_L=[['all','Всего',''],['new','Новые','не было в базе Инфофлота'],['base','В базе, не покупали','контакт есть, покупок нет'],['other','Покупали не Созвездие','только другие операторы'],['sz','Покупатели Созвездия','последняя покупка СЗ < 2 лет'],['back','Вернувшиеся','последняя покупка СЗ 2+ года назад']];
+  // через сколько дней после регистрации: сегменты × сроки по Букингу (лист «Мероприятия: Букинг»)
+  const SEG_L=[['all','Всего',''],['new','Новые','не было в базе Инфофлота'],['base','В базе, не покупали','контакт есть, покупок не было'],['other','Покупали не Созвездие','только у других операторов'],['sz','Покупатели Созвездия','последняя покупка СЗ — меньше 2 лет назад'],['back','Вернувшиеся','последняя покупка СЗ — 2 года назад и раньше']];
   if(SG){
-    const A=SG.all,lags=w.seg.lags,sum=a=>a.reduce((x,y)=>x+y,0);
-    const fs=[['Регистрации',A.n],['Оставили заявку',A.ppl],['Купили',A.buyers],['Купили Созвездие',A.buyersSz]];
+    const lags=w.seg.lags,sum=a=>a.reduce((x,y)=>x+y,0);
     const cell=(r,s,sz)=>r||s?`${fmt(r)} / <b>${fmt(s)}</b><small>${s?'СЗ '+pct(sz/s,0):'&nbsp;'}</small>`:'<span class="muted">—</span>';
-    h+=`<div class="panel sec" id="web-seg" style="margin-bottom:16px"><h2>От регистрации до покупки</h2>
-      <p class="sub">Что люди сделали после регистрации — по Букингу: заявки и оплаты с дня регистрации${ex?' (брони самой экскурсии не считаются)':''}. Созвездие — Созвездие и Речные линии. Нашлись в Букинге: ${fmt(A.found)} из ${fmt(A.n)}. Обновлено ${w.seg.updated?esc(dShort(w.seg.updated.slice(0,10))):'—'}.</p>
-      <div class="funnel" style="margin-bottom:18px">${fs.map(([name,v],i)=>`<div class="row"><span>${esc(name)}</span><div class="bar"><i style="width:${A.n?Math.max(v?0.5:0,Math.min(100,v/A.n*100)):0}%${i===3?';background:var(--s2)':''}"></i></div><span class="n">${fmt(v)}</span><span class="cr">${i?`${pct(A.n?v/A.n:null,1)} <span class="muted">· ${pct(fs[i-1][1]?v/fs[i-1][1]:null,0)}</span>`:''}</span></div>`).join('')}</div>
-      <h4>Сегменты: через сколько дней после регистрации — заявок / <b>продаж</b>, под ними доля Созвездия в продажах</h4>
-      <div class="tbl segt"><table><thead><tr><th>Сегмент (на день регистрации)</th><th class="r">Людей</th>${lags.map((l,i)=>`<th class="r${i?'':' gl'}">${esc(l)} дн.</th>`).join('')}<th class="r gl">Итого</th><th class="r">Купили</th></tr></thead>
+    h+=`<div class="panel sec" id="web-seg" style="margin-bottom:16px"><h2>Кто пришёл и когда купил</h2>
+      <p class="sub">Участники разбиты по тому, кем они были в день регистрации. В ячейке — <b>заявок / оплачено</b> за этот срок после регистрации, ниже — доля Созвездия в оплатах. Нашлись в Букинге: ${fmt(A.found)} из ${fmt(A.n)}. Обновлено ${w.seg.updated?esc(dShort(w.seg.updated.slice(0,10))):'—'}.</p>
+      <div class="tbl segt"><table><thead><tr><th>Кем был в день регистрации</th><th class="r">Людей</th><th class="r">Купили, чел.</th>${lags.map((l,i)=>`<th class="r${i?'':' gl'}">${esc(l)} дн.</th>`).join('')}<th class="r gl">Всего заявок / оплачено</th></tr></thead>
       <tbody>${SEG_L.map(([key,name,hint])=>{const x=SG[key];if(!x)return'';const R=sum(x.req),P=sum(x.sale),PZ=sum(x.saleSz);
-        return`<tr class="${key==='all'?'b':''}"><td>${esc(name)}${hint?`<small>${esc(hint)}</small>`:''}</td><td class="r">${fmt(x.n)}${key!=='all'?`<small>${pct(A.n?x.n/A.n:null,0)}</small>`:''}</td>
-        ${lags.map((l,i)=>`<td class="r${i?'':' gl'}">${cell(x.req[i],x.sale[i],x.saleSz[i])}</td>`).join('')}<td class="r gl">${cell(R,P,PZ)}</td><td class="r">${fmt(x.buyers)}<small>${pct(x.n?x.buyers/x.n:null,1)}</small></td></tr>`}).join('')}</tbody></table></div>
-      <p class="sub" style="margin-top:10px">Привлечение новых — «Новые» и «В базе, не покупали»; переманивание — «Покупали не Созвездие»; удержание и возврат — «Покупатели Созвездия» и «Вернувшиеся». Заявка — по дню создания, продажа (Предоплата/Оплачено) — по дню первой оплаты.</p></div>`;
-  } else h+=`<div class="panel sec" id="web-seg" style="margin-bottom:16px"><h2>От регистрации до покупки</h2><div class="empty">Сегменты и сроки считаются ночью по Букингу (лист «Мероприятия: Букинг») — появятся после первого ночного обновления.</div></div>`;
+        return`<tr class="${key==='all'?'b':''}"><td>${esc(name)}${hint?`<small>${esc(hint)}</small>`:''}</td><td class="r">${fmt(x.n)}${key!=='all'?`<small>${pct(A.n?x.n/A.n:null,0)} участников</small>`:''}</td>
+        <td class="r">${fmt(x.buyers)}<small>${pct(x.n?x.buyers/x.n:null,1)} из них</small></td>
+        ${lags.map((l,i)=>`<td class="r${i?'':' gl'}">${cell(x.req[i],x.sale[i],x.saleSz[i])}</td>`).join('')}<td class="r gl">${cell(R,P,PZ)}</td></tr>`}).join('')}</tbody></table></div>
+      <ul class="sub" style="margin:10px 0 0;padding-left:18px;line-height:1.55">
+        <li><b>Людей</b> — участников в группе, под числом — доля от всех участников.</li>
+        <li><b>Купили, чел.</b> — сколько человек оплатили хотя бы одну заявку после регистрации; под числом — доля от людей группы.</li>
+        <li><b>Заявок / оплачено</b> — заявки в Букинге, созданные за этот срок после регистрации / сколько из них оплачено (Предоплата или Оплачено; срок — по дню первой оплаты). Один человек может оставить несколько заявок, поэтому заявок больше, чем людей.</li>
+        <li><b>СЗ %</b> — какая доля оплат пришлась на Созвездие и Речные линии; остальное — другие операторы.</li>
+        <li><b>Стратегии:</b> привлечение новых — «Новые» и «В базе, не покупали»; переманивание — «Покупали не Созвездие»; удержание и возврат — «Покупатели Созвездия» и «Вернувшиеся».</li>
+      </ul></div>`;
+  } else h+=`<div class="panel sec" id="web-seg" style="margin-bottom:16px"><h2>Кто пришёл и когда купил</h2><div class="empty">Считается по Букингу ночью (лист «Мероприятия: Букинг») или сразу — меню таблицы «Заявки» → «Мероприятия: пересчитать сегменты по Букингу».</div></div>`;
   // регистрации по дням
   const days=[];if(w.start&&w.end){for(let d=new Date(w.start+'T00:00:00');;d.setDate(d.getDate()+1)){const x=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');days.push(x);if(x>=w.end||days.length>120)break}}
   const byDay=Object.fromEntries(days.map(x=>[x,0]));rows.forEach(r=>{if(r[c.day]in byDay)byDay[r[c.day]]++});
@@ -985,7 +994,7 @@ function vWeb(){
     ${L.map(x=>{const cc=Object.fromEntries(x.cols.map((kk,i)=>[kk,i])),nn=x.rows.length,rq=x.rows.reduce((a,r)=>a+r[cc.req],0),bk=x.rows.reduce((a,r)=>a+r[cc.booked],0);
       return`<tr data-pick="w:${esc(x.name)}" title="Открыть это мероприятие"><td class="b">${esc(x.name)}${x.name===w.name?' ✓':''}</td><td class="nw">${dd(x.date)}</td><td class="r">${fmt(nn)}</td><td class="r">${fmt(rq)} <span class="muted">${pct(nn?rq/nn:null,0)}</span></td><td class="r">${fmt(bk)}</td><td class="r">${x.srez?fmt(x.srez.sold):'—'}</td><td class="r">${x.srez?rub(x.srez.sum):'—'}</td></tr>`}).join('')}
     </tbody></table></div></div>`;
-  $('#view').innerHTML=withJump(h,[...(ex&&w.seats?[['web-seats','Места']]:[]),['web-funnel','Воронка и стадии'],['web-seg','Сегменты'],['web-days','По дням'],['web-cut','Разрез'],['web-cmp','Сравнение']]);
+  $('#view').innerHTML=withJump(h,[...(ex&&w.seats?[['web-seats','Места']]:[]),['web-funnel','Воронка и стадии'],['web-seg','Кто и когда купил'],['web-days','По дням'],['web-cut','Разрез'],['web-cmp','Сравнение']]);
   $('#web-pick').onclick=e=>{const b=e.target.closest('[data-w]');if(!b)return;S.web=b.dataset.w;save();render()};
   $('#seg-wdim').onclick=e=>{const b=e.target.closest('[data-d]');if(!b)return;if(e.detail)b.blur();S.wdim=b.dataset.d;save();render()};
 }
