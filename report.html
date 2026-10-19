@@ -942,6 +942,11 @@ function vWeb(){
       </details>`:''}
     </div>`;
   } else if(ex&&w.seatsError)h+=`<div class="empty" style="margin-bottom:16px">Места по сеансам не прочитаны: ${esc(w.seatsError)}</div>`;
+  // регистрации по дням
+  const days=[];if(w.start&&w.end){for(let d=new Date(w.start+'T00:00:00');;d.setDate(d.getDate()+1)){const x=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');days.push(x);if(x>=w.end||days.length>120)break}}
+  const byDay=Object.fromEntries(days.map(x=>[x,0]));rows.forEach(r=>{if(r[c.day]in byDay)byDay[r[c.day]]++});
+  if(days.length)h+=`<div class="panel sec" id="web-days" style="margin-bottom:16px"><h2>Регистрации по дням</h2>${barChart('c-web',{name:'Регистраций',color:cssv('--s1'),bars:days.map(x=>({label:dShort(x)+' '+x.slice(0,4)+(x===w.date?(ex?' · день экскурсии':' · день вебинара'):''),value:byDay[x],color:x===w.date?cssv('--s2'):undefined})),ticks:i=>i%Math.max(1,Math.ceil(days.length/10))===0?dShort(days[i]):''})}
+    ${days.includes(w.date)?legend([['Регистрации',cssv('--s1'),'bar'],[ex?'День экскурсии':'День вебинара',cssv('--s2'),'bar']]):''}</div>`;
   // воронка мероприятия: с сегментами — по Букингу (люди: заявка → покупка → Созвездие), Битрикс — строкой под ней
   const SG=w.seg&&w.seg.seg,A=SG&&SG.all;
   const steps=A?(ex?[['Регистрации',n],['Забронировали экскурсию',k.req],['Оставили заявку на круиз',A.ppl],['Купили круиз',A.buyers],['из них Созвездие',A.buyersSz]]
@@ -977,11 +982,6 @@ function vWeb(){
         <li><b>Стратегии:</b> привлечение новых — «Новые» и «В базе, не покупали»; переманивание — «Покупали не Созвездие»; удержание и возврат — «Покупатели Созвездия» и «Вернувшиеся».</li>
       </ul></div>`;
   } else h+=`<div class="panel sec" id="web-seg" style="margin-bottom:16px"><h2>Кто пришёл и когда купил</h2><div class="empty">Считается по Букингу ночью (лист «Мероприятия: Букинг») или сразу — меню таблицы «Заявки» → «Мероприятия: пересчитать сегменты по Букингу».</div></div>`;
-  // регистрации по дням
-  const days=[];if(w.start&&w.end){for(let d=new Date(w.start+'T00:00:00');;d.setDate(d.getDate()+1)){const x=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');days.push(x);if(x>=w.end||days.length>120)break}}
-  const byDay=Object.fromEntries(days.map(x=>[x,0]));rows.forEach(r=>{if(r[c.day]in byDay)byDay[r[c.day]]++});
-  if(days.length)h+=`<div class="panel sec" id="web-days" style="margin-bottom:16px"><h2>Регистрации по дням</h2>${barChart('c-web',{name:'Регистраций',color:cssv('--s1'),bars:days.map(x=>({label:dShort(x)+' '+x.slice(0,4)+(x===w.date?(ex?' · день экскурсии':' · день вебинара'):''),value:byDay[x],color:x===w.date?cssv('--s2'):undefined})),ticks:i=>i%Math.max(1,Math.ceil(days.length/10))===0?dShort(days[i]):''})}
-    ${days.includes(w.date)?legend([['Регистрации',cssv('--s1'),'bar'],[ex?'День экскурсии':'День вебинара',cssv('--s2'),'bar']]):''}</div>`;
   // разрез
   const di=c[S.wdim],g={};rows.forEach(r=>{const key=w.dict[S.wdim][r[di]];const x=g[key]||(g[key]={n:0,inIF:0,paid:0,req:0,booked:0,nb:0});x.n++;x.inIF+=r[c.inIF];x.paid+=r[c.paid];x.req+=r[c.req];x.booked+=r[c.booked];x.nb+=r[c.newBooked]});
   const gl=Object.entries(g).sort((a,b)=>b[1].n-a[1].n);
@@ -994,7 +994,7 @@ function vWeb(){
     ${L.map(x=>{const cc=Object.fromEntries(x.cols.map((kk,i)=>[kk,i])),nn=x.rows.length,rq=x.rows.reduce((a,r)=>a+r[cc.req],0),bk=x.rows.reduce((a,r)=>a+r[cc.booked],0);
       return`<tr data-pick="w:${esc(x.name)}" title="Открыть это мероприятие"><td class="b">${esc(x.name)}${x.name===w.name?' ✓':''}</td><td class="nw">${dd(x.date)}</td><td class="r">${fmt(nn)}</td><td class="r">${fmt(rq)} <span class="muted">${pct(nn?rq/nn:null,0)}</span></td><td class="r">${fmt(bk)}</td><td class="r">${x.srez?fmt(x.srez.sold):'—'}</td><td class="r">${x.srez?rub(x.srez.sum):'—'}</td></tr>`}).join('')}
     </tbody></table></div></div>`;
-  $('#view').innerHTML=withJump(h,[...(ex&&w.seats?[['web-seats','Места']]:[]),['web-funnel','Воронка и стадии'],['web-seg','Кто и когда купил'],['web-days','По дням'],['web-cut','Разрез'],['web-cmp','Сравнение']]);
+  $('#view').innerHTML=withJump(h,[...(ex&&w.seats?[['web-seats','Места']]:[]),['web-days','По дням'],['web-funnel','Воронка и стадии'],['web-seg','Кто и когда купил'],['web-cut','Разрез'],['web-cmp','Сравнение']]);
   $('#web-pick').onclick=e=>{const b=e.target.closest('[data-w]');if(!b)return;S.web=b.dataset.w;save();render()};
   $('#seg-wdim').onclick=e=>{const b=e.target.closest('[data-d]');if(!b)return;if(e.detail)b.blur();S.wdim=b.dataset.d;save();render()};
 }
