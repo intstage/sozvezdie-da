@@ -208,13 +208,11 @@ thead th{position:sticky;z-index:3;background:var(--surface);box-shadow:inset 0 
 .seats th:first-child,.seats td:first-child{padding-left:0}
 .seats th:last-child,.seats td:last-child{padding-right:2px}
 .seats td.eq{color:var(--ink);font-weight:700}
-.seats-f{display:grid;gap:8px;margin:2px 0 14px;font-size:13.5px;color:var(--ink2)}
-.seats-f>div{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline}
-.seats-f .k{flex:0 0 150px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:600}
-.seats-f>div>span:last-child{flex:1 1 320px;min-width:0}
-.seats-f b{color:var(--ink)}
-.seats-f .op{color:var(--muted);font-weight:600}
-@media (max-width:560px){.seats-f .k{flex-basis:100%}}
+.seats tr.b td{color:var(--ink);font-weight:700}
+.seats-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px 20px;margin:14px 0 0;padding-top:12px;border-top:1px solid var(--line);font-size:12.5px;line-height:1.4;color:var(--muted)}
+.seats-f>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.seats-f b{font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:600;color:var(--ink2);margin-bottom:2px}
+.seats-f i{font-style:normal;color:var(--ink2);font-weight:500}
 .sbar{display:flex;width:96px;height:10px;border-radius:5px;overflow:hidden;background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line)}
 .sbar i{display:block;height:100%}
 .crmtag{display:inline-block;margin-left:4px;padding:0 6px;border-radius:6px;font-size:11px;font-weight:600;color:var(--ink2);background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line);white-space:nowrap}
@@ -855,7 +853,18 @@ function vWeb(){
     <ul class="pick-list">${L.map(x=>`<li><button type="button" data-w="${esc(x.name)}" aria-current="${x.name===w.name}"><span>${esc(x.name)}</span><span class="muted">${dd(x.date)} · ${fmt(x.rows.length)} рег.${x.srez?` · продаж ${fmt(x.srez.sold)}`:''}</span></button></li>`).join('')}</ul></details>
     <p class="muted" style="font-size:12.5px;margin:6px 0 16px">${kind} ${dd(w.date)}${ex&&w.guests!=null?` · гостей в действующих бронях: ${fmt(w.guests)}`:''} · регистрации ${dd(w.start)} – ${dd(w.end)}${w.dups?` · повторных регистраций убрано: ${fmt(w.dups)}`:''}</p>`;
   if(!enriched)h+=`<div class="empty" style="margin-bottom:16px"><b>Регистрации ещё не сверены с базами.</b> ${ex?'Новые брони экскурсии проверяются в «Букинге» каждые 15 минут днём — появятся база ИФ и оплаты.':'В таблице мероприятий запустите проверки «Букинг» и «Битрикс» для этого листа — появятся база ИФ, оплаты, заявки и стадии.'}</div>`;
-  h+=`<div class="grid g-kpi">
+  // экскурсия: три карточки в тех же единицах, что «Места по сеансам» (люди → гости → оплаченные гости)
+  const SV=ex&&w.seats&&w.seats.list&&w.seats.list.length?w.seats.list:null;
+  if(ex){
+    const sS=f=>SV.reduce((a,x)=>a+(x[f]||0),0),its=SV?SV.flatMap(x=>x.items||[]):[];
+    const live=rows.filter(r=>r[c.stage]>=0&&w.dict.stage[r[c.stage]]!=='Аннулировано').length;
+    const G=SV?sS('guests'):w.guests,P=SV?sS('paid'):null,B=its.length,PB=its.filter(i=>/Оплачено|Предоплата/i.test(i.st)).length;
+    h+=`<div class="grid g-kpi">
+    <div class="panel kpi go" data-go="web-days" title="Регистрации по дням"><div class="lbl">Всего регистраций</div><div class="val">${fmt(n)}</div><div class="foot"><span>людей, уникальные по почте или телефону</span></div>${mutedLine(`с действующей бронью: ${fmt(live)} · отменили: ${fmt(n-live)}`)}</div>
+    <div class="panel kpi go" data-go="${SV?'web-seats':'web-funnel'}" title="Места по сеансам"><div class="lbl">Всего гостей</div><div class="val">${G==null?'—':fmt(G)}</div><div class="foot"><span>${SV?`в ${nw(B,'действующей брони','действующих бронях','действующих бронях')}`:'в действующих бронях'}</span></div>${mutedLine(SV?`оплачено ${fmt(P)} · подтверждено ${fmt(sS('conf'))} · в обработке ${fmt(sS('proc'))}`:'')}</div>
+    <div class="panel kpi go" data-go="${SV?'web-seats':'web-funnel'}" title="Места по сеансам"><div class="lbl">Всего оплачено</div><div class="val">${P!=null?fmt(P):sz?fmt(sz.sold):'—'}${sz?`<small>на ${rub(sz.sum)}</small>`:''}</div><div class="foot"><span>${P!=null?`${plural(P,'гость','гостя','гостей')} в ${nw(PB,'брони','бронях','бронях')}`:'броней'}</span></div>${mutedLine(sz?`новых клиентов: ${fmt(sz.soldNew)}${sz.soldNoContact?` · без контакта: ${fmt(sz.soldNoContact)}`:''}`:'')}</div>
+  </div><!--jump-->`;
+  } else h+=`<div class="grid g-kpi">
     <div class="panel kpi go" data-go="${ex&&w.seats?'web-seats':'web-days'}" title="${ex&&w.seats?'Места по сеансам':'Регистрации по дням'}"><div class="lbl">Регистраций</div><div class="val">${fmt(n)}</div><div class="foot"><span>${ex?'уникальные по почте или телефону':'уникальные по почте'}</span></div>${mutedLine(w.extra?`ещё ${nw(w.extra,'лид','лида','лидов')} Б24 без регистрации`:'')}</div>
     <div class="panel kpi go" data-go="web-cut" title="Разрез по каналам"><div class="lbl">Уже в базе Инфофлота</div><div class="val">${fmt(k.inIF)}</div><div class="foot"><span>${share(k.inIF)} регистраций</span></div>${mutedLine(`раньше оплачивали: ${fmt(k.paid)} (${share(k.paid)})`)}</div>
     <div class="panel kpi go" data-go="web-funnel" title="Воронка и стадии"><div class="lbl">${ex?'Бронь в Б24':'Заявка в Б24'}</div><div class="val">${fmt(k.req)}</div><div class="foot"><span>${share(k.req)} регистраций</span></div>${mutedLine(ex?`действующих: ${fmt(rows.filter(r=>r[c.stage]>=0&&w.dict.stage[r[c.stage]]!=='Аннулировано').length)}`:`забронировали круиз: ${fmt(k.booked)}, из них новых: ${fmt(k.newBooked)}`)}</div>
@@ -870,6 +879,7 @@ function vWeb(){
     const C={paid:cssv('--s3'),conf:cssv('--s1'),proc:cssv('--s1-soft')};
     const v0=v=>v==null?'<span class="muted">—</span>':v?fmt(v):'<span class="muted">0</span>';
     const dif=x=>x.taken==null?null:x.taken-x.guests;
+    const sn=x=>`${dd(x.date).slice(0,5)}, ${['вс','пн','вт','ср','чт','пт','сб'][new Date(x.date+'T12:00:00').getDay()]} ${esc(x.time)}`;   // «01.11, вс 12:00»
     const difTxt=d=>d==null?'—':d?`<span class="crmtag" title="Занято мест в Букинге не равно числу проданных билетов — см. «Расхождения» ниже">${d>0?'+':''}${fmt(d)}</span>`:'0';
     const bar=x=>{const c=x.cap||Math.max(x.guests,1),w=v=>Math.max(0,Math.min(100,100*(v||0)/c)).toFixed(1)+'%';
       return`<span class="sbar" title="оплачено ${fmt(x.paid)} · подтверждено ${x.conf==null?'—':fmt(x.conf)} · в обработке ${x.proc==null?'—':fmt(x.proc)} · свободно по Букингу ${x.free==null?'—':fmt(x.free)} из ${x.cap==null?'—':fmt(x.cap)}">${hasSt?`<i style="width:${w(x.paid)};background:${C.paid}"></i><i style="width:${w(x.conf)};background:${C.conf}"></i><i style="width:${w(x.proc)};background:${C.proc}"></i>`:`<i style="width:${w(x.guests)};background:${C.conf}"></i>`}</span>`};
@@ -886,7 +896,14 @@ function vWeb(){
         <th class="r gl" title="Гости броней со статусом Букинга «В обработке»">В&nbsp;обработке</th><th class="r" title="«Подтверждено»: место за гостем, не оплачено">+&nbsp;Подтверждено</th><th class="r" title="«Оплачено» / «Предоплата»">+&nbsp;Оплачено</th><th class="r" title="Гости во всех действующих бронях (без отменённых)">=&nbsp;Всего в&nbsp;бронях</th>
         <th class="r gl" title="Из всего в бронях: заявки с формы на сайте">С&nbsp;формы</th><th class="r" title="Из всего в бронях: брони, созданные менеджером в Букинге">+&nbsp;Менеджеры</th>
         <th class="r gl" title="Занято в Букинге − всего в бронях">Разница</th></tr></thead>
-      <tbody>${SL.map(x=>sl(dd(x.date).slice(0,5)+', '+x.time,x)).join('')}${sl('Итого',T,true)}</tbody></table></div>
+      <tbody>${SL.map(x=>sl(sn(x),x)).join('')}${sl('Итого',T,true)}</tbody></table></div>
+      <div class="seats-f">
+        <div><b>Заполненность</b><span>полоса: оплачено, подтверждено, в&nbsp;обработке; серое — свободно</span></div>
+        <div><b>Букинг</b><span><i>Мест</i> — вместимость сеанса</span><span><i>Свободно</i> — свободно на сайте</span><span><i>Занято</i> — мест минус свободно</span></div>
+        <div><b>Регистрации</b><span><i>В обработке</i> — ещё не подтверждена</span><span><i>Подтверждено</i> — место за гостем, без оплаты</span><span><i>Оплачено</i> — оплата или предоплата</span><span><i>Всего</i> — гости действующих броней</span></div>
+        <div><b>Кто оформил</b><span><i>С формы</i> — заявка с сайта</span><span><i>Менеджеры</i> — бронь создана в Букинге</span></div>
+        <div><b>Разница</b><span>занято в Букинге минус всего в бронях; не&nbsp;0 — см. «Расхождения»</span></div>
+      </div>
       <div class="seats-after">
         <div class="ss-grid">
           <div class="ss"><div class="ss-k">Букинг · снимок ${esc((w.seats.snapshot||'').slice(11,16)||'—')}</div>
@@ -908,12 +925,12 @@ function vWeb(){
                 ${FX.length?`<h4>Число гостей: в заявке не так, как в Букинге</h4>
         <p class="sub">Таблица экскурсии ещё не забрала новое число гостей из Букинга — обычно это исправляется при следующей сверке. Если держится долго — проверить бронь в Букинге.</p>
         <div class="tbl"><table><thead><tr><th>Бронь</th><th>Сеанс</th><th>Статус Букинга</th><th>Откуда</th><th class="r nw">Заявка</th><th class="r nw">Букинг</th><th class="r nw">Разница</th></tr></thead>
-        <tbody>${FX.map(f=>`<tr><td class="b">${esc(f.num)}</td><td class="nw">${dd(f.date).slice(0,5)}, ${esc(f.time)}</td><td>${esc(f.status)}</td><td>${f.src==='Менеджер'?'менеджер':'форма'}</td><td class="r">${f.form==null?'<span class="muted">нет в заявках</span>':fmt(f.form)}</td><td class="r b">${fmt(f.crm)}</td><td class="r"><b>${f.form==null?'—':(f.crm-f.form>0?'+':'')+fmt(f.crm-f.form)}</b></td></tr>`).join('')}</tbody></table></div>`:''}
+        <tbody>${FX.map(f=>`<tr><td class="b">${esc(f.num)}</td><td class="nw">${sn(f)}</td><td>${esc(f.status)}</td><td>${f.src==='Менеджер'?'менеджер':'форма'}</td><td class="r">${f.form==null?'<span class="muted">нет в заявках</span>':fmt(f.form)}</td><td class="r b">${fmt(f.crm)}</td><td class="r"><b>${f.form==null?'—':(f.crm-f.form>0?'+':'')+fmt(f.crm-f.form)}</b></td></tr>`).join('')}</tbody></table></div>`:''}
         ${DS.length?`<h4>Места и билеты: занято мест не столько, сколько продано билетов</h4>
         <p class="sub"><b>Продано билетов</b> — пассажиры в действующих заявках сеанса. <b>Занято мест</b> — сколько мест Букинг считает занятыми (60 − свободно на сайте); каждое место в Букинге со своим ИД. Если мест меньше, чем билетов, — один ИД места записан в двух заявках (два билета на одно место): Букинг считает его один раз и показывает на сайте лишнее свободное место. Как найти: открыть «Пассажиры» заявок сеанса (ссылки ниже) и найти ИД билета, который повторяется. Если мест больше — Букинг держит места без действующей заявки.</p>
         <div class="tbl"><table><thead><tr><th>Сеанс</th><th class="r nw">Продано билетов</th><th class="r nw">Занято мест</th><th class="r nw">Разница</th><th>Заявки сеанса: номер · статус · билетов (открыть пассажиров в Букинге)</th></tr></thead>
         <tbody>${DS.map(x=>{const d=dif(x),need=Math.abs(d),it=(x.items||[]).slice().sort((p,q)=>String(p.num).localeCompare(String(q.num)));
-          return`<tr><td class="nw b">${dd(x.date).slice(0,5)}, ${esc(x.time)}</td><td class="r">${fmt(x.guests)}</td><td class="r">${fmt(x.taken)}</td><td class="r"><b>${d>0?'+':''}${fmt(d)}</b></td>
+          return`<tr><td class="nw b">${sn(x)}</td><td class="r">${fmt(x.guests)}</td><td class="r">${fmt(x.taken)}</td><td class="r"><b>${d>0?'+':''}${fmt(d)}</b></td>
           <td>${d<0?(it.length?it.map(i=>`<a class="bk" href="https://old.infoflot.com/ACP/RequestPassengers/Request/${encodeURIComponent(i.num)}" target="_blank" rel="noopener">${esc(i.num)} · ${esc(String(i.st).toLowerCase())} · ${fmt(i.g)}${i.src==='Менеджер'?' · менеджер':''}</a>`).join(''):'<span class="muted">броней нет</span>'):'<span class="muted">в таблице нет действующей брони под эти места — найти её в Букинге</span>'}</td></tr>`}).join('')}</tbody></table></div>`:''}
       </details>`:''}
     </div>`;
