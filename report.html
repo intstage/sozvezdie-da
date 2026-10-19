@@ -848,9 +848,11 @@ function vWeb(){
   const kind=ex?'Экскурсия':'Вебинар';
   const share=v=>n?pct(v/n,1):'—';
   const dd=x=>x?x.slice(8,10)+'.'+x.slice(5,7)+'.'+x.slice(0,4):'—';
+  // подпись в списке: полная дата с годом впереди, «· дд.мм» из названия убираем
+  const wl=x=>x.date?dd(x.date)+' · '+x.name.replace(/\s*·\s*\d{2}\.\d{2}$/,''):x.name;
   let h=`<span class="flbl">Мероприятия · ${L.length}</span>
-    <details class="panel dq pick" id="web-pick"><summary><span>${esc(w.name)}</span><span class="muted pick-n"> · ${fmt(n)} ${plural(n,'регистрация','регистрации','регистраций')}</span></summary>
-    <ul class="pick-list">${L.map(x=>`<li><button type="button" data-w="${esc(x.name)}" aria-current="${x.name===w.name}"><span>${esc(x.name)}</span><span class="muted">${dd(x.date)} · ${fmt(x.rows.length)} рег.${x.srez?` · продаж ${fmt(x.srez.sold)}`:''}</span></button></li>`).join('')}</ul></details>
+    <details class="panel dq pick" id="web-pick"><summary><span>${esc(wl(w))}</span><span class="muted pick-n"> · ${fmt(n)} ${plural(n,'регистрация','регистрации','регистраций')}</span></summary>
+    <ul class="pick-list">${L.map(x=>`<li><button type="button" data-w="${esc(x.name)}" aria-current="${x.name===w.name}"><span>${esc(wl(x))}</span><span class="muted">${fmt(x.rows.length)} рег.${x.srez?` · продаж ${fmt(x.srez.sold)}`:''}</span></button></li>`).join('')}</ul></details>
     <p class="muted" style="font-size:12.5px;margin:6px 0 16px">${kind} ${dd(w.date)}${ex&&w.guests!=null?` · гостей в действующих бронях: ${fmt(w.guests)}`:''} · регистрации ${dd(w.start)} – ${dd(w.end)}${w.dups?` · повторных регистраций убрано: ${fmt(w.dups)}`:''}</p>`;
   if(!enriched)h+=`<div class="empty" style="margin-bottom:16px"><b>Регистрации ещё не сверены с базами.</b> ${ex?'Новые брони экскурсии проверяются в «Букинге» каждые 15 минут днём — появятся база ИФ и оплаты.':'В таблице мероприятий запустите проверки «Букинг» и «Битрикс» для этого листа — появятся база ИФ, оплаты, заявки и стадии.'}</div>`;
   // экскурсия: три карточки в тех же единицах, что «Места по сеансам» (люди → гости → оплаченные гости)
