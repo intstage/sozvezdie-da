@@ -934,9 +934,9 @@ function vWeb(){
           <div class="ss"><div class="ss-k">Кто оформил</div>
             <div class="ss-v">${fmt(T.guests-T.manager)}<small>с формы</small></div>
             <div class="ss-d">менеджеры в Букинге ${fmt(T.manager)}</div></div>
-          <div class="ss${dT?' ss-diff':''}"><div class="ss-k">Места и билеты</div>
+          <div class="ss${dT?' ss-diff':''}"><div class="ss-k">Расхождения: места и билеты</div>
             <div class="ss-v">${dT==null?'—':(dT>0?'+':'')+fmt(dT)}</div>
-            <div class="ss-d">${dT==null?'нет снимка Букинга':!dT?'занято мест столько же, сколько продано билетов':dT<0?`билетов продано ${fmt(T.guests)}, а мест занято ${fmt(T.taken)} — похоже, одно место записано на два билета`:`мест занято ${fmt(T.taken)}, а билетов продано ${fmt(T.guests)} — места без брони`}</div></div>
+            <div class="ss-d">${dT==null?'нет снимка Букинга':!dT?`расхождений нет: занято ${fmt(T.taken)} ${plural(T.taken,'место','места','мест')}, продано ${fmt(T.guests)} ${plural(T.guests,'билет','билета','билетов')}`:dT<0?`билетов продано ${fmt(T.guests)}, а мест занято ${fmt(T.taken)} — похоже, одно место записано на два билета`:`мест занято ${fmt(T.taken)}, а билетов продано ${fmt(T.guests)} — места без брони`}</div></div>
         </div>
         <p class="sub ss-note">Места, статус брони и число гостей — из Букинга (таблица экскурсии сверяет заявки с Букингом).</p>
       </div>
@@ -980,9 +980,10 @@ function vWeb(){
   // когорта мероприятия — все покупки этих людей в Букинге с дня регистрации (по любому поводу)
   if(A){
     const cs=[['Регистрации',n],[WKL[0],A.ppl],[WKL[1],A.buyers],['из них Созвездие',A.buyersSz]];
-    const wkBar=hasK?`<div class="filters" style="margin:4px 0 10px"><div><span class="flbl">Что считаем — здесь и в таблице ниже</span><div class="seg wk" id="seg-wkind">${WK.map(([key,l])=>`<button type="button" data-k="${key}" aria-pressed="${wk===key}">${l}<small>${fmt(wsg(key).all.buyers)}</small></button>`).join('')}</div></div></div>`:'';
+    const wkBar=hasK?`<div class="filters" style="margin:4px 0 10px"><div><span class="flbl">Что считаем — здесь и в таблице ниже</span><div class="seg wk" id="seg-wkind">${WK.map(([key,l])=>`<button type="button" data-k="${key}" aria-pressed="${wk===key}">${l}<small>${fmt(wsg(key).all.buyers)}</small></button>`).join('')}</div></div></div>${(()=>{const parts=WK.filter(([k])=>k!=='all').reduce((x,[k])=>x+wsg(k).all.buyers,0),tot=wsg('all')?wsg('all').all.buyers:null;
+      return`<p class="sub" style="margin:-4px 0 10px">Число на кнопке — сколько человек купили этот тип. Один человек может быть в нескольких типах (например, круиз и доп. услуга к нему)${tot!=null&&parts>tot?`, поэтому сумма по кнопкам — ${fmt(parts)}, а «Всё вместе» — ${fmt(tot)} ${plural(tot,'разный человек','разных человека','разных людей')}: там каждый считается один раз`:''}.</p>`})()}`:'';
     h+=`<div class="panel sec" id="web-cohort" style="margin-bottom:16px"><h2>${ex?'Когорта экскурсии':'Когорта вебинара'}</h2>${wkBar}
-      <p class="sub">Те же люди, но шире воронки: всё, что они оформили и оплатили в Букинге с дня регистрации${ex?' (кроме броней самой экскурсии)':''} — не только по ${ex?'экскурсии':'вебинару'}, любым путём. Считаем людей и только ${WKL[2]}${hasK?'; число на кнопке — сколько человек купили':''}; Созвездие — вместе с Речными линиями. Справа — доля от регистраций · переход с предыдущего шага.</p>
+      <p class="sub">Те же люди, но шире воронки: всё, что они оформили и оплатили в Букинге с дня регистрации${ex?' (кроме броней самой экскурсии)':''} — не только по ${ex?'экскурсии':'вебинару'}, любым путём. Считаем людей и только ${WKL[2]}; Созвездие — вместе с Речными линиями. Справа — доля от регистраций · переход с предыдущего шага.</p>
       ${fun(cs,true)}
       ${!ex&&sz&&wk==='c'?`<p class="sub" style="margin-top:12px">Почему в когорте покупок больше, чем в воронке (${fmt(A.buyers)} человек против ${fmt(sz.sold)} сделок по срезу): воронка видит только сделки, привязанные к лиду вебинара, а когорта — все покупки этих людей, в том числе оформленные без лида, по телефону или через агентство.</p>`:''}</div>`;
   }
