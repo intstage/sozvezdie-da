@@ -209,6 +209,11 @@ thead th{position:sticky;z-index:3;background:var(--surface);box-shadow:inset 0 
 .seats th:last-child,.seats td:last-child{padding-right:2px}
 .seats td.eq{color:var(--ink);font-weight:700}
 .seats tr.b td{color:var(--ink);font-weight:700}
+.checks{display:inline-flex;align-items:stretch;flex-wrap:wrap;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px;min-height:42px}
+.checks label{display:inline-flex;align-items:center;gap:7px;padding:0 10px;border-radius:7px;font:500 14px var(--body);color:var(--ink2);cursor:pointer;white-space:nowrap}
+.checks input{width:16px;height:16px;margin:0;accent-color:var(--accent);cursor:pointer}
+@media (max-width:560px){.checks{width:100%}.checks label{padding:9px 10px}}
+@media (hover:hover){.checks label:hover{background:var(--surface2)}}
 .seg.wk{flex-wrap:nowrap;overflow-x:auto;max-width:100%;scrollbar-width:thin}
 .seg.wk button{white-space:nowrap;flex:0 0 auto}
 .seg.wk button small{font-size:12px;color:var(--muted);margin-left:6px;font-weight:400}
@@ -963,7 +968,22 @@ function vWeb(){
   // выборка заявок для когорты и таблицы: c — круизы, x — доп. услуги к круизу, a — всё вместе (до v97 в данных только общая выборка)
   // тип заявки: c круиз (по умолчанию), x доп. услуга, v билет «В гости на теплоход», s сертификат, air авиа (в данных — a), z визы, o прочее, all всё вместе
   const WKT=[['c','Круизы','круиз','круизы'],['x','Доп. услуги','доп. услугу','доп. услуги к круизу'],['v','Билеты на теплоход','билет на теплоход','билеты «В гости на теплоход»'],['s','Сертификаты','сертификат','сертификаты'],['air','Авиабилеты','авиабилеты','авиабилеты'],['z','Визы','визу','визы'],['o','Прочее','прочее','прочие заявки без круиза'],['all','Всё вместе','что угодно','все заявки']];
-  const wsg=k=>!w.seg?null:k==='c'?w.seg.seg:k==='all'?w.seg.segA:w.seg.by?w.seg.by[k==='air'?'a':k]:(k==='x'?w.seg.segX:null);
+  // тип клиента (галочки, как в NPS): p частные лица, i ИП, s самозанятые, g агентства; o — прочие, всегда в счёте
+  const PP=w.seg&&w.seg.pp,CTL=[['p','Частные лица'],['i','ИП'],['s','Самозанятые'],['g','Агентства']];
+  const ctHave=PP?CTL.filter(([t])=>PP.some(p=>p[1].some(r=>r[1]===t))):[];
+  if(!Array.isArray(S.wct))S.wct=CTL.map(x=>x[0]);
+  const ctOn=new Set(S.wct);
+  // итоги по обезличенному списку заявок (pp): тип заявки × тип клиента в любом сочетании; без pp — готовые выборки
+  const LAGB=[[0,7],[8,30],[31,90],[91,180],[181,365],[366,1e9]],lagI=d=>LAGB.findIndex(([a,b])=>d>=a&&d<=b),SEGK=['new','base','other','sz','back'];
+  const ppAgg=kk=>{const z=()=>({n:0,found:0,ppl:0,buyers:0,buyersSz:0,req:[0,0,0,0,0,0],reqSz:[0,0,0,0,0,0],sale:[0,0,0,0,0,0],saleSz:[0,0,0,0,0,0]}),o={all:z()};
+    SEGK.forEach(k=>o[k]=z());['all',...SEGK].forEach(k=>{const b=w.seg.seg[k];if(b){o[k].n=b.n;o[k].found=b.found}});
+    const kt=kk==='air'?'a':kk,keepK=kk==='all'?()=>true:t=>t===kt;
+    PP.forEach(([si,rs])=>{const f=rs.filter(r=>keepK(r[0])&&(ctOn.has(r[1])||r[1]==='o'));if(!f.length)return;
+      [o.all,o[SEGK[si]]].forEach(x=>{if(!x)return;x.ppl++;const pd=f.filter(r=>r[3]>=0);if(pd.length)x.buyers++;if(pd.some(r=>r[4]))x.buyersSz++;
+        f.forEach(r=>{const a=lagI(r[2]);if(a>-1){x.req[a]++;if(r[4])x.reqSz[a]++}if(r[3]>=0){const b=lagI(r[3]);if(b>-1){x.sale[b]++;if(r[4])x.saleSz[b]++}}})})});
+    return o};
+  const wsgC={},ppHas=k=>k==='c'||k==='all'||PP.some(p=>p[1].some(r=>r[0]===(k==='air'?'a':k)));
+  const wsg=k=>!w.seg?null:PP?(ppHas(k)?(wsgC[k]||(wsgC[k]=ppAgg(k))):null):k==='c'?w.seg.seg:k==='all'?w.seg.segA:w.seg.by?w.seg.by[k==='air'?'a':k]:(k==='x'?w.seg.segX:null);
   const WK=WKT.filter(([k])=>wsg(k)),hasK=WK.length>1;
   if(!WK.some(x=>x[0]===S.wkind))S.wkind='c';
   const wk=hasK?S.wkind:'c',SG=wsg(wk),A=SG&&SG.all,wt=WKT.find(x=>x[0]===wk);
@@ -980,7 +1000,7 @@ function vWeb(){
   // когорта мероприятия — все покупки этих людей в Букинге с дня регистрации (по любому поводу)
   if(A){
     const cs=[['Регистрации',n],[WKL[0],A.ppl],[WKL[1],A.buyers],['из них Созвездие',A.buyersSz]];
-    const wkBar=hasK?`<div class="filters" style="margin:4px 0 10px"><div><span class="flbl">Что считаем — здесь и в таблице ниже</span><div class="seg wk" id="seg-wkind">${WK.map(([key,l])=>`<button type="button" data-k="${key}" aria-pressed="${wk===key}">${l}<small>${fmt(wsg(key).all.buyers)}</small></button>`).join('')}</div></div></div>${(()=>{const parts=WK.filter(([k])=>k!=='all').reduce((x,[k])=>x+wsg(k).all.buyers,0),tot=wsg('all')?wsg('all').all.buyers:null;
+    const wkBar=hasK||ctHave.length>1?`<div class="filters" style="margin:4px 0 10px"><div><span class="flbl">Что считаем — здесь и в таблице ниже</span><div class="seg wk" id="seg-wkind">${WK.map(([key,l])=>`<button type="button" data-k="${key}" aria-pressed="${wk===key}">${l}<small>${fmt(wsg(key).all.buyers)}</small></button>`).join('')}</div></div>${ctHave.length>1?`<div class="fgroup"><span class="flbl">Тип клиента</span><div class="checks" id="chk-wct" role="group" aria-label="Тип клиента">${ctHave.map(([t,l])=>`<label><input type="checkbox" data-t="${t}"${ctOn.has(t)?' checked':''}>${l}</label>`).join('')}</div></div>`:''}</div>${(()=>{const parts=WK.filter(([k])=>k!=='all').reduce((x,[k])=>x+wsg(k).all.buyers,0),tot=wsg('all')?wsg('all').all.buyers:null;
       return`<p class="sub" style="margin:-4px 0 10px">Число на кнопке — сколько человек купили этот тип. Один человек может быть в нескольких типах (например, круиз и доп. услуга к нему)${tot!=null&&parts>tot?`, поэтому сумма по кнопкам — ${fmt(parts)}, а «Всё вместе» — ${fmt(tot)} ${plural(tot,'разный человек','разных человека','разных людей')}: там каждый считается один раз`:''}.</p>`})()}`:'';
     h+=`<div class="panel sec" id="web-cohort" style="margin-bottom:16px"><h2>${ex?'Когорта экскурсии':'Когорта вебинара'}</h2>${wkBar}
       <p class="sub">Те же люди, но шире воронки: всё, что они оформили и оплатили в Букинге с дня регистрации${ex?' (кроме броней самой экскурсии)':''} — не только по ${ex?'экскурсии':'вебинару'}, любым путём. Считаем людей и только ${WKL[2]}; Созвездие — вместе с Речными линиями. Справа — доля от регистраций · переход с предыдущего шага.</p>
@@ -1022,6 +1042,7 @@ function vWeb(){
     </tbody></table></div></div>`;
   $('#view').innerHTML=withJump(h,[...(ex&&w.seats?[['web-seats','Места']]:[]),['web-days','По дням'],['web-funnel','Воронка и стадии'],['web-cohort','Когорта'],['web-seg','Кто и когда купил'],['web-cut','Разрез'],['web-cmp','Сравнение']]);
   $('#web-pick').onclick=e=>{const b=e.target.closest('[data-w]');if(!b)return;S.web=b.dataset.w;save();render()};
+  const ck=$('#chk-wct');if(ck)ck.onchange=e=>{const t=e.target.dataset&&e.target.dataset.t;if(!t)return;const st=new Set(S.wct);if(e.target.checked)st.add(t);else st.delete(t);S.wct=[...st];save();render()};
   const sk=$('#seg-wkind');if(sk)sk.onclick=e=>{const b=e.target.closest('[data-k]');if(!b)return;if(e.detail)b.blur();S.wkind=b.dataset.k;save();render()};
   $('#seg-wdim').onclick=e=>{const b=e.target.closest('[data-d]');if(!b)return;if(e.detail)b.blur();S.wdim=b.dataset.d;save();render()};
 }
