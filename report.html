@@ -230,7 +230,7 @@ thead th{position:sticky;z-index:3;background:var(--surface);box-shadow:inset 0 
 .sbar{display:flex;width:96px;height:10px;border-radius:5px;overflow:hidden;background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line)}
 .sbar i{display:block;height:100%}
 .sbw{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-.sbw small{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.sbw small{display:none;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .sbar i.pr,.legend i.pr{background:var(--s1)!important;opacity:.45}
 .crmtag{display:inline-block;margin-left:4px;padding:0 6px;border-radius:6px;font-size:11px;font-weight:600;color:var(--ink2);background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line);white-space:nowrap}
 .seats-after{margin-top:16px}
@@ -257,7 +257,7 @@ details.dq.disc summary{font-size:14px}
 .disc a.bk{text-decoration:none}
 @media (hover:hover){.disc a.bk:hover{color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}}
 @media (max-width:1100px){.sbar{width:64px}}
-@media (max-width:760px){.seats .sbar{width:80px;height:12px;border-radius:6px}}
+@media (max-width:760px){.seats .sbar{width:80px;height:12px;border-radius:6px}.sbw small{display:inline}}   /* «занято/мест» — только на телефоне */
 .empty{padding:18px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-size:13px;background:var(--surface2)}
 .empty b{color:var(--ink2)}
 .muted{color:var(--muted)}
@@ -928,7 +928,7 @@ function vWeb(){
         <th class="r gl" title="Занято в Букинге − всего в бронях">Разница</th></tr></thead>
       <tbody>${SL.map(x=>sl(sn(x),x)).join('')}${sl('Итого',T,true)}</tbody></table></div>
       <div class="seats-f">
-        <div><b>Заполненность</b><span>длина — занято в&nbsp;Букинге, серое — свободно; цвета — доли оплачено, подтверждено, в&nbsp;обработке среди гостей броней; цифра — занято / мест</span></div>
+        <div><b>Заполненность</b><span>длина — занято в&nbsp;Букинге, серое — свободно; цвета — доли оплачено, подтверждено, в&nbsp;обработке среди гостей броней; на телефоне цифра — занято / мест</span></div>
         <div><b>Букинг</b><span><i>Мест</i> — вместимость сеанса</span><span><i>Свободно</i> — свободно на сайте</span><span><i>Занято</i> — мест минус свободно</span></div>
         <div><b>Регистрации</b><span><i>В обработке</i> — новые, в работе</span><span><i>Подтверждено</i> — место за гостем, без оплаты</span><span><i>Оплачено</i> — оплата или предоплата</span><span><i>Всего</i> — гости действующих броней</span></div>
         <div><b>Кто оформил</b><span><i>С формы</i> — заявка с сайта</span><span><i>Менеджеры</i> — бронь создана в Букинге</span></div>
