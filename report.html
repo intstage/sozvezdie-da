@@ -229,6 +229,9 @@ thead th{position:sticky;z-index:3;background:var(--surface);box-shadow:inset 0 
 .seats-f i{font-style:normal;color:var(--ink2);font-weight:500}
 .sbar{display:flex;width:96px;height:10px;border-radius:5px;overflow:hidden;background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line)}
 .sbar i{display:block;height:100%}
+.sbw{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.sbw small{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.sbar i.pr,.legend i.pr{background:var(--s1)!important;opacity:.45}
 .crmtag{display:inline-block;margin-left:4px;padding:0 6px;border-radius:6px;font-size:11px;font-weight:600;color:var(--ink2);background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line);white-space:nowrap}
 .seats-after{margin-top:16px}
 .ss-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
@@ -254,6 +257,7 @@ details.dq.disc summary{font-size:14px}
 .disc a.bk{text-decoration:none}
 @media (hover:hover){.disc a.bk:hover{color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}}
 @media (max-width:1100px){.sbar{width:64px}}
+@media (max-width:760px){.seats .sbar{width:80px;height:12px;border-radius:6px}}
 .empty{padding:18px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-size:13px;background:var(--surface2)}
 .empty b{color:var(--ink2)}
 .muted{color:var(--muted)}
@@ -905,8 +909,10 @@ function vWeb(){
     const dif=x=>x.taken==null?null:x.taken-x.guests;
     const sn=x=>`${dd(x.date).slice(0,5)}, ${['вс','пн','вт','ср','чт','пт','сб'][new Date(x.date+'T12:00:00').getDay()]} ${esc(x.time)}`;   // «01.11, вс 12:00»
     const difTxt=d=>d==null?'—':d?`<span class="crmtag" title="Занято мест в Букинге не равно числу проданных билетов — см. «Расхождения» ниже">${d>0?'+':''}${fmt(d)}</span>`:'0';
-    const bar=x=>{const c=x.cap||Math.max(x.guests,1),w=v=>Math.max(0,Math.min(100,100*(v||0)/c)).toFixed(1)+'%';
-      return`<span class="sbar" title="оплачено ${fmt(x.paid)} · подтверждено ${x.conf==null?'—':fmt(x.conf)} · в обработке ${x.proc==null?'—':fmt(x.proc)} · свободно по Букингу ${x.free==null?'—':fmt(x.free)} из ${x.cap==null?'—':fmt(x.cap)}">${hasSt?`<i style="width:${w(x.paid)};background:${C.paid}"></i><i style="width:${w(x.conf)};background:${C.conf}"></i><i style="width:${w(x.proc)};background:${C.proc}"></i>`:`<i style="width:${w(x.guests)};background:${C.conf}"></i>`}</span>`};
+    // полоса — занято в Букинге (мест − свободно), серый остаток = свободно; цвета делят эту длину в долях гостей броней по статусам.
+    // shortcut: цвета — доли, а не точное число мест (занято в Букинге ≠ гостей — см. «Разница»). Нет снимка Букинга — по гостям.
+    const bar=x=>{const c=x.cap||Math.max(x.guests,1),tk=x.taken!=null?x.taken:x.guests,k=x.guests?tk/x.guests:0,w=v=>Math.max(0,Math.min(100,100*(v||0)*k/c)).toFixed(1)+'%';
+      return`<span class="sbw"><span class="sbar" title="занято в Букинге ${fmt(tk)} из ${x.cap==null?'—':fmt(x.cap)} · свободно ${x.free==null?'—':fmt(x.free)} · гостей в бронях ${fmt(x.guests)}: оплачено ${fmt(x.paid)} · подтверждено ${x.conf==null?'—':fmt(x.conf)} · в обработке ${x.proc==null?'—':fmt(x.proc)}">${hasSt?`<i style="width:${w(x.paid)};background:${C.paid}"></i><i style="width:${w(x.conf)};background:${C.conf}"></i><i class="pr" style="width:${w(x.proc)}"></i>`:`<i style="width:${w(x.guests)};background:${C.conf}"></i>`}</span>${x.cap!=null?`<small title="занято в Букинге / мест">${fmt(tk)}/${fmt(x.cap)}</small>`:''}</span>`};
     const sl=(name,x,b)=>`<tr${b?' class="b"':''}><td class="nw">${name}</td><td>${bar(x)}</td>
       <td class="r gl">${x.cap!=null?fmt(x.cap):'—'}</td><td class="r">${x.free!=null?fmt(x.free):'—'}</td><td class="r b">${x.taken!=null?fmt(x.taken):'—'}</td>
       <td class="r gl">${v0(x.proc)}</td><td class="r">${v0(x.conf)}</td><td class="r">${v0(x.paid)}</td><td class="r eq">${fmt(x.guests)}${x.crm!=null&&x.crm!==x.guests?` <span class="crmtag" title="В Букинге пассажиров ${fmt(x.crm)} — в заявке другое число, см. «Расхождения» ниже">Букинг ${fmt(x.crm)}</span>`:''}</td>
@@ -914,7 +920,7 @@ function vWeb(){
       <td class="r gl">${difTxt(dif(x))}</td></tr>`;
     const dT=dif(T), DS=SL.filter(x=>dif(x));                   // DS — сеансы, где Букинг не сходится с бронями
     h+=`<div class="panel sec seats" id="web-seats" style="margin-bottom:16px"><h2>Места по сеансам</h2>
-      ${legend([['Оплачено',C.paid,'bar'],['Подтверждено',C.conf,'bar'],['В обработке',C.proc,'bar'],['Свободно',cssv('--line'),'bar']])}
+      ${legend([['Оплачено',C.paid,'bar'],['Подтверждено',C.conf,'bar'],['В обработке',C.proc,'bar pr'],['Свободно',cssv('--line'),'bar']])}
       <div class="tbl"><table><thead><tr><th>Сеанс</th><th>Заполненность</th>
         <th class="r gl" title="Вместимость сеанса — лист «Сеансы»">Мест</th><th class="r" title="Свободно по Букингу">−&nbsp;Свободно</th><th class="r" title="Мест − свободно: сколько мест держит Букинг">=&nbsp;Занято в&nbsp;Букинге</th>
         <th class="r gl" title="Гости броней со статусом Букинга «В обработке»">В&nbsp;обработке</th><th class="r" title="«Подтверждено»: место за гостем, не оплачено">+&nbsp;Подтверждено</th><th class="r" title="«Оплачено» / «Предоплата»">+&nbsp;Оплачено</th><th class="r" title="Гости во всех действующих бронях (без отменённых)">=&nbsp;Всего в&nbsp;бронях</th>
@@ -922,7 +928,7 @@ function vWeb(){
         <th class="r gl" title="Занято в Букинге − всего в бронях">Разница</th></tr></thead>
       <tbody>${SL.map(x=>sl(sn(x),x)).join('')}${sl('Итого',T,true)}</tbody></table></div>
       <div class="seats-f">
-        <div><b>Заполненность</b><span>полоса: оплачено, подтверждено, в&nbsp;обработке; серое — свободно</span></div>
+        <div><b>Заполненность</b><span>длина — занято в&nbsp;Букинге, серое — свободно; цвета — доли оплачено, подтверждено, в&nbsp;обработке среди гостей броней; цифра — занято / мест</span></div>
         <div><b>Букинг</b><span><i>Мест</i> — вместимость сеанса</span><span><i>Свободно</i> — свободно на сайте</span><span><i>Занято</i> — мест минус свободно</span></div>
         <div><b>Регистрации</b><span><i>В обработке</i> — новые, в работе</span><span><i>Подтверждено</i> — место за гостем, без оплаты</span><span><i>Оплачено</i> — оплата или предоплата</span><span><i>Всего</i> — гости действующих броней</span></div>
         <div><b>Кто оформил</b><span><i>С формы</i> — заявка с сайта</span><span><i>Менеджеры</i> — бронь создана в Букинге</span></div>
