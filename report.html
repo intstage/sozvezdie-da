@@ -112,7 +112,13 @@ nav.tabs button:focus:not(:focus-visible){outline:none}
    не помещается и так — прежний вариант .split: фильтры своей строкой под вкладками */
 @media (min-width:761px){nav.tabs.split2{padding-right:var(--fw,0px);min-height:calc(var(--fh,0px) + 16px);box-sizing:border-box;align-content:center}
   nav.tabs.split2>:not(button){position:absolute;right:0;top:50%;transform:translateY(-50%);margin:0;padding:0;display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,auto);justify-items:end;align-items:center;gap:6px 8px}
-  nav.tabs.split2>:not(button) .filters{display:contents}}
+  nav.tabs.split2>:not(button) .filters{display:contents}nav.tabs.split2>:not(button) select,nav.tabs.split2>:not(button) #sel-month,nav.tabs.split2>:not(button) .mini{width:170px}   /* списки одной ширины */
+  nav.tabs.split>.pinned-f .mini{width:160px}   /* запасной вариант (фильтры своей строкой): «Период» как «Месяц» */
+  /* выбран свой период: сверху «Свой период» и «Месяц» в одну строку, снизу даты на ту же ширину — колонки поровну */
+  nav.tabs.split2>:not(button):has(.range.on){grid-auto-flow:row;grid-template-rows:none;grid-template-columns:repeat(2,170px);justify-items:stretch}
+  nav.tabs.split2>:not(button):has(.range.on) select{width:100%;max-width:none}
+  nav.tabs.split2>:not(button):has(.range.on) div:has(>.range){grid-column:1/-1}
+  nav.tabs.split2>:not(button):has(.range.on) .range{display:flex;width:100%}nav.tabs.split2>:not(button):has(.range.on) .range input{flex:1;min-width:0;max-width:none;width:auto}}
 @media (max-width:760px){nav.tabs{position:static;grid-auto-flow:row;grid-auto-columns:auto;grid-template-columns:repeat(3,1fr);justify-content:stretch}nav.tabs button{border-color:var(--line)}}
 @media (max-width:420px){nav.tabs{grid-template-columns:repeat(2,1fr)}}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
