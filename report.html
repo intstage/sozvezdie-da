@@ -85,10 +85,25 @@ nav.tabs button{font:600 13.5px var(--display);min-height:40px;color:var(--ink2)
 nav.tabs button:hover{background:var(--surface2)}
 nav.tabs button[aria-selected="true"]{background:var(--navy);color:#FFFFFF}
 nav.tabs button:focus:not(:focus-visible){outline:none}
+/* Фильтры при прокрутке — в строке вкладок (компьютер; как в «Продукте» v26): блок #filters переезжает в прилипшую строку */
+@media (min-width:761px){nav.tabs{display:flex;flex-wrap:wrap;align-items:center}
+  nav.tabs>#filters{margin:0 0 0 auto;padding:0;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px 8px}
+  nav.tabs>#filters .filters{margin:0;gap:6px 8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+  nav.tabs>#filters .flbl,nav.tabs>#filters #period-note{display:none}
+  nav.tabs>#filters>label,nav.tabs>#filters .filters>label,nav.tabs>#filters .fgroup{font-size:0;gap:0;min-width:0}
+  nav.tabs>#filters>label>*,nav.tabs>#filters .filters>label>*,nav.tabs>#filters .fgroup>*{font-size:13px}
+  nav.tabs>#filters select,nav.tabs>#filters input:not([type=checkbox]){height:34px;min-width:0;max-width:200px;font-size:13px}
+  nav.tabs>#filters .grow{flex:0 1 200px}
+  nav.tabs>#filters .seg,nav.tabs>#filters .checks{min-height:0;padding:2px}
+  nav.tabs>#filters button,nav.tabs>#filters .checks label{font:500 13px var(--body);min-height:30px;padding:0 8px;white-space:nowrap}
+  nav.tabs>#filters #seg-period{display:none}nav.tabs>#filters .mini{display:block;width:150px}
+  nav.tabs>#filters .filters>div:has(.range:not(.on)){display:none}   /* «Свой период» в строке вкладок — только когда выбран */
+  body.pinned nav.tabs>button{padding:8px 9px}}
 @media (max-width:760px){nav.tabs{position:static;grid-auto-flow:row;grid-auto-columns:auto;grid-template-columns:repeat(3,1fr);justify-content:stretch}nav.tabs button{border-color:var(--line)}}
 @media (max-width:420px){nav.tabs{grid-template-columns:repeat(2,1fr)}}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .filters{display:flex;flex-wrap:wrap;gap:12px 16px;align-items:end;margin-bottom:16px}
+.filters .mini{display:none}
 .flbl{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;display:block;margin-bottom:5px}
 .seg{display:inline-flex;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px;min-height:42px}
 .seg button{font:500 14px var(--body);border:0;background:none;color:var(--ink2);padding:0 14px;border-radius:7px;cursor:pointer;min-height:34px}
@@ -196,7 +211,8 @@ td.b{color:var(--ink);font-weight:600}
    Телефон/узкое окно: вкладки не прилипают, а таблица может быть шире экрана — у длинной таблицы своя
    прокрутка по высоте, заголовок прилипает к её верху. */
 thead th{position:sticky;z-index:3;background:var(--surface);box-shadow:inset 0 -1px 0 var(--line)}
-@media (min-width:761px){.tbl{overflow:visible}thead th{top:var(--nav-h,57px)}}
+@media (min-width:761px){.tbl{overflow:visible}thead th{top:var(--nav-h,57px)}
+  .tbl.wide{max-height:75vh;overflow:auto;overscroll-behavior:contain}.tbl.wide thead th{top:0}}   /* шире карточки — своя прокрутка (как в «Продукте» v26) */
 @media (max-width:760px){.tbl{max-height:75vh;overflow:auto;overscroll-behavior:contain}thead th{top:0}}
 /* «Места по сеансам» экскурсии: группы колонок (Букинг | брони | кто оформил | сверка), формулы над таблицей, полоса заполненности */
 .seats .gl{border-left:2px solid var(--line)}
@@ -467,7 +483,8 @@ function periodFilter(){
   const isM=S.period.startsWith('m:'),isC=S.period.startsWith('c:');
   const[,cf,ct]=isC?S.period.split(':'):[,D.days[Math.max(0,D.days.length-31)],D.today];
   return`<div class="filters">
-  <div><span class="flbl">Период</span><div class="seg" id="seg-period">${PERIODS.map(([k,l])=>`<button type="button" data-p="${k}" aria-pressed="${S.period===k}">${l}</button>`).join('')}</div></div>
+  <div><span class="flbl">Период</span><div class="seg" id="seg-period">${PERIODS.map(([k,l])=>`<button type="button" data-p="${k}" aria-pressed="${S.period===k}">${l}</button>`).join('')}</div>
+   <select id="sel-period" class="mini" aria-label="Период">${PERIODS.map(([k,l])=>`<option value="${k}"${S.period===k?' selected':''}>${l}</option>`).join('')}${isM||isC?`<option value="" selected>${isM?'Месяц':'Свой период'}</option>`:''}</select></div>
   <label><span class="flbl">Месяц</span><select id="sel-month"><option value="">— выбрать —</option>${months.map(m=>`<option value="${m}"${isM&&S.period==='m:'+m?' selected':''}>${monName(m)}</option>`).join('')}</select></label>
   <div><span class="flbl">Свой период</span><div class="range${isC?' on':''}"><input type="date" id="c-from" value="${cf}" min="${D.days[0]}" max="${D.today}"><span>—</span><input type="date" id="c-to" value="${ct}" min="${D.days[0]}" max="${D.today}"></div></div>
   <div class="muted" style="font-size:12.5px;padding-bottom:10px;flex-basis:100%" id="period-note"></div></div>`;
@@ -477,6 +494,7 @@ function bindPeriod(){
   const set=p=>{if(p===S.period)return;HIST.push({tab:S.tab,period:S.period,y:scrollY});if(HIST.length>30)HIST.shift();S.period=p;save();render();navState()};
   el.onclick=e=>{const b=e.target.closest('[data-p]');if(!b)return;if(e.detail)b.blur();set(b.dataset.p)};
   $('#sel-month').onchange=e=>{if(e.target.value)set('m:'+e.target.value)};
+  $('#sel-period').onchange=e=>{if(e.target.value)set(e.target.value)};   // тот же выбор в строке вкладок (кнопки туда не помещаются)
   const onRange=()=>{const f=$('#c-from').value,t=$('#c-to').value;if(/^\d{4}-\d{2}-\d{2}$/.test(f)&&/^\d{4}-\d{2}-\d{2}$/.test(t))set('c:'+(f<=t?f+':'+t:t+':'+f))};
   $('#c-from').onchange=onRange;$('#c-to').onchange=onRange;
   const r=range(S.period),y=d=>dShort(d)+' '+d.slice(0,4);
@@ -616,8 +634,10 @@ function render(){
   if(!D)return;SEEN[S.tab]=1;RTAB=S.tab;const v=$('#view');
   if(intro&&MOTION){v.classList.add('intro');v.querySelectorAll('.panel').forEach((el,k)=>el.style.setProperty('--k',Math.min(k,6)));
     clearTimeout(render.t);render.t=setTimeout(()=>v.classList.remove('intro'),2000)}
-  kpiTween(intro?null:same?prev:{},intro);
+  kpiTween(intro?null:same?prev:{},intro);markWide();pinFilters();
 }
+/** Таблица шире карточки — своя прокрутка вбок и по высоте, заголовок прилипает к её верху. */
+function markWide(){document.querySelectorAll('#view .tbl').forEach(b=>{const t=b.querySelector('table');if(t)b.classList.toggle('wide',t.scrollWidth>b.clientWidth+1)})}
 /** Ширина каждого графика на странице; true — если хоть один нарисован не под свою ширину (нужно перерисовать). */
 function fitCharts(){let ch=false;
   document.querySelectorAll('#view svg[role="img"][id]').forEach(s=>{const p=s.parentElement,cs=getComputedStyle(p);
@@ -644,6 +664,7 @@ function kpiTween(prev,intro){
 // поворот экрана, окно Telegram шире/уже — перерисовать графики под новую ширину (без появления)
 let rzT=0,rzW=innerWidth;addEventListener('resize',()=>{clearTimeout(rzT);rzT=setTimeout(()=>{if(D&&Math.abs(innerWidth-rzW)>30){rzW=innerWidth;render()}},250)});
 function renderTab(){
+  unpinFilters();delete document.getElementById('filters').dataset.nopin;   // строка вкладок перерисовывается — фильтры сначала возвращаются на место
   $('#tabs').innerHTML=TABS.map(([k,l])=>`<button role="tab" aria-selected="${S.tab===k}" data-tab="${k}">${l}</button>`).join('');
   $('#tabs').onclick=e=>{const b=e.target.closest('[data-tab]');if(!b)return;if(e.detail)b.blur();if(D)go(b.dataset.tab)};
   hideTip();if(!D)return;
@@ -1438,6 +1459,19 @@ function fitHeader(){
   for(let px=parseFloat(getComputedStyle(t).fontSize)-1;px>=17&&!fits();px--)t.style.fontSize=px+'px';
 }
 addEventListener('resize',fitHeader);
+/** Фильтры ушли под прилипшую строку вкладок — переносим сам блок #filters в эту строку (обработчики остаются),
+ *  на его месте — пустое место той же высоты, чтобы страница не прыгала. Телефон: строка вкладок не прилипает — не переносим. */
+function unpinFilters(){const f=document.getElementById('filters'),sp=document.getElementById('filters-sp');
+  if(f&&sp){sp.replaceWith(f);document.body.classList.remove('pinned');navHeight()}}
+function pinFilters(){const f=document.getElementById('filters'),n=document.getElementById('tabs');if(!f||!n)return;
+  const sp=document.getElementById('filters-sp'),at=(sp||f).getBoundingClientRect();
+  const on=innerWidth>760&&!f.dataset.nopin&&!!f.innerHTML.trim()&&at.bottom<n.getBoundingClientRect().bottom;
+  if(on&&!sp){const s=document.createElement('div'),cs=getComputedStyle(f),h0=n.getBoundingClientRect().height;s.id='filters-sp';
+    s.style.height=(f.offsetHeight+parseFloat(cs.marginTop)+parseFloat(cs.marginBottom))+'px';
+    f.replaceWith(s);n.appendChild(f);document.body.classList.add('pinned');navHeight();
+    if(n.getBoundingClientRect().height>h0*2.2){unpinFilters();f.dataset.nopin='1'}}   // фильтры заняли бы больше двух строк (флажки, поиск) — остаются на месте
+  else if(!on&&sp)unpinFilters()}
+addEventListener('scroll',pinFilters,{passive:true});addEventListener('resize',()=>{unpinFilters();delete document.getElementById('filters').dataset.nopin;markWide();pinFilters()});
 function navHeight(){const n=document.getElementById('tabs');if(n)document.documentElement.style.setProperty('--nav-h',n.getBoundingClientRect().height+'px')}
 addEventListener('resize',navHeight);
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitHeader);
