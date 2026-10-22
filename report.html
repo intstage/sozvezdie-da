@@ -87,19 +87,20 @@ nav.tabs button[aria-selected="true"]{background:var(--navy);color:#FFFFFF}
 nav.tabs button:focus:not(:focus-visible){outline:none}
 /* Фильтры при прокрутке — в строке вкладок (компьютер; как в «Продукте» v26): блок #filters переезжает в прилипшую строку */
 @media (min-width:761px){nav.tabs{display:flex;flex-wrap:wrap;align-items:center}
-  nav.tabs>.pinned-f{margin:0 0 0 auto;padding:0;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px 8px}
+  nav.tabs>.pinned-f{margin:0 0 0 auto;padding:0 0 0 20px;max-width:100%;box-sizing:border-box;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px 8px}
   nav.tabs>.pinned-f .filters{margin:0;gap:6px 8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
   nav.tabs>.pinned-f .flbl,nav.tabs>.pinned-f #period-note,nav.tabs>.pinned-f .muted:not(.pick-n):not(.pk-s):not(.pk-f){display:none}
   nav.tabs>.pinned-f>label,nav.tabs>.pinned-f .filters>label,nav.tabs>.pinned-f .fgroup{font-size:0;gap:0;min-width:0}
   nav.tabs>.pinned-f>label>*,nav.tabs>.pinned-f .filters>label>*,nav.tabs>.pinned-f .fgroup>*{font-size:13px}
+  nav.tabs>.pinned-f select{padding:0 28px 0 10px;background-position:right 9px center;box-sizing:border-box}   /* в прилипшей строке списки мельче — отступы пропорционально меньше */
   nav.tabs>.pinned-f select,nav.tabs>.pinned-f input:not([type=checkbox]){height:34px;min-width:0;max-width:200px;font-size:13px}
   nav.tabs>.pinned-f .grow{flex:0 1 200px}
   nav.tabs>.pinned-f .seg,nav.tabs>.pinned-f .checks{min-height:0;padding:2px}
   nav.tabs>.pinned-f button,nav.tabs>.pinned-f .checks label{font:500 13px var(--body);min-height:30px;padding:0 8px;white-space:nowrap}
-  nav.tabs>.pinned-f .seg.hm{display:none}nav.tabs>.pinned-f .mini{display:block;width:150px}
+  nav.tabs>.pinned-f .seg.hm{display:none}nav.tabs>.pinned-f .mini{display:block;width:150px}nav.tabs>.pinned-f #sel-month{width:160px;min-width:0}
   nav.tabs>.pinned-f div:has(>.range:not(.on)){display:none}   /* «Свой период» в строке вкладок — только когда выбран */
   nav.tabs>.pinned-f details.pick{margin:0;padding:4px 10px;position:relative}
-  nav.tabs>.pinned-f details.pick summary{font:600 13px/1.3 var(--display)}nav.tabs>.pinned-f details.pick .pick-n{font-size:12px}
+  nav.tabs>.pinned-f details.pick summary{font:600 13px/1.3 var(--display);flex-wrap:nowrap;max-width:300px}nav.tabs>.pinned-f details.pick summary>span:first-of-type{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;min-width:0}nav.tabs>.pinned-f details.pick .pick-n{white-space:nowrap}nav.tabs>.pinned-f details.pick .pick-n{font-size:12px}
   nav.tabs>.pinned-f details.pick[open] .pick-list{position:absolute;right:0;top:100%;margin-top:6px;width:min(560px,90vw);max-height:60vh;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:10}
   body.pinned nav.tabs>button{padding:8px 9px}}
 @media (max-width:760px){nav.tabs{position:static;grid-auto-flow:row;grid-auto-columns:auto;grid-template-columns:repeat(3,1fr);justify-content:stretch}nav.tabs button{border-color:var(--line)}}
@@ -114,6 +115,8 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media (max-width:560px){.filters>*{flex:1 1 100%}.seg{display:grid;grid-template-columns:repeat(3,1fr);width:100%}.seg button{padding:8px 4px}}
 select,input[type=date]{font:15px var(--body);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;height:42px;padding:0 12px;min-width:0;max-width:100%}
 select:focus,input[type=date]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+/* стрелка списка — своя, с отступом справа как у текста слева (системная прижата к краю) */
+select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%237A8699' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:12px 8px;padding-right:36px;text-overflow:ellipsis}
 #sel-month{min-width:190px}
 .range{display:inline-flex;align-items:center;gap:6px}.range span{color:var(--muted)}
 .range.on input{border-color:var(--accent);background:var(--accent-soft)}
@@ -127,6 +130,7 @@ select:focus,input[type=date]:focus{outline:none;border-color:var(--accent);box-
   .seg{min-height:0;padding:2px;border-radius:8px}
   .seg button{font-size:12.5px;min-height:30px;padding:4px 2px;border-radius:6px}
   select,input[type=date]{height:34px;font-size:13.5px;border-radius:8px;padding:0 8px}
+  select{padding-right:28px;background-position:right 8px center}
   input[type=date]{text-align:center}
   #period-note{font-size:11.5px;padding-bottom:4px}
 }
@@ -543,12 +547,12 @@ const CWID={};
 function chartBox(id,height){const W=CWID[id]||760;return{W,H:Math.round(W<520?Math.min(height,Math.max(170,W*.62)):height)}}
 function thinTicks(ticks,n,span){const has=[];for(let i=0;i<n;i++)if(ticks(i))has.push(i);const step=Math.max(1,Math.ceil(has.length*58/Math.max(1,span)));
   const keep=new Set(has.filter((_,k)=>k%step===0));return i=>keep.has(i)?ticks(i):''}
-function lineChart(id,{labels,series,ticks,height=240,fmtV=v=>fmt(v)}){
+function lineChart(id,{labels,series,ticks,height=240,fmtV=v=>fmt(v),fmtA=v=>fmt(v),floor=1}){
   const{W,H}=chartBox(id,height),L=44,R=12,T=10,B=26,n=labels.length;ticks=thinTicks(ticks,n,W-L-R);
-  const max=niceMax(Math.max(1,...series.flatMap(s=>s.values.filter(v=>v!=null))));
+  const max=niceMax(Math.max(floor,...series.flatMap(s=>s.values.filter(v=>v!=null))));
   const x=i=>L+(n<=1?0:i*(W-L-R)/(n-1)),y=v=>T+(H-T-B)*(1-v/max);
   let g='';
-  const ST=gridSteps(max);for(let k=0;k<=ST;k++){const v=max*k/ST;g+=`<line class="gl" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${fmt(v)}</text>`}
+  const ST=gridSteps(max);for(let k=0;k<=ST;k++){const v=max*k/ST;g+=`<line class="gl" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${fmtA(v)}</text>`}
   for(let i=0;i<n;i++){const t=ticks(i);if(t)g+=`<text x="${x(i)}" y="${H-6}" text-anchor="middle">${esc(t)}</text>`}
   series.forEach(s=>{let d='',open=false;s.values.forEach((v,i)=>{if(v==null){open=false;return}d+=(open?'L':'M')+x(i).toFixed(1)+','+y(v).toFixed(1);open=true});
     if(s.area){let a='',st=null,en=null;s.values.forEach((v,i)=>{if(v==null)return;if(st==null)st=i;en=i;a+=(a?'L':'M')+x(i).toFixed(1)+','+y(v).toFixed(1)});
@@ -745,7 +749,7 @@ function vSummary(){
     <div class="panel kpi go" data-go="@pay" title="Открыть «Оплаты»"><div class="lbl">Оплачено и предоплата</div><div class="val">${fmt(paidM)}<small>${fullTxt&&prevTxt?delta(paidFull,paidPrev):delta(null,null)}</small></div>
       <div class="foot"><span>${fullTxt&&prevTxt?`к ${prevTxt}: ${fmt(paidPrev)} ${plural(paidPrev,'заявка','заявки','заявок')}`:'сравнение — со 2-го числа'}</span></div>
       <div class="foot"><span class="muted" title="Прошлый месяц — какими были оплаты на тот же день: у его заявок не должно быть лишнего времени">заявки на ${rub(paidNow.rub)} · без сегодня, прошлый — оплаты к ${+D.days[Math.max(0,r.pb)].slice(8)}-му</span></div></div>
-    <div class="panel kpi go" data-go="@site#site-funnel" title="Открыть воронку сайта"><div class="lbl">Визит → заявка</div><div class="val">${pct(crM,2)}<small>${delta(crM,crPrev)}</small></div>
+    <div class="panel kpi go" data-go="sum-cr" title="Конверсия сайта по неделям"><div class="lbl">Визит → заявка</div><div class="val">${pct(crM,2)}<small>${delta(crM,crPrev)}</small></div>
       <div class="foot"><span>к ${perTxt(r.pa,r.pb-1)||pPer}: ${pct(crPrev,2)}</span></div>
       <div class="foot"><span class="muted">заявки с сайта / визиты · без сегодняшнего дня</span></div></div>
   </div><!--jump-->`;
@@ -775,12 +779,26 @@ function vSummary(){
   h+=`<div class="panel sec" id="sum-sig"><h2>Где отвал</h2><p class="sub">Последние 7 дней (${dShort(sg.window[0])}–${dShort(sg.window[1])}) против нормы — 28 дней до них. Красный — падение больше 15% и не случайное. Нажмите на строку — откроется вкладка с подробностями.</p>
     <div class="grid" style="margin:0">${groups.filter(g=>sg.sides[g]).map(g=>`<div class="side"><h3 data-go="${SIG_GO[g]||''}" title="Подробнее">${g}<span class="pill l-${sg.sides[g]}">${LEVEL_TXT[sg.sides[g]]}</span></h3>
       <ul class="sig">${sg.items.filter(s=>s.group===g).map(s=>`<li class="${s.level}" data-go="${SIG_GO[g]||''}" title="Подробнее"><i></i><span>${esc(s.name)}</span><span class="v">${s.kind==='pct'?pct(s.value,s.value<0.05?2:1):fmt(s.value,1)}<small>обычно ${s.kind==='pct'?pct(s.norm,s.norm<0.05?2:1):fmt(s.norm,1)}</small></span></li>`).join('')}</ul></div>`).join('')}</div></div></div>`;
+  // конверсия сайта по неделям (решение 22.10.2026): заявки с сайта / визиты Метрики за неделю пн–вс; с первой полной недели
+  // после D.zav_from (01.06.2025 — воскресенье, первая неделя 02.06), до последней полной недели — текущая и сегодня не входят;
+  // тренд — скользящая за 4 недели суммами (заявки за 4 недели / визиты за те же 4 недели), а не среднее процентов
+  const zi=Math.max(0,D.days.indexOf(D.zav_from)),dow=i=>new Date(D.days[i]+'T12:00:00Z').getUTCDay();
+  let w0=zi;while(w0<ti&&dow(w0)!==1)w0++;
+  const WK=[];for(let i=w0;i+6<ti;i+=7)WK.push({a:i,z:rs(z,i,i+6),v:rs(D.site.visits,i,i+6)});
+  const crW=WK.map(w=>w.v?w.z/w.v*100:null);
+  const crT=WK.map((w,k)=>{if(k<3)return null;const L4=WK.slice(k-3,k+1),zz=sum(L4.map(x=>x.z)),vv=sum(L4.map(x=>x.v));return vv?zz/vv*100:null});
+  const wLbl=w=>{const a=D.days[w.a],b=D.days[w.a+6];return`${dShort(a)} – ${dShort(b)} ${b.slice(0,4)} · ${fmt(w.z)} ${plural(w.z,'заявка','заявки','заявок')} / ${fmt(w.v)} ${plural(w.v,'визит','визита','визитов')}`};
+  const lastT=crT[crT.length-1],prevT=crT.length>4?crT[crT.length-5]:null;
+  if(WK.length>=4)h+=`<div class="panel sec" id="sum-cr"><h2>Конверсия сайта по неделям</h2><p class="sub">Заявки с сайта / визиты за неделю (пн–вс), с ${dShort(D.days[w0])} ${D.days[w0].slice(0,4)}; текущая неделя не входит. Тренд за 4 недели — сейчас <b>${fmt(lastT,2)}%</b>${prevT!=null?`, месяц назад ${fmt(prevT,2)}%`:''}</p>
+    ${legend([['Неделя',cssv('--s1')],['Тренд за 4 недели',cssv('--s2')]])}
+    ${lineChart('c-cr',{labels:WK.map(wLbl),series:[{name:'Неделя',color:cssv('--s1'),values:crW},{name:'Тренд за 4 недели',color:cssv('--s2'),values:crT}],ticks:i=>{const d=D.days[WK[i].a];return i===0||d.slice(5,7)!==D.days[WK[i-1].a].slice(5,7)?MON_S[+d.slice(5,7)-1]+(d.slice(5,7)==='01'||i===0?' '+d.slice(2,4):''):''},fmtV:v=>fmt(v,2)+'%',fmtA:v=>fmt(v,2)+'%',floor:0.01,height:240})}
+    <p class="note">Тренд — заявки за 4 недели, делённые на визиты за те же 4 недели: недели с большим трафиком весят больше. Прямую через все точки не рисуем — сезонность круизов дала бы ложный рост или падение.</p></div>`;
   // заявки по дням
   const from=Math.max(0,ti-59),lab=D.days.slice(from),vals=z.slice(from),avg=ma7(z).slice(from);
   h+=`<div class="panel sec" id="sum-daily"><h2>Заявки по дням</h2><p class="sub">60 дней; сегодня — неполный день</p>
     ${legend([['Заявки за день',cssv('--s1'),'bar'],['Среднее за 7 дней',cssv('--s2')]])}
     ${barChart('c-daily',{name:'Заявок',color:cssv('--s1'),bars:vals.map((v,i)=>({label:dShort(lab[i])+(from+i===ti?' (сегодня)':''),value:v})),line:{name:'Среднее за 7 дней',color:cssv('--s2'),values:avg},ticks:i=>i%7===0?dShort(lab[i]):''})}</div>`;
-  $('#view').innerHTML=withJump(h,[['sum-fc','Прогноз'],['sum-sig','Где отвал'],['sum-daily','По дням']]);
+  $('#view').innerHTML=withJump(h,[['sum-fc','Прогноз'],['sum-sig','Где отвал'],...(WK.length>=4?[['sum-cr','Конверсия сайта']]:[]),['sum-daily','По дням']]);
 }
 
 function vZav(){
