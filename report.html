@@ -89,7 +89,7 @@ nav.tabs button:focus:not(:focus-visible){outline:none}
 @media (min-width:761px){nav.tabs{display:flex;flex-wrap:wrap;align-items:center}
   nav.tabs>.pinned-f{margin:0 0 0 auto;padding:0 0 0 20px;max-width:100%;box-sizing:border-box;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px 8px}
   nav.tabs>.pinned-f .filters{margin:0;gap:6px 8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
-  nav.tabs>.pinned-f .flbl,nav.tabs>.pinned-f #period-note,nav.tabs>.pinned-f .muted:not(.pick-n):not(.pk-s):not(.pk-f){display:none}
+  nav.tabs>.pinned-f .flbl,nav.tabs>.pinned-f #period-note,nav.tabs>.pinned-f .muted:not(.pick-n):not(.pk-s):not(.pk-f):not(.pk-short){display:none}
   nav.tabs>.pinned-f>label,nav.tabs>.pinned-f .filters>label,nav.tabs>.pinned-f .fgroup{font-size:0;gap:0;min-width:0}
   nav.tabs>.pinned-f>label>*,nav.tabs>.pinned-f .filters>label>*,nav.tabs>.pinned-f .fgroup>*{font-size:13px}
   nav.tabs>.pinned-f select{padding:0 28px 0 10px;background-position:right 9px center;box-sizing:border-box}   /* в прилипшей строке списки мельче — отступы пропорционально меньше */
@@ -99,7 +99,11 @@ nav.tabs button:focus:not(:focus-visible){outline:none}
   nav.tabs>.pinned-f button,nav.tabs>.pinned-f .checks label{font:500 13px var(--body);min-height:30px;padding:0 8px;white-space:nowrap}
   nav.tabs>.pinned-f .seg.hm{display:none}nav.tabs>.pinned-f .mini{display:block;width:150px}nav.tabs>.pinned-f #sel-month{width:160px;min-width:0}
   nav.tabs>.pinned-f div:has(>.range:not(.on)){display:none}   /* «Свой период» в строке вкладок — только когда выбран */
-  nav.tabs>.pinned-f details.pick{margin:0;padding:4px 10px;position:relative}
+  nav.tabs>.pinned-f details.pick{margin:0;padding:6px 14px;position:relative;border-radius:10px}
+  nav.tabs>.pinned-f details.pick summary{column-gap:6px;border-radius:6px;outline-offset:3px}
+  nav.tabs>.pinned-f details.pick .pick-n{display:none}nav.tabs>.pinned-f details.pick .pk-short{display:inline;font:600 12.5px var(--body);white-space:nowrap}   /* свёрнуто: «регистраций/продаж» */
+  /* строки выпадающего списка — обычные отступы (правило «кнопки в строке вкладок мелкие» их не касается) */
+  nav.tabs>.pinned-f .pick-list{gap:6px}nav.tabs>.pinned-f .pick-list button{padding:10px 14px;min-height:0;font:500 14px var(--body);white-space:normal;align-items:baseline}
   nav.tabs>.pinned-f details.pick summary{font:600 13px/1.3 var(--display);flex-wrap:nowrap;max-width:300px}nav.tabs>.pinned-f details.pick summary>span:first-of-type{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;min-width:0}nav.tabs>.pinned-f details.pick .pick-n{white-space:nowrap}nav.tabs>.pinned-f details.pick .pick-n{font-size:12px}
   nav.tabs>.pinned-f details.pick[open] .pick-list{position:absolute;right:0;top:100%;margin-top:6px;width:min(560px,90vw);max-height:60vh;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:10}
   body.pinned nav.tabs>button{padding:8px 9px}}
@@ -188,6 +192,7 @@ svg .cross{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3}
 .jump button{font:500 13px var(--body);border:1px solid var(--line);background:var(--surface);color:var(--ink2);border-radius:999px;padding:6px 12px;cursor:pointer}
 @media (hover:hover){.jump button:hover{border-color:var(--accent);color:var(--accent)}}
 .sec{scroll-margin-top:calc(var(--nav-h,57px) + 12px)}
+svg text.mk{font-size:10.5px;font-weight:600;fill:var(--ink2);paint-order:stroke;stroke:var(--surface);stroke-width:3px}
 .flash{animation:obflash 1.6s ease}
 @keyframes obflash{0%,35%{box-shadow:0 0 0 3px var(--accent)}100%{box-shadow:0 0 0 0 transparent}}
 [data-pick]{cursor:pointer}.mix .row[data-pick]{border-radius:6px;margin:0 -6px;padding:2px 6px}
@@ -337,6 +342,7 @@ details.dq.pick li{display:block;padding:0;background:none;border-radius:0}detai
 .pick-list button[aria-current="true"]{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
 .pick-list .muted{font-size:12.5px}
 .pick-list .pk-s{white-space:nowrap}.pick-list .pk-f{display:none}
+details.pick .pk-short{display:none}
 @media (max-width:560px){details.pick summary .pick-n{flex-basis:100%}details.pick .pk-dot{display:none}.pick-list button{flex-direction:column;align-items:flex-start;gap:2px}.pick-list .pk-s{display:none}.pick-list .pk-f{display:block}}
 footer.method .dq{margin:0 0 22px;font-size:14px;line-height:1.45;color:var(--ink2)}
 footer.method{font-size:12.5px;line-height:1.5;color:var(--muted);margin-top:24px;padding-top:16px;border-top:1px solid var(--line)}
@@ -547,7 +553,7 @@ const CWID={};
 function chartBox(id,height){const W=CWID[id]||760;return{W,H:Math.round(W<520?Math.min(height,Math.max(170,W*.62)):height)}}
 function thinTicks(ticks,n,span){const has=[];for(let i=0;i<n;i++)if(ticks(i))has.push(i);const step=Math.max(1,Math.ceil(has.length*58/Math.max(1,span)));
   const keep=new Set(has.filter((_,k)=>k%step===0));return i=>keep.has(i)?ticks(i):''}
-function lineChart(id,{labels,series,ticks,height=240,fmtV=v=>fmt(v),fmtA=v=>fmt(v),floor=1}){
+function lineChart(id,{labels,series,ticks,height=240,fmtV=v=>fmt(v),fmtA=v=>fmt(v),floor=1,marks=[]}){
   const{W,H}=chartBox(id,height),L=44,R=12,T=10,B=26,n=labels.length;ticks=thinTicks(ticks,n,W-L-R);
   const max=niceMax(Math.max(floor,...series.flatMap(s=>s.values.filter(v=>v!=null))));
   const x=i=>L+(n<=1?0:i*(W-L-R)/(n-1)),y=v=>T+(H-T-B)*(1-v/max);
@@ -558,6 +564,13 @@ function lineChart(id,{labels,series,ticks,height=240,fmtV=v=>fmt(v),fmtA=v=>fmt
     if(s.area){let a='',st=null,en=null;s.values.forEach((v,i)=>{if(v==null)return;if(st==null)st=i;en=i;a+=(a?'L':'M')+x(i).toFixed(1)+','+y(v).toFixed(1)});
       if(a)g+=`<path class="fd" d="${a}L${x(en)},${y(0)}L${x(st)},${y(0)}Z" fill="${s.color}" opacity=".12"/>`}
     g+=`<path ${s.dash?'class="fd" stroke-dasharray="5 4"':'class="ln" pathLength="1"'} d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`});
+  // подписи у отдельных точек (marks): точка и значение над ней; у верхнего края — под точкой, у краёв — сдвиг внутрь
+  // сначала самые высокие; подпись, которая налезла бы на уже поставленную (узкий экран), не рисуем
+  const placed=[];
+  marks.map(m=>({m,v:series[m.s]&&series[m.s].values[m.i]})).filter(o=>o.v!=null).sort((a,b)=>b.v-a.v).forEach(({m,v})=>{
+    const cx=x(m.i),cy=y(v),up=cy-T>16,t=fmtV(v),tw=t.length*6.2+4,tx=Math.max(L+tw/2,Math.min(W-R-tw/2,cx)),ty=up?cy-8:cy+16;
+    const box={l:tx-tw/2,r:tx+tw/2,t:ty-11,b:ty+3};if(placed.some(p=>box.l<p.r&&p.l<box.r&&box.t<p.b&&p.t<box.b))return;placed.push(box);
+    g+=`<circle cx="${cx}" cy="${cy}" r="3.5" fill="${series[m.s].color}" stroke="${cssv('--surface')}" stroke-width="1.5"/><text class="mk" x="${tx}" y="${ty}" text-anchor="middle">${esc(t)}</text>`});
   g+=`<line class="cross" id="${id}-x" y1="${T}" y2="${H-B}" x1="-9999" x2="-9999"/><g id="${id}-dots"></g><rect class="hit" x="${L}" y="${T}" width="${W-L-R}" height="${H-T-B}"/>`;
   setTimeout(()=>{
     const svg=document.getElementById(id);if(!svg)return;
@@ -789,9 +802,12 @@ function vSummary(){
   const crT=WK.map((w,k)=>{if(k<3)return null;const L4=WK.slice(k-3,k+1),zz=sum(L4.map(x=>x.z)),vv=sum(L4.map(x=>x.v));return vv?zz/vv*100:null});
   const wLbl=w=>{const a=D.days[w.a],b=D.days[w.a+6];return`${dShort(a)} – ${dShort(b)} ${b.slice(0,4)} · ${fmt(w.z)} ${plural(w.z,'заявка','заявки','заявок')} / ${fmt(w.v)} ${plural(w.v,'визит','визита','визитов')}`};
   const lastT=crT[crT.length-1],prevT=crT.length>4?crT[crT.length-5]:null;
-  if(WK.length>=4)h+=`<div class="panel sec" id="sum-cr"><h2>Конверсия сайта по неделям</h2><p class="sub">Заявки с сайта / визиты за неделю (пн–вс), с ${dShort(D.days[w0])} ${D.days[w0].slice(0,4)}; текущая неделя не входит. Тренд за 4 недели — сейчас <b>${fmt(lastT,2)}%</b>${prevT!=null?`, месяц назад ${fmt(prevT,2)}%`:''}</p>
+  // подпись — у самой высокой недели каждого месяца (месяц — по понедельнику недели)
+  const peaks=[];WK.forEach((w,k)=>{if(crW[k]==null)return;const m=D.days[w.a].slice(0,7),last=peaks[peaks.length-1];
+    if(!last||last.m!==m)peaks.push({m,i:k});else if(crW[k]>crW[last.i])last.i=k});
+  if(WK.length>=4)h+=`<div class="panel sec" id="sum-cr" style="margin-bottom:16px"><h2>Конверсия сайта по неделям</h2><p class="sub">Заявки с сайта / визиты за неделю (пн–вс), с ${dShort(D.days[w0])} ${D.days[w0].slice(0,4)}; текущая неделя не входит. Тренд за 4 недели — сейчас <b>${fmt(lastT,2)}%</b>${prevT!=null?`, месяц назад ${fmt(prevT,2)}%`:''}</p>
     ${legend([['Неделя',cssv('--s1')],['Тренд за 4 недели',cssv('--s2')]])}
-    ${lineChart('c-cr',{labels:WK.map(wLbl),series:[{name:'Неделя',color:cssv('--s1'),values:crW},{name:'Тренд за 4 недели',color:cssv('--s2'),values:crT}],ticks:i=>{const d=D.days[WK[i].a];return i===0||d.slice(5,7)!==D.days[WK[i-1].a].slice(5,7)?MON_S[+d.slice(5,7)-1]+(d.slice(5,7)==='01'||i===0?' '+d.slice(2,4):''):''},fmtV:v=>fmt(v,2)+'%',fmtA:v=>fmt(v,2)+'%',floor:0.01,height:240})}
+    ${lineChart('c-cr',{labels:WK.map(wLbl),series:[{name:'Неделя',color:cssv('--s1'),values:crW},{name:'Тренд за 4 недели',color:cssv('--s2'),values:crT}],ticks:i=>{const d=D.days[WK[i].a];return i===0||d.slice(5,7)!==D.days[WK[i-1].a].slice(5,7)?MON_S[+d.slice(5,7)-1]+(d.slice(5,7)==='01'||i===0?' '+d.slice(2,4):''):''},fmtV:v=>fmt(v,2)+'%',fmtA:v=>fmt(v,2)+'%',floor:0.01,height:260,marks:peaks.map(p=>({s:0,i:p.i}))})}
     <p class="note">Тренд — заявки за 4 недели, делённые на визиты за те же 4 недели: недели с большим трафиком весят больше. Прямую через все точки не рисуем — сезонность круизов дала бы ложный рост или падение.</p></div>`;
   // заявки по дням
   const from=Math.max(0,ti-59),lab=D.days.slice(from),vals=z.slice(from),avg=ma7(z).slice(from);
@@ -916,7 +932,7 @@ function vWeb(){
   // подпись в списке: полная дата с годом впереди, «· дд.мм» из названия убираем
   const wl=x=>x.date?dd(x.date)+' · '+x.name.replace(/\s*·\s*\d{2}\.\d{2}$/,''):x.name;
   let h=`<div class="pin-f"><span class="flbl">Мероприятия · ${L.length}</span>
-    <details class="panel dq pick" id="web-pick"><summary><span>${esc(wl(w))}</span><span class="muted pick-n"><span class="pk-dot"> · </span>${fmt(n)} ${plural(n,'регистрация','регистрации','регистраций')}</span></summary>
+    <details class="panel dq pick" id="web-pick"><summary><span>${esc(wl(w))}</span><span class="muted pick-n"><span class="pk-dot"> · </span>${fmt(n)} ${plural(n,'регистрация','регистрации','регистраций')}</span><span class="muted pk-short" title="${fmt(n)} ${plural(n,'регистрация','регистрации','регистраций')}${srezOf(w)?` · ${fmt(srezOf(w).sold)} ${plural(srezOf(w).sold,'продажа','продажи','продаж')}`:''}">${fmt(n)}${srezOf(w)?'/'+fmt(srezOf(w).sold):''}</span></summary>
     <ul class="pick-list">${L.map(x=>`<li><button type="button" data-w="${esc(x.name)}" aria-current="${x.name===w.name}"><span>${esc(wl(x))}</span><span class="muted pk-s">${fmt(x.rows.length)} рег.${srezOf(x)?` · продаж ${fmt(srezOf(x).sold)}`:''}</span><span class="muted pk-f">${fmt(x.rows.length)} ${plural(x.rows.length,'регистрация','регистрации','регистраций')}${srezOf(x)?` · ${fmt(srezOf(x).sold)} ${plural(srezOf(x).sold,'продажа','продажи','продаж')}`:''}</span></button></li>`).join('')}</ul></details></div>
     <p class="muted" style="font-size:12.5px;margin:6px 0 16px">${kind} ${dd(w.date)}${ex&&w.guests!=null?` · гостей в действующих бронях: ${fmt(w.guests)}`:''} · регистрации ${dd(w.start)} – ${dd(w.end)}${w.dups?` · повторных регистраций убрано: ${fmt(w.dups)}`:''}</p>`;
   if(!enriched)h+=`<div class="empty" style="margin-bottom:16px"><b>Регистрации ещё не сверены с базами.</b> ${ex?'Новые брони экскурсии проверяются в «Букинге» каждые 15 минут днём — появятся база ИФ и оплаты.':'В таблице мероприятий запустите проверки «Букинг» и «Битрикс» для этого листа — появятся база ИФ, оплаты, заявки и стадии.'}</div>`;
