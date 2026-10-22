@@ -252,6 +252,8 @@ thead th{position:sticky;z-index:3;background:var(--surface);box-shadow:inset 0 
 .segt td small{display:block;font-size:11.5px;color:var(--muted);font-weight:400}
 .segt tr.b td{color:var(--ink);font-weight:700}
 .segt .gl{border-left:2px solid var(--line)}
+.zcuts{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.zcuts-l{display:grid;gap:16px;min-width:0}
+@media (max-width:760px){.zcuts{grid-template-columns:1fr}}
 /* телефон: каждая группа — карточка (название, потом ячейки с подписями из data-l), без прокрутки вбок */
 @media (max-width:760px){.segt{max-height:none;overflow:visible}.segt thead{display:none}.segt table,.segt tbody{display:block}
   .segt tr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 12px;padding:12px 0;border-bottom:1px solid var(--line)}
@@ -852,12 +854,66 @@ function vZav(){
       return`<tr><td class="b">${esc(k)}</td><td class="r">${fmt(s.n)}</td><td class="r">${pct(s.n/c.n,0)}</td><td class="r">${pct(s.n?s.paid/s.n:null,0)}</td><td class="r">${rub(s.check)}</td></tr>`}).join('')}</tbody></table></div></div>`};
   const lead=x=>x[7]==null?null:x[7]<=14?'до 14 дней':x[7]<=30?'15–30 дней':x[7]<=60?'31–60 дней':x[7]<=120?'61–120 дней':'больше 120 дней';
   const dur=x=>x[8]==null?null:x[8]<=3?'1–3 дня':x[8]<=7?'4–7 дней':x[8]<=14?'8–14 дней':'15+ дней';
-  h+=`<div class="grid g-two sec" id="zav-cuts">${cut('Первая заявка или уже оформлял',x=>x[5]?'Первая заявка':'Уже оформлял')}${cut('Оператор',x=>x[6]?'Созвездие':'Другие операторы через сайт')}
-    ${cut('За сколько до отплытия',lead,['до 14 дней','15–30 дней','31–60 дней','61–120 дней','больше 120 дней'])}${cut('Длительность круиза',dur,['1–3 дня','4–7 дней','8–14 дней','15+ дней'])}
-</div>
-    <div class="sec" id="zav-ship">${cut('Теплоход',x=>D.requests.ships[x[4]],null,true)}</div>`;
-  $('#view').innerHTML=withJump(h,[['zav-mon','По месяцам'],['zav-cuts','Клиенты, сроки, длительность'],['zav-ship','Теплоходы']]);
+  h+=zavCohort(r);
+  // слева столбиком четыре разреза, справа одна длинная таблица теплоходов; на телефоне — одной колонкой
+  h+=`<div class="grid zcuts"><div class="zcuts-l sec" id="zav-cuts">${cut('Первая заявка или уже оформлял',x=>x[5]?'Первая заявка':'Уже оформлял')}${cut('Оператор',x=>x[6]?'Созвездие':'Другие операторы через сайт')}
+    ${cut('За сколько до отплытия',lead,['до 14 дней','15–30 дней','31–60 дней','61–120 дней','больше 120 дней'])}${cut('Длительность круиза',dur,['1–3 дня','4–7 дней','8–14 дней','15+ дней'])}</div>
+    <div class="sec" id="zav-ship">${cut('Теплоход',x=>D.requests.ships[x[4]],null,true)}</div></div>`;
+  $('#view').innerHTML=withJump(h,[['zav-mon','По месяцам'],...(D.zcoh&&D.zcoh.p?[['zav-coh','Когорта']]:[]),['zav-cuts','Клиенты, сроки, длительность'],['zav-ship','Теплоходы']]);
   chartPick('c-mon',ms.length,i=>pickState({period:'m:'+ms[i].m},'zav-mon'));
+  const zk=$('#seg-zkind');if(zk)zk.onclick=e=>{const b=e.target.closest('[data-k]');if(!b)return;if(e.detail)b.blur();S.zkind=b.dataset.k;save();render()};
+  const zc=$('#chk-zct');if(zc)zc.onchange=e=>{const t=e.target.dataset&&e.target.dataset.t;if(!t)return;const st=new Set(S.zct);if(e.target.checked)st.add(t);else st.delete(t);S.zct=[...st];save();render()};
+}
+
+/* Когорта заявок сайта (22.10.2026, D.zcoh — ночной расчёт sa_zav_cohort.js): люди с заявкой сайта в периоде; день 0 — их первая
+   заявка сайта в периоде; группа — по истории до дня 0; после — все их заявки с дня 0 (сама заявка сайта тоже), сроки от дня 0.
+   p = [[дни заявок сайта], первая заявка, первый круиз, [дни круизов СЗ], [[день, тип, тип клиента, день оплаты|-1, СЗ]]], дни — от zcoh.from */
+function zavCohort(r){
+  const Z=D.zcoh;
+  if(!Z||!Z.p)return`<div class="panel sec" id="zav-coh" style="margin-bottom:16px"><h2>Когорта заявок сайта</h2><div class="empty">${Z&&Z.error?'Не прочитана: '+esc(Z.error):'Считается по Букингу ночью (лист «Заявки сайта: когорта») или сразу — меню таблицы «Заявки» → «Заявки сайта: пересчитать когорту».'}</div></div>`;
+  const off0=Math.round((Date.UTC(+Z.from.slice(0,4),+Z.from.slice(5,7)-1,+Z.from.slice(8,10))-Date.UTC(+D.days[0].slice(0,4),+D.days[0].slice(5,7)-1,+D.days[0].slice(8,10)))/864e5);
+  const a=r.a-off0,b=r.b-off0,left=D.days.length-1-r.b,leftA=D.days.length-1-r.a;   // дни периода в счёте zcoh; сколько дней прошло после конца / начала
+  const LAGB=[[0,7],[8,30],[31,90],[91,180],[181,365],[366,1e9]],lagI=d=>LAGB.findIndex(([x,y])=>d>=x&&d<=y),SEGK=['new','base','other','sz','back'];
+  const ppl=[];
+  Z.p.forEach(([sd,f0,fc,szd,rs])=>{const A=sd.find(d=>d>=a&&d<=b);if(A==null)return;
+    let si;if(fc!=null&&fc<A){const last=szd.filter(d=>d<A).pop();si=last==null?2:A-last<730?3:4}else si=f0!=null&&f0<A?1:0;
+    ppl.push([si,rs.filter(x=>x[0]>=A).map(x=>[x[1],x[2],x[0]-A,x[3]>=0?x[3]-A:-1,x[4]])])});
+  const CTL=[['p','Частные лица'],['i','ИП'],['s','Самозанятые'],['g','Агентства']];
+  const ctHave=CTL.filter(([t])=>ppl.some(p=>p[1].some(x=>x[1]===t)));
+  if(!Array.isArray(S.zct))S.zct=CTL.map(x=>x[0]);
+  const ctOn=new Set(S.zct);
+  const agg=kk=>{const z=()=>({n:0,buyers:0,req:[0,0,0,0,0,0],sale:[0,0,0,0,0,0],saleSz:[0,0,0,0,0,0]}),o={all:z()};SEGK.forEach(k=>o[k]=z());
+    const kt=kk==='air'?'a':kk,keepK=kk==='all'?()=>true:t=>t===kt;
+    ppl.forEach(([si,rs])=>{const f=rs.filter(x=>keepK(x[0])&&(ctOn.has(x[1])||x[1]==='o'));
+      [o.all,o[SEGK[si]]].forEach(x=>{x.n++;if(f.some(y=>y[3]>=0))x.buyers++;
+        f.forEach(y=>{const i=lagI(y[2]);if(i>-1)x.req[i]++;if(y[3]>=0){const j=lagI(y[3]);if(j>-1){x.sale[j]++;if(y[4])x.saleSz[j]++}}})})});
+    return o};
+  const WKT=[['c','Круизы','круиз','круизы'],['x','Доп. услуги','доп. услугу','доп. услуги к круизу'],['v','Билеты на теплоход','билет на теплоход','билеты «В гости на теплоход»'],['s','Сертификаты','сертификат','сертификаты'],['air','Авиабилеты','авиабилеты','авиабилеты'],['z','Визы','визу','визы'],['o','Прочее','прочее','прочие заявки без круиза'],['all','Всё вместе','что угодно','все заявки']];
+  const has=k=>k==='c'||k==='all'||ppl.some(p=>p[1].some(x=>x[0]===(k==='air'?'a':k))),C={},get=k=>C[k]||(C[k]=agg(k));
+  const WK=WKT.filter(([k])=>has(k));if(!WK.some(x=>x[0]===S.zkind))S.zkind='c';
+  const wk=S.zkind,SG=get(wk),A=SG.all,wt=WKT.find(x=>x[0]===wk),sum=v=>v.reduce((x,y)=>x+y,0);
+  const SEG_L=[['all','Всего',''],['new','Новые','заявок раньше не было'],['base','Оформлял, не покупал','заявки были, круизов не было'],['other','Покупали не Созвездие','только у других операторов'],['sz','Покупатели Созвездия','последняя покупка СЗ — меньше 2 лет назад'],['back','Вернувшиеся','последняя покупка СЗ — 2 года назад и раньше']];
+  const lab=LAGB.map(([x,y])=>y>1e8?(x-1)+'+':x+'–'+y);
+  // срок не наступил ни для кого (с начала периода прошло меньше) — «рано»; наступил не для всех — звёздочка в заголовке
+  const early=i=>leftA<LAGB[i][0],part=i=>!early(i)&&left<LAGB[i][1]&&LAGB[i][1]<1e8;
+  const cell=(q,s,sz,i)=>i!=null&&early(i)?'<span class="muted">рано</span>':q||s?`${fmt(q)} / <b>${fmt(s)}</b><small>${s?'СЗ '+pct(sz/s,0):'&nbsp;'}</small>`:'<span class="muted">—</span>';
+  const bar=`<div class="filters" style="margin:4px 0 10px">${WK.length>1?`<div><span class="flbl">Что считаем</span><div class="seg wk" id="seg-zkind">${WK.map(([k,l])=>`<button type="button" data-k="${k}" aria-pressed="${wk===k}">${l}<small>${fmt(get(k).all.buyers)}</small></button>`).join('')}</div></div>`:''}${ctHave.length>1?`<div class="fgroup"><span class="flbl">Тип клиента</span><div class="checks" id="chk-zct" role="group" aria-label="Тип клиента">${ctHave.map(([t,l])=>`<label><input type="checkbox" data-t="${t}"${ctOn.has(t)?' checked':''}>${l}</label>`).join('')}</div></div>`:''}</div>`;
+  const ex=Z.excl&&Z.excl.accounts?` Не считаются служебные аккаунты Букинга (у одного аккаунта больше 20 разных покупателей): ${fmt(Z.excl.accounts)}, их заявок сайта с ${esc(dShort(Z.from))} ${Z.from.slice(0,4)} — ${fmt(Z.excl.site)}.`:'';
+  if(!A.n)return`<div class="panel sec" id="zav-coh" style="margin-bottom:16px"><h2>Когорта заявок сайта</h2><div class="empty">${a<0&&b<0?'Когорта считается с '+esc(dShort(Z.from))+' '+Z.from.slice(0,4)+'.':'Нет заявок сайта за период.'}</div></div>`;
+  return`<div class="panel sec" id="zav-coh" style="margin-bottom:16px"><h2>Когорта: кто оставил заявку на сайте и когда купил <span class="muted" style="font-weight:400">· ${esc(wt[3])}</span></h2>${bar}
+    <p class="sub">Люди, оставившие заявку на сайте за период (${fmt(A.n)}), — кем они были в день своей первой заявки сайта в этом периоде («покупал» — по круизам) и что оформили и оплатили потом. В ячейке — <b>заявок / оплачено заявок</b> за срок после дня заявки, сама заявка сайта входит; ниже — доля Созвездия в оплаченных. Обновлено ${Z.updated?esc(dShort(Z.updated.slice(0,10))):'—'}.</p>
+    <div class="tbl segt"><table><thead><tr><th>Кем был в день заявки</th><th class="r">Людей</th><th class="r">Купили, людей</th>${lab.map((l,i)=>`<th class="r${i?'':' gl'}">${esc(l)} дн.${part(i)?'*':''}</th>`).join('')}<th class="r gl">Всего: заявок / оплачено заявок</th></tr></thead>
+    <tbody>${SEG_L.map(([key,name,hint])=>{const x=SG[key];if(!x||(!x.n&&key!=='all'))return'';
+      return`<tr class="${key==='all'?'b':''}"><td>${esc(name)}${hint?`<small>${esc(hint)}</small>`:''}</td><td class="r" data-l="Людей">${fmt(x.n)}${key!=='all'?`<small>${pct(A.n?x.n/A.n:null,0)} людей</small>`:''}</td>
+      <td class="r" data-l="Купили, людей">${fmt(x.buyers)}<small>${pct(x.n?x.buyers/x.n:null,1)} группы</small></td>
+      ${lab.map((l,i)=>`<td class="r${i?'':' gl'}" data-l="${esc(l)} дн.${part(i)?'*':''}">${cell(x.req[i],x.sale[i],x.saleSz[i],i)}</td>`).join('')}<td class="r gl" data-l="Всего">${cell(sum(x.req),sum(x.sale),sum(x.saleSz))}</td></tr>`}).join('')}</tbody></table></div>
+    <ul class="sub" style="margin:10px 0 0;padding-left:18px;line-height:1.55">
+      <li><b>День 0</b> — первая заявка сайта человека в выбранном периоде; две заявки за период — человек один. Человек — аккаунт в Букинге (как «Первая заявка» ниже).</li>
+      <li><b>Новые</b> — до дня 0 заявок не было; почти то же, что «Первая заявка» в таблице ниже, только в людях (там чуть меньше: если в тот же день раньше была заявка не с сайта, это уже не первая заявка). <b>Оформлял, не покупал</b> — заявки были, состоявшихся круизов нет.</li>
+      <li><b>Купили, людей</b> — оплатили хотя бы одну заявку с дня 0 (сама заявка сайта тоже считается), человек один раз.</li>
+      <li><b>Заявок / оплачено заявок</b> — заявки, созданные за срок после дня 0 / оплаченные (Предоплата или Оплачено; срок — по дню первой оплаты). <b>СЗ %</b> — Созвездие и Речные линии.</li>
+      <li><b>рано</b> — срок ещё не наступил; <b>*</b> — наступил не для всех: у заявок конца периода он ещё идёт, число будет расти.${ex}</li>
+    </ul></div>`;
 }
 
 function vSite(){
@@ -1475,6 +1531,7 @@ document.querySelectorAll('#btn-theme,.js-theme').forEach(b=>b.onclick=e=>{if(e.
 $('#method').innerHTML='<div id="dq-slot"></div><p id="period" class="ref-info" hidden></p><h3>Как считается</h3><dl>'+[
   ['Заявка','Бронь, которую турист оформил сам на сайте.','Заявка из букинга, созданная на сайте (отметка «создана на сайте»), по дате создания. Номера и данные клиентов в отчёт не попадают.'],
   ['Оплачена','Турист внёс предоплату или всю сумму.','Текущий статус «Оплачено» или «Предоплата». Аннулированные и возвраты — отдельно. Сумма — полная стоимость заявки, маржа — из букинга.'],
+  ['Когорта заявок сайта','Кем был человек в день заявки на сайте и что купил потом.','Человек — аккаунт в Букинге с заявкой сайта за период; день 0 — его первая заявка сайта в периоде. Группа — по истории до дня 0: новые (заявок не было), оформлял, не покупал (круизов не было), покупали только других операторов, покупатели Созвездия (последний круиз меньше 2 лет назад), вернувшиеся (2 года и больше); «круиз был» — статусы 20, 21, 30, 31. После — все заявки человека с дня 0, включая саму заявку сайта: заявок / оплачено (Предоплата, Оплачено; срок — по первой оплате), доля Созвездия с Речными линиями. Служебные аккаунты (больше 20 разных покупателей на аккаунт) не считаются. Обновляется ночью.'],
   ['Первая заявка или уже оформлял','Новый ли это для нас человек.','«Первая заявка» — первая заявка пользователя в букинге за всё время. Иначе — «уже оформлял» (была любая заявка раньше, даже неоплаченная). Повторный покупатель (была оплаченная заявка раньше) — в отчёте «Продукт».'],
   ['Воронка сайта','На каком шаге сайта люди уходят, не дойдя до заявки.','Визиты и цели Метрики по дням: цены и бронирование → бронирование → оформление → данные туристов → данные заказчика → оформить. Конверсия шага — от предыдущего шага.'],
   ['Визит → заявка','Из скольких заходов на сайт получается одна заявка.','Заявки с сайта / визиты за те же дни. Сегодняшний неполный день не учитывается.'],
