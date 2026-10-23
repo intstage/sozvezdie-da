@@ -280,6 +280,9 @@ thead th{position:sticky;z-index:3;background:var(--surface);box-shadow:inset 0 
   .segt td small{white-space:normal}
   .segt-m{display:block!important}}
 .segt-m{display:none;margin:8px 0 0;font-size:12.5px;color:var(--muted)}
+/* самые узкие телефоны (320 px): таблица чуть шире за счёт отступа панели, плотнее отступы и шрифт — помещается без прокрутки */
+@media (max-width:380px){.segt{margin:0 -8px}.segt th,.segt td{padding-left:3px;padding-right:3px}.segt td:first-child{padding-left:0}.segt td:last-child{padding-right:0}
+  .segt td{font-size:12.5px}.segt td small{font-size:11px}.segt th{font-size:10px;letter-spacing:.02em}}
 .seats-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px 20px;margin:14px 0 0;padding-top:12px;border-top:1px solid var(--line);font-size:12.5px;line-height:1.4;color:var(--muted)}
 .seats-f>div{display:flex;flex-direction:column;gap:3px;min-width:0}
 .seats-f b{font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:600;color:var(--ink2);margin-bottom:2px}
