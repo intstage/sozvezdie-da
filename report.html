@@ -1022,10 +1022,11 @@ function vObr(){
   const lab=D.days.slice(r.a,r.b+1),ORD=['Звонок','Макс','Телеграм'],SCOL={'Звонок':cssv('--s1'),'Макс':cssv('--s3'),'Телеграм':cssv('--s4')};
   const si=D.obr.sources.map((s,i)=>i).sort((x,y)=>{const a=ORD.indexOf(D.obr.sources[x]),b=ORD.indexOf(D.obr.sources[y]);return(a<0?9:a)-(b<0?9:b)});
   const scol=i=>SCOL[D.obr.sources[i]]||cssv('--muted');
-  h+=`<div class="panel sec" id="obr-days" style="margin-bottom:16px"><h2>Обращения по дням</h2>${barChart('c-obr',{name:'Обращений',color:cssv('--s1'),bars:o.t.slice(r.a,r.b+1).map((v,i)=>({label:dShort(lab[i]),value:v,
+  const wd=d=>['вс','пн','вт','ср','чт','пт','сб'][new Date(d+'T12:00:00Z').getUTCDay()],dl=d=>dShort(d)+', '+wd(d);   // «1 июл, ср»
+  h+=`<div class="panel sec" id="obr-days" style="margin-bottom:16px"><h2>Обращения по дням</h2>${barChart('c-obr',{name:'Обращений',color:cssv('--s1'),bars:o.t.slice(r.a,r.b+1).map((v,i)=>({label:dl(lab[i]),value:v,
       parts:si.map(k=>[o.src[k][r.a+i],scol(k)]),
       tip:si.filter(k=>o.src[k][r.a+i]).map(k=>`<i style="background:${scol(k)}"></i>${esc(D.obr.sources[k])}: <b>${fmt(o.src[k][r.a+i])}</b>`).join('<br>')+`<br>Целевых: <b>${fmt(o.tg[r.a+i])}</b>`})),
-    line:{name:'Среднее за 7 дней',color:cssv('--s2'),values:ma7(o.t).slice(r.a,r.b+1)},ticks:i=>i%Math.max(1,Math.ceil(lab.length/10))===0?dShort(lab[i]):''})}
+    line:{name:'Среднее за 7 дней',color:cssv('--s2'),values:ma7(o.t).slice(r.a,r.b+1)},ticks:i=>i%Math.max(1,Math.ceil(lab.length/10))===0?dl(lab[i]):''})}
     ${legend([...si.filter(k=>rs(o.src[k],r.a,r.b)).map(k=>[D.obr.sources[k],scol(k),'bar']),['Среднее за 7 дней',cssv('--s2')]])}
     <p class="note">Источник — лист «Обращения». Исключены статусы: дубли, ошибки, сотрудничество/трудоустройство (${fmt(D.obr.junk)} за всё время).</p></div>`;
   h+=cohortBlock(r,OCOH);
