@@ -108,20 +108,19 @@ nav.tabs button:focus:not(:focus-visible){outline:none}
   nav.tabs>.pinned-f details.pick[open] .pick-list{position:absolute;right:0;top:100%;margin-top:6px;width:min(560px,90vw);max-height:60vh;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:10}
   body.pinned nav.tabs>button{padding:8px 9px}}
 @media (min-width:761px){nav.tabs.split>.pinned-f,nav.tabs.split>#filters,nav.tabs.split>.nav-f{flex-basis:100%;margin-left:0;justify-content:flex-end}   /* вкладки в несколько строк — фильтры своей строкой */}
-/* вкладки с фильтрами не помещаются в строку — слева вкладки в две строки (--nk в строке), справа фильтры столбиком в две строки (v117);
-   не помещается и так — прежний вариант .split: фильтры своей строкой под вкладками */
-@media (min-width:761px){nav.tabs.split2{padding-right:var(--fw,0px);min-height:calc(var(--fh,0px) + 16px);box-sizing:border-box;align-content:center}
-  nav.tabs.split2>:not(button){position:absolute;right:0;top:50%;transform:translateY(-50%);margin:0;padding:0;display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,auto);justify-items:end;align-items:center;gap:6px 8px}
-  nav.tabs.split2>:not(button) .filters{display:contents}nav.tabs.split2>:not(button) select,nav.tabs.split2>:not(button) #sel-month,nav.tabs.split2>:not(button) .mini{width:170px}   /* списки одной ширины */
-  /* выбран свой период: сверху «Свой период» и «Месяц» в одну строку, снизу даты на ту же ширину — колонки поровну */
-  nav.tabs.split2>:not(button):has(.range.on){grid-auto-flow:row;grid-template-rows:none;grid-template-columns:repeat(2,170px);justify-items:stretch}
-  nav.tabs.split2>:not(button):has(.range.on) select{width:100%;max-width:none}
-  nav.tabs.split2>:not(button):has(.range.on) div:has(>.range){grid-column:1/-1}
-  nav.tabs.split2>:not(button):has(.range.on) .range{display:grid;grid-template-columns:repeat(2,170px);gap:8px}nav.tabs.split2>:not(button):has(.range.on) .range>span{display:none}
-  nav.tabs.split2>:not(button):has(.range.on) .range input{min-width:0;max-width:none;width:100%}
-  /* все капсулы одной высоты */
-  nav.tabs.split2>:not(button) select,nav.tabs.split2>:not(button) input:not([type=checkbox]),nav.tabs.split2>:not(button) details.pick{height:36px;box-sizing:border-box}
-  nav.tabs.split2>:not(button) details.pick{display:flex;align-items:center;padding-block:0}}
+/* вкладки с фильтрами не помещаются в одну строку — пополам (23.10.2026): слева вкладки (переносятся, до двух строк),
+   справа фильтры на половину ширины (тоже до двух строк), капсулы делят её поровну; вкладкам мало двух строк — .split */
+@media (min-width:761px){nav.tabs.split2{padding-right:50%;min-height:calc(var(--fh,0px) + 16px);box-sizing:border-box;align-content:center}
+  nav.tabs.split2>:not(button){position:absolute;right:0;top:50%;transform:translateY(-50%);width:calc(50% - 16px);max-width:none;margin:0;padding:0;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px 8px}
+  nav.tabs:is(.split,.split2)>:not(button) .filters{display:contents}
+  nav.tabs:is(.split,.split2)>:not(button) .filters>*,nav.tabs:is(.split,.split2)>:not(button)>:not(.filters):not(.flbl){flex:1 1 calc(50% - 4px);min-width:0}
+  nav.tabs:is(.split,.split2)>:not(button) select,nav.tabs:is(.split,.split2)>:not(button) #sel-month,nav.tabs:is(.split,.split2)>:not(button) .mini{width:100%;max-width:none}
+  nav.tabs:is(.split,.split2)>:not(button) div:has(>.range.on){flex-basis:100%}   /* свой период: даты второй строкой, каждая — как список над ней */
+  nav.tabs:is(.split,.split2)>:not(button) .range.on{display:flex;width:100%;gap:8px}nav.tabs:is(.split,.split2)>:not(button) .range.on>span{display:none}
+  nav.tabs:is(.split,.split2)>:not(button) .range.on input{flex:1 1 0;width:auto;min-width:0;max-width:none}
+  nav.tabs:is(.split,.split2)>:not(button)>details.pick{max-width:none;flex:1 1 100%;display:flex;align-items:center;justify-content:center;padding-block:0;height:36px;box-sizing:border-box}
+  nav.tabs:is(.split,.split2)>:not(button) details.pick summary{max-width:none;justify-content:center}
+  nav.tabs.split>:is(#filters,.pinned-f).pinned-f{flex-basis:auto;width:max(50%,420px);max-width:100%;margin-left:auto;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px 8px}   /* запасной вариант: фильтры своей строкой, справа на половину */}
 @media (max-width:760px){nav.tabs{position:static;grid-auto-flow:row;grid-auto-columns:auto;grid-template-columns:repeat(3,1fr);justify-content:stretch}nav.tabs button{border-color:var(--line)}}
 @media (max-width:420px){nav.tabs{grid-template-columns:repeat(2,1fr)}}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -1015,7 +1014,7 @@ function vWeb(){
   // подпись в списке: полная дата с годом впереди, «· дд.мм» из названия убираем
   const wl=x=>x.date?dd(x.date)+' · '+x.name.replace(/\s*·\s*\d{2}\.\d{2}$/,''):x.name;
   let h=`<div class="pin-f"><span class="flbl">Мероприятия · ${L.length}</span>
-    <details class="panel dq pick" id="web-pick"><summary><span>${esc(wl(w))}</span><span class="muted pick-n"><span class="pk-dot"> · </span>${fmt(n)} ${plural(n,'регистрация','регистрации','регистраций')}</span><span class="muted pk-short" title="${fmt(n)} ${plural(n,'регистрация','регистрации','регистраций')}${srezOf(w)?` · ${fmt(srezOf(w).sold)} ${plural(srezOf(w).sold,'продажа','продажи','продаж')}`:''}">${fmt(n)}${srezOf(w)?'/'+fmt(srezOf(w).sold):''}</span></summary>
+    <details class="panel dq pick" id="web-pick"><summary><span>${esc(wl(w))}</span><span class="muted pick-n"><span class="pk-dot"> · </span>${fmt(n)} ${plural(n,'регистрация','регистрации','регистраций')}</span><span class="muted pk-short" title="${fmt(n)} ${plural(n,'регистрация','регистрации','регистраций')}${srezOf(w)?` · ${fmt(srezOf(w).sold)} ${plural(srezOf(w).sold,'продажа','продажи','продаж')}`:''}">${fmt(n)} рег.${srezOf(w)?' · продаж '+fmt(srezOf(w).sold):''}</span></summary>
     <ul class="pick-list">${L.map(x=>`<li><button type="button" data-w="${esc(x.name)}" aria-current="${x.name===w.name}"><span>${esc(wl(x))}</span><span class="muted pk-s">${fmt(x.rows.length)} рег.${srezOf(x)?` · продаж ${fmt(srezOf(x).sold)}`:''}</span><span class="muted pk-f">${fmt(x.rows.length)} ${plural(x.rows.length,'регистрация','регистрации','регистраций')}${srezOf(x)?` · ${fmt(srezOf(x).sold)} ${plural(srezOf(x).sold,'продажа','продажи','продаж')}`:''}</span></button></li>`).join('')}</ul></details></div>
     <p class="muted" style="font-size:12.5px;margin:6px 0 16px">${kind} ${dd(w.date)}${ex&&w.guests!=null?` · гостей в действующих бронях: ${fmt(w.guests)}`:''} · регистрации ${dd(w.start)} – ${dd(w.end)}${w.dups?` · повторных регистраций убрано: ${fmt(w.dups)}`:''}</p>`;
   if(!enriched)h+=`<div class="empty" style="margin-bottom:16px"><b>Регистрации ещё не сверены с базами.</b> ${ex?'Новые брони экскурсии проверяются в «Букинге» каждые 15 минут днём — появятся база ИФ и оплаты.':'В таблице мероприятий запустите проверки «Букинг» и «Битрикс» для этого листа — появятся база ИФ, оплаты, заявки и стадии.'}</div>`;
@@ -1610,11 +1609,13 @@ function pinFilters(){const n=document.getElementById('tabs'),f=PIN||pinTarget()
 addEventListener('scroll',pinFilters,{passive:true});addEventListener('resize',()=>{unpinFilters();delete document.getElementById('filters').dataset.nopin;markWide();pinFilters()});
 /** Вкладки не помещаются в одну строку — фильтры в прилипшей строке встают отдельной строкой под ними (не вперемешку с вкладками). */
 function navSplit(n){const b=n.querySelectorAll(':scope>button');if(!b.length)return;n.classList.remove('split','split2');
-  const t0=b[0].offsetTop,o=n.querySelector(':scope>:not(button)');   // перенос — вкладки в несколько строк или фильтры ушли под вкладки
-  if(innerWidth<=760||![...b].some(x=>x.offsetTop!==t0)&&!(o&&o.offsetTop>=t0+b[0].offsetHeight))return;
-  // сначала — вкладки в две строки слева, фильтры двумя строками справа; не влезло по ширине — фильтры своей строкой
-  if(o){n.classList.add('split2');const r=o.getBoundingClientRect();n.style.setProperty('--fw',Math.ceil(r.width)+16+'px');n.style.setProperty('--fh',Math.ceil(r.height)+'px');
-    if(new Set([...b].map(x=>x.offsetTop)).size<=2)return;n.classList.remove('split2')}
+  const t0=b[0].offsetTop,o=[...n.children].find(x=>x.tagName!=='BUTTON'&&x.getClientRects().length);
+  // не помещается в одну строку: вкладки переносятся, фильтры ушли под вкладки или подпись в фильтре обрезана многоточием
+  const cut=o&&[...o.querySelectorAll('*')].some(e=>e.scrollWidth>e.clientWidth+1&&getComputedStyle(e).textOverflow==='ellipsis');
+  if(innerWidth<=760||![...b].some(x=>x.offsetTop!==t0)&&!(o&&(o.offsetTop>=t0+b[0].offsetHeight||cut)))return;
+  // пополам: слева вкладки (до двух строк), справа фильтры на половину ширины (до двух строк); не влезло — фильтры своей строкой
+  if(o){n.classList.add('split2');const h=Math.ceil(o.getBoundingClientRect().height);n.style.setProperty('--fh',h+'px');
+    if(new Set([...b].map(x=>x.offsetTop)).size<=2&&h<=90)return;n.classList.remove('split2')}
   n.classList.add('split')}
 function navHeight(){const n=document.getElementById('tabs');if(!n)return;navSplit(n);document.documentElement.style.setProperty('--nav-h',n.getBoundingClientRect().height+'px')}
 addEventListener('resize',navHeight);
