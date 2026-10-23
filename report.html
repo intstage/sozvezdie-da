@@ -1021,19 +1021,22 @@ function vWeb(){
   if(!enriched)h+=`<div class="empty" style="margin-bottom:16px"><b>Регистрации ещё не сверены с базами.</b> ${ex?'Новые брони экскурсии проверяются в «Букинге» каждые 15 минут днём — появятся база ИФ и оплаты.':'В таблице мероприятий запустите проверки «Букинг» и «Битрикс» для этого листа — появятся база ИФ, оплаты, заявки и стадии.'}</div>`;
   // экскурсия: три карточки в тех же единицах, что «Места по сеансам» (люди → гости → оплаченные гости)
   const SV=ex&&w.seats&&w.seats.list&&w.seats.list.length?w.seats.list:null;
+  // статус брони — как saEvStatus_ (sa_webinars.js): держит места только live; лист ожидания и запрошенная аннуляция — отдельно
+  const evSt=s=>{s=String(s||'').trim();return !s?'unk':/^аннулирован/i.test(s)?'dead':/лист\S*\s+ожидани/i.test(s)?'wait':/аннуляц/i.test(s)?'canc':/оплачен|предоплат|подтвержд|обработк/i.test(s)?'live':'unk'};
+  const stOf=r=>r[c.stage]>=0?evSt(w.dict.stage[r[c.stage]]):'none';
   if(ex){
     const sS=f=>SV.reduce((a,x)=>a+(x[f]||0),0),its=SV?SV.flatMap(x=>x.items||[]):[];
-    const live=rows.filter(r=>r[c.stage]>=0&&w.dict.stage[r[c.stage]]!=='Аннулировано').length;
+    const live=rows.filter(r=>stOf(r)==='live').length,side=rows.filter(r=>/wait|canc/.test(stOf(r))).length;
     const G=SV?sS('guests'):w.guests,P=SV?sS('paid'):null,B=its.length,PB=its.filter(i=>/Оплачено|Предоплата/i.test(i.st)).length;
     h+=`<div class="grid g-kpi">
-    <div class="panel kpi go" data-go="web-days" title="Регистрации по дням"><div class="lbl">Всего регистраций</div><div class="val">${fmt(n)}</div><div class="foot"><span>людей, уникальные по почте или телефону</span></div>${mutedLine(`с действующей бронью: ${fmt(live)} · отменили: ${fmt(n-live)}`)}</div>
+    <div class="panel kpi go" data-go="web-days" title="Регистрации по дням"><div class="lbl">Всего регистраций</div><div class="val">${fmt(n)}</div><div class="foot"><span>людей, уникальные по почте или телефону</span></div>${mutedLine(`с действующей бронью: ${fmt(live)}${side?` · лист ожидания и аннуляция: ${fmt(side)}`:''} · отменили: ${fmt(n-live-side)}`)}</div>
     <div class="panel kpi go" data-go="${SV?'web-seats':'web-funnel'}" title="Места по сеансам"><div class="lbl">Всего занято мест</div><div class="val">${G==null?'—':fmt(G)}${SV&&sS('cap')?`<small>из ${fmt(sS('cap'))}</small>`:''}</div><div class="foot"><span>${SV?`билетов в ${nw(B,'действующей брони','действующих бронях','действующих бронях')}`:'билетов в действующих бронях'}</span></div>${mutedLine(SV?`оплачено ${fmt(P)} · подтверждено ${fmt(sS('conf'))} · в обработке ${fmt(sS('proc'))}`:'')}</div>
     <div class="panel kpi go" data-go="${SV?'web-seats':'web-funnel'}" title="Места по сеансам"><div class="lbl">Всего оплачено мест</div><div class="val">${P!=null?fmt(P):sz?fmt(sz.sold):'—'}${sz?`<small>на ${rub(sz.sum)}</small>`:''}</div><div class="foot"><span>${P!=null?`${plural(P,'место','места','мест')} в ${nw(PB,'брони','бронях','бронях')}`:'броней'}</span></div>${mutedLine(sz?`новых клиентов: ${fmt(sz.soldNew)}${sz.soldNoContact?` · без контакта: ${fmt(sz.soldNoContact)}`:''}`:'')}</div>
   </div><!--jump-->`;
   } else h+=`<div class="grid g-kpi">
     ${ex?`    <div class="panel kpi go" data-go="${ex&&w.seats?'web-seats':'web-days'}" title="${ex&&w.seats?'Места по сеансам':'Регистрации по дням'}"><div class="lbl">Регистраций</div><div class="val">${fmt(n)}</div><div class="foot"><span>${ex?'уникальные по почте или телефону':'уникальные по почте'}</span></div>${mutedLine(w.extra?`ещё ${nw(w.extra,'лид','лида','лидов')} Б24 без регистрации`:'')}</div>
     <div class="panel kpi go" data-go="web-cut" title="Разрез по каналам"><div class="lbl">Уже в базе Инфофлота</div><div class="val">${fmt(k.inIF)}</div><div class="foot"><span>${share(k.inIF)} регистраций</span></div>${mutedLine(`раньше оплачивали: ${fmt(k.paid)} (${share(k.paid)})`)}</div>
-    <div class="panel kpi go" data-go="web-funnel" title="Воронка и стадии"><div class="lbl">${ex?'Бронь в Б24':'Заявка в Б24'}</div><div class="val">${fmt(k.req)}</div><div class="foot"><span>${share(k.req)} регистраций</span></div>${mutedLine(ex?`действующих: ${fmt(rows.filter(r=>r[c.stage]>=0&&w.dict.stage[r[c.stage]]!=='Аннулировано').length)}`:`забронировали круиз: ${fmt(k.booked)}, из них новых: ${fmt(k.newBooked)}`)}</div>
+    <div class="panel kpi go" data-go="web-funnel" title="Воронка и стадии"><div class="lbl">${ex?'Бронь в Б24':'Заявка в Б24'}</div><div class="val">${fmt(k.req)}</div><div class="foot"><span>${share(k.req)} регистраций</span></div>${mutedLine(ex?`действующих: ${fmt(rows.filter(r=>stOf(r)==='live').length)}`:`забронировали круиз: ${fmt(k.booked)}, из них новых: ${fmt(k.newBooked)}`)}</div>
     <div class="panel kpi go" data-go="${L.length>1?'web-cmp':'web-funnel'}" title="${L.length>1?'Сравнение мероприятий':'Воронка'}"><div class="lbl">${ex?'Оплачено броней':(sz&&sz.bk?'Продажи по лидам вебинара':'Продажи по срезу Б24')}</div>${sz?`<div class="val">${fmt(sz.sold)}<small>на ${rub(sz.sum)}</small></div><div class="foot"><span>${sz.bk?`${nw(sz.leads,ex?'сделка':'лид',ex?'сделки':'лида',ex?'сделок':'лидов')} → с номером заявки ${fmt(sz.withReq)} → оплачено ${fmt(sz.sold)}`:ex?`из ${nw(sz.leads,'сделки','сделок','сделок')} экскурсии`:`из ${nw(sz.leads,'лида','лидов','лидов')} вебинара`}</span></div>${mutedLine(`${sz.bk?'статус заявки в Букинге · ':''}новых клиентов: ${fmt(sz.soldNew)}${sz.soldNoContact?` · без контакта: ${fmt(sz.soldNoContact)}`:''}`)}`:`<div class="val muted" style="font-size:24px">нет среза</div><div class="foot muted">в таблице мероприятий — меню «Созвездие» → срез Б24</div>`}</div>`:`
     <div class="panel kpi go" data-go="web-days" title="Регистрации по дням"><div class="lbl">Регистраций</div><div class="val">${fmt(n)}</div><div class="foot"><span>уникальные по почте</span></div>${mutedLine(`в базе Инфофлота ${share(k.inIF)} · платили раньше ${share(k.paid)}`)}</div>
     <div class="panel kpi go" data-go="web-funnel" title="Воронка и стадии"><div class="lbl">Лидов в Битриксе</div><div class="val">${fmt(sz?sz.leads:k.req+(w.extra||0))}</div><div class="foot"><span>с типом этого вебинара</span></div>${mutedLine(`от участников ${fmt(k.req)}${w.extra?` · без регистрации ${fmt(w.extra)}`:''}`)}</div>
@@ -1045,7 +1048,9 @@ function vWeb(){
     const SL=w.seats.list,sum=f=>SL.reduce((a,x)=>a+(x[f]||0),0),tk=SL.every(x=>x.taken!=null);
     const hasSt=SL.every(x=>x.proc!=null&&x.conf!=null);   // статусы есть в данных с v72; в старом кэше — нет
     const FX=w.seats.fix||[], hasCrm=SL.every(x=>x.crm!=null);   // FX — брони, где в заявке и в «Статусах броней» (Букинг) разное число гостей
-    const T={cap:sum('cap'),free:sum('free'),taken:tk?sum('taken'):null,guests:sum('guests'),paid:sum('paid'),proc:hasSt?sum('proc'):null,conf:hasSt?sum('conf'):null,manager:sum('manager'),crm:hasCrm?sum('crm'):null};
+    const T={cap:sum('cap'),free:sum('free'),taken:tk?sum('taken'):null,guests:sum('guests'),paid:sum('paid'),proc:hasSt?sum('proc'):null,conf:hasSt?sum('conf'):null,manager:sum('manager'),crm:hasCrm?sum('crm'):null,wait:sum('wait'),canc:sum('canc')};
+    const UK=w.seats.unk||[];   // брони с незнакомым статусом Букинга — не в местах, разбор в «Расхождениях»
+    const sideTag=x=>(x.wait?` <span class="crmtag" title="Бронь в листе ожидания: мест под неё в Букинге нет, в «Всего в бронях» не входит">ожидание ${fmt(x.wait)}</span>`:'')+(x.canc?` <span class="crmtag" title="Запрошена аннуляция: Букинг места уже освободил, в «Всего в бронях» не входит. Не подтвердят — места вернуть гостям">аннуляция ${fmt(x.canc)}</span>`:'');
     const C={paid:cssv('--s3'),conf:cssv('--s1'),proc:cssv('--s1-soft')};
     const v0=v=>v==null?'<span class="muted">—</span>':v?fmt(v):'<span class="muted">0</span>';
     const dif=x=>x.taken==null?null:x.taken-x.guests;
@@ -1057,7 +1062,7 @@ function vWeb(){
       return`<span class="sbw"><span class="sbar" title="занято в Букинге ${fmt(tk)} из ${x.cap==null?'—':fmt(x.cap)} · свободно ${x.free==null?'—':fmt(x.free)} · гостей в бронях ${fmt(x.guests)}: оплачено ${fmt(x.paid)} · подтверждено ${x.conf==null?'—':fmt(x.conf)} · в обработке ${x.proc==null?'—':fmt(x.proc)}">${hasSt?`<i style="width:${w(x.paid)};background:${C.paid}"></i><i style="width:${w(x.conf)};background:${C.conf}"></i><i class="pr" style="width:${w(x.proc)}"></i>`:`<i style="width:${w(x.guests)};background:${C.conf}"></i>`}</span>${x.cap!=null?`<small title="занято в Букинге / мест">${fmt(tk)}/${fmt(x.cap)}</small>`:''}</span>`};
     const sl=(name,x,b)=>`<tr${b?' class="b"':''}><td class="nw">${name}</td><td>${bar(x)}</td>
       <td class="r gl">${x.cap!=null?fmt(x.cap):'—'}</td><td class="r">${x.free!=null?fmt(x.free):'—'}</td><td class="r b">${x.taken!=null?fmt(x.taken):'—'}</td>
-      <td class="r gl">${v0(x.proc)}</td><td class="r">${v0(x.conf)}</td><td class="r">${v0(x.paid)}</td><td class="r eq">${fmt(x.guests)}${x.crm!=null&&x.crm!==x.guests?` <span class="crmtag" title="В Букинге пассажиров ${fmt(x.crm)} — в заявке другое число, см. «Расхождения» ниже">Букинг ${fmt(x.crm)}</span>`:''}</td>
+      <td class="r gl">${v0(x.proc)}</td><td class="r">${v0(x.conf)}</td><td class="r">${v0(x.paid)}</td><td class="r eq">${fmt(x.guests)}${sideTag(x)}${x.crm!=null&&x.crm!==x.guests?` <span class="crmtag" title="В Букинге пассажиров ${fmt(x.crm)} — в заявке другое число, см. «Расхождения» ниже">Букинг ${fmt(x.crm)}</span>`:''}</td>
       <td class="r gl">${v0(x.guests-(x.manager||0))}</td><td class="r">${v0(x.manager||0)}</td>
       <td class="r gl">${difTxt(dif(x))}</td></tr>`;
     const dT=dif(T), DS=SL.filter(x=>dif(x));                   // DS — сеансы, где Букинг не сходится с бронями
@@ -1072,7 +1077,7 @@ function vWeb(){
       <div class="seats-f">
         <div><b>Заполненность</b><span>длина — занято в&nbsp;Букинге, серое — свободно; цвета — доли оплачено, подтверждено, в&nbsp;обработке среди гостей броней; на телефоне цифра — занято / мест</span></div>
         <div><b>Букинг</b><span><i>Мест</i> — вместимость сеанса</span><span><i>Свободно</i> — свободно на сайте</span><span><i>Занято</i> — мест минус свободно</span></div>
-        <div><b>Регистрации</b><span><i>В обработке</i> — новые, в работе</span><span><i>Подтверждено</i> — место за гостем, без оплаты</span><span><i>Оплачено</i> — оплата или предоплата</span><span><i>Всего</i> — гости действующих броней</span></div>
+        <div><b>Регистрации</b><span><i>В обработке</i> — новые, в работе</span><span><i>Подтверждено</i> — место за гостем, без оплаты</span><span><i>Оплачено</i> — оплата или предоплата</span><span><i>Всего</i> — гости действующих броней</span><span><i>Ожидание, аннуляция</i> — лист ожидания и запрошенная аннуляция: мест не держат, во «Всего» не входят</span></div>
         <div><b>Кто оформил</b><span><i>С формы</i> — заявка с сайта</span><span><i>Менеджеры</i> — бронь создана в Букинге</span></div>
         <div><b>Разница</b><span>занято в Букинге минус всего в бронях; не&nbsp;0 — см. «Расхождения»</span></div>
       </div>
@@ -1083,7 +1088,7 @@ function vWeb(){
             <div class="ss-d">свободно ${fmt(T.free)}</div></div>
           <div class="ss"><div class="ss-k">Гостей в бронях</div>
             <div class="ss-v">${fmt(T.guests)}</div>
-            <div class="ss-d">${hasSt?`оплачено ${fmt(T.paid)} · подтверждено ${fmt(T.conf)} · в обработке ${fmt(T.proc)}`:`оплачено ${fmt(T.paid)}`}</div></div>
+            <div class="ss-d">${hasSt?`оплачено ${fmt(T.paid)} · подтверждено ${fmt(T.conf)} · в обработке ${fmt(T.proc)}`:`оплачено ${fmt(T.paid)}`}</div>${T.wait||T.canc?`<div class="ss-d">не держат места: ${[T.wait?`лист ожидания ${fmt(T.wait)}`:'',T.canc?`на аннуляции ${fmt(T.canc)}`:''].filter(Boolean).join(' · ')}</div>`:''}</div>
           <div class="ss"><div class="ss-k">Кто оформил</div>
             <div class="ss-v">${fmt(T.guests-T.manager)}<small>с формы</small></div>
             <div class="ss-d">менеджеры в Букинге ${fmt(T.manager)}</div></div>
@@ -1093,7 +1098,11 @@ function vWeb(){
         </div>
         <p class="sub ss-note">Места, статус брони и число гостей — из Букинга (таблица экскурсии сверяет заявки с Букингом).</p>
       </div>
-      ${FX.length||DS.length?`<details class="dq disc" id="web-disc"><summary><span>Расхождения · ${fmt(FX.length+DS.length)}</span><span class="muted disc-sum">${[FX.length?`${nw(FX.length,'бронь','брони','броней')}: в заявке и в Букинге разное число гостей (по Букингу ${fmt(T.crm)})`:'',DS.length?`${nw(DS.length,'сеанс','сеанса','сеансов')}: мест занято не столько, сколько продано билетов`:''].filter(Boolean).join(' · ')}</span></summary>
+      ${FX.length||DS.length||UK.length?`<details class="dq disc" id="web-disc"><summary><span>Расхождения · ${fmt(FX.length+DS.length+UK.length)}</span><span class="muted disc-sum">${[UK.length?`${nw(UK.length,'бронь','брони','броней')} с незнакомым статусом`:'',FX.length?`${nw(FX.length,'бронь','брони','броней')}: в заявке и в Букинге разное число гостей (по Букингу ${fmt(T.crm)})`:'',DS.length?`${nw(DS.length,'сеанс','сеанса','сеансов')}: мест занято не столько, сколько продано билетов`:''].filter(Boolean).join(' · ')}</span></summary>
+        ${UK.length?`<h4>Незнакомый статус брони</h4>
+        <p class="sub">Отчёт не знает, держит ли Букинг места под такие брони, и не считает их ни в гостях, ни в местах. Проверить бронь в Букинге и сказать аналитику, как считать этот статус.</p>
+        <div class="tbl"><table><thead><tr><th>Бронь</th><th>Сеанс</th><th>Статус Букинга</th><th>Откуда</th><th class="r nw">Гостей</th></tr></thead>
+        <tbody>${UK.map(f=>`<tr><td class="b">${esc(f.num)}</td><td class="nw">${sn(f)}</td><td>${esc(f.status)}</td><td>${f.src==='Менеджер'?'менеджер':'форма'}</td><td class="r">${fmt(f.g)}</td></tr>`).join('')}</tbody></table></div>`:''}
                 ${FX.length?`<h4>Число гостей: в заявке не так, как в Букинге</h4>
         <p class="sub">Таблица экскурсии ещё не забрала новое число гостей из Букинга — обычно это исправляется при следующей сверке. Если держится долго — проверить бронь в Букинге.</p>
         <div class="tbl"><table><thead><tr><th>Бронь</th><th>Сеанс</th><th>Статус Букинга</th><th>Откуда</th><th class="r nw">Заявка</th><th class="r nw">Букинг</th><th class="r nw">Разница</th></tr></thead>
