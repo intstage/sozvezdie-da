@@ -273,16 +273,13 @@ thead th{position:sticky;z-index:3;background:var(--surface);box-shadow:inset 0 
 .segt .gl{border-left:2px solid var(--line)}
 .zcuts{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.zcuts-l{display:grid;gap:16px;min-width:0}
 @media (max-width:760px){.zcuts{grid-template-columns:1fr}}
-/* телефон: каждая группа — карточка (название, потом ячейки с подписями из data-l), без прокрутки вбок */
-@media (max-width:760px){.segt{max-height:none;overflow:visible}.segt thead{display:none}.segt table,.segt tbody{display:block}
-  .segt tr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 12px;padding:12px 0;border-bottom:1px solid var(--line)}
-  .segt tr:last-child{border-bottom:0}
-  .segt td{display:block;border:0;padding:0;white-space:normal;text-align:left;font-variant-numeric:tabular-nums}
-  .segt td:first-child{grid-column:1/-1;font-weight:600;color:var(--ink)}
-  .segt td[data-l]::before{content:attr(data-l);display:block;font-size:10.5px;line-height:1.25;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:2px}
-  .segt td[data-l="Людей"],.segt td[data-l^="Купили"]{font-size:17px;font-weight:700;color:var(--ink)}
-  .segt td[data-l^="Купили"]{grid-column:span 2}
-  .segt .gl{border-left:0}}
+/* телефон: короткая таблица — кем был, людей, купили, всего; сроки (.lag) — только в полной версии (23.10.2026, просьба пользователя) */
+@media (max-width:760px){.segt{max-height:none}.segt .lag{display:none}
+  .segt th{min-width:0}.segt th,.segt td{padding-left:6px;padding-right:6px}
+  .segt td:first-child{white-space:normal;padding-left:0}.segt td:last-child{padding-right:0}
+  .segt td small{white-space:normal}
+  .segt-m{display:block!important}}
+.segt-m{display:none;margin:8px 0 0;font-size:12.5px;color:var(--muted)}
 .seats-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px 20px;margin:14px 0 0;padding-top:12px;border-top:1px solid var(--line);font-size:12.5px;line-height:1.4;color:var(--muted)}
 .seats-f>div{display:flex;flex-direction:column;gap:3px;min-width:0}
 .seats-f b{font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:600;color:var(--ink2);margin-bottom:2px}
@@ -950,11 +947,11 @@ function cohortBlock(r,c){
   if(!A.n)return`<div class="panel sec" id="${c.id}" style="margin-bottom:16px"><h2>${c.name}</h2><div class="empty">${a<0&&b<0?'Когорта считается с '+esc(dShort(Z.from))+' '+Z.from.slice(0,4)+'.':c.none}</div></div>`;
   return`<div class="panel sec" id="${c.id}" style="margin-bottom:16px"><h2>${c.title} <span class="muted" style="font-weight:400">· ${esc(wt[3])}</span></h2>${bar}
     <p class="sub">${c.sub(A)} Обновлено ${Z.updated?esc(dShort(Z.updated.slice(0,10))):'—'}.</p>
-    <div class="tbl segt"><table><thead><tr><th>${c.col}</th><th class="r">Людей</th><th class="r">Купили, людей</th>${lab.map((l,i)=>`<th class="r${i?'':' gl'}">${esc(l)} дн.${part(i)?'*':''}</th>`).join('')}<th class="r gl">Всего: заявок / оплачено заявок</th></tr></thead>
+    <div class="tbl segt"><table><thead><tr><th>${c.col}</th><th class="r">Людей</th><th class="r">Купили, людей</th>${lab.map((l,i)=>`<th class="r lag${i?'':' gl'}">${esc(l)} дн.${part(i)?'*':''}</th>`).join('')}<th class="r gl">Всего: заявок / оплачено заявок</th></tr></thead>
     <tbody>${SEG_L.map(([key,name,hint])=>{const x=SG[key];if(!x||(!x.n&&key!=='all'))return'';
       return`<tr class="${key==='all'?'b':''}"><td>${esc(name)}${hint?`<small>${esc(hint)}</small>`:''}</td><td class="r" data-l="Людей">${fmt(x.n)}${key!=='all'?`<small>${pct(A.n?x.n/A.n:null,0)} людей</small>`:''}</td>
       <td class="r" data-l="Купили, людей">${fmt(x.buyers)}<small>${pct(x.n?x.buyers/x.n:null,1)} группы</small></td>
-      ${lab.map((l,i)=>`<td class="r${i?'':' gl'}" data-l="${esc(l)} дн.${part(i)?'*':''}">${cell(x.req[i],x.sale[i],x.saleSz[i],i)}</td>`).join('')}<td class="r gl" data-l="Всего">${cell(sum(x.req),sum(x.sale),sum(x.saleSz))}</td></tr>`}).join('')}</tbody></table></div>
+      ${lab.map((l,i)=>`<td class="r lag${i?'':' gl'}" data-l="${esc(l)} дн.${part(i)?'*':''}">${cell(x.req[i],x.sale[i],x.saleSz[i],i)}</td>`).join('')}<td class="r gl" data-l="Всего">${cell(sum(x.req),sum(x.sale),sum(x.saleSz))}</td></tr>`}).join('')}</tbody></table></div><p class="segt-m">По срокам (0–7 дней, 8–30 и дальше) — в полной версии на компьютере.</p>
     <ul class="sub" style="margin:10px 0 0;padding-left:18px;line-height:1.55">
       ${c.notes({ex,cov})}
     </ul></div>`;
@@ -1213,12 +1210,12 @@ function vWeb(){
     const cell=(r,s,sz)=>r||s?`${fmt(r)} / <b>${fmt(s)}</b><small>${s?'СЗ '+pct(sz/s,0):'&nbsp;'}</small>`:'<span class="muted">—</span>';
     h+=`<div class="panel sec" id="web-seg" style="margin-bottom:16px"><h2>Кто пришёл и когда купил${hasK?` <span class="muted" style="font-weight:400">· ${esc(WKL[2])}</span>`:''}</h2>
       <p class="sub">Участники разбиты по тому, кем они были в день регистрации («покупал» — по круизам). В ячейке — <b>заявок / оплачено заявок</b>: до ${ex?'экскурсии':'вебинара'} (между регистрацией и днём ${ex?'экскурсии':'вебинара'}) и за срок после него, ниже — доля Созвездия в оплаченных заявках. Нашлись в Букинге: ${fmt(A.found)} из ${fmt(A.n)}. Обновлено ${w.seg.updated?esc(dShort(w.seg.updated.slice(0,10))):'—'}.</p>
-      <div class="tbl segt"><table><thead><tr><th>Кем был в день регистрации</th><th class="r">Людей</th><th class="r">Купили после ${ex?'экскурсии':'вебинара'}, людей</th><th class="r gl">До ${ex?'экскурсии':'вебинара'}</th>${lags.map((l,i)=>`<th class="r${i?'':' gl'}">${esc(l)} дн. после</th>`).join('')}<th class="r gl">Всего после: заявок / оплачено заявок</th></tr></thead>
+      <div class="tbl segt"><table><thead><tr><th>Кем был в день регистрации</th><th class="r">Людей</th><th class="r">Купили после ${ex?'экскурсии':'вебинара'}, людей</th><th class="r gl lag">До ${ex?'экскурсии':'вебинара'}</th>${lags.map((l,i)=>`<th class="r lag${i?'':' gl'}">${esc(l)} дн. после</th>`).join('')}<th class="r gl">Всего после: заявок / оплачено заявок</th></tr></thead>
       <tbody>${SEG_L.map(([key,name,hint])=>{const x=SG[key];if(!x)return'';const R=sum(x.req),P=sum(x.sale),PZ=sum(x.saleSz);
         return`<tr class="${key==='all'?'b':''}"><td>${esc(name)}${hint?`<small>${esc(hint)}</small>`:''}</td><td class="r" data-l="Людей">${fmt(x.n)}${key!=='all'?`<small>${pct(A.n?x.n/A.n:null,0)} участников</small>`:''}</td>
         <td class="r" data-l="Купили после, людей">${fmt(x.buyers)}<small>${pct(x.n?x.buyers/x.n:null,1)} группы</small></td>
-        <td class="r gl" data-l="До ${ex?'экскурсии':'вебинара'}">${cell(x.preReq||0,x.preSale||0,x.preSaleSz||0)}</td>
-        ${lags.map((l,i)=>`<td class="r${i?'':' gl'}" data-l="${esc(l)} дн.">${cell(x.req[i],x.sale[i],x.saleSz[i])}</td>`).join('')}<td class="r gl" data-l="Всего после">${cell(R,P,PZ)}</td></tr>`}).join('')}</tbody></table></div>
+        <td class="r gl lag" data-l="До ${ex?'экскурсии':'вебинара'}">${cell(x.preReq||0,x.preSale||0,x.preSaleSz||0)}</td>
+        ${lags.map((l,i)=>`<td class="r lag${i?'':' gl'}" data-l="${esc(l)} дн.">${cell(x.req[i],x.sale[i],x.saleSz[i])}</td>`).join('')}<td class="r gl" data-l="Всего после">${cell(R,P,PZ)}</td></tr>`}).join('')}</tbody></table></div><p class="segt-m">По срокам (до ${ex?'экскурсии':'вебинара'}, 0–7 дней после и дальше) — в полной версии на компьютере.</p>
       <ul class="sub" style="margin:10px 0 0;padding-left:18px;line-height:1.55">
         <li><b>Людей</b> — участников в группе, под числом — доля от всех участников.</li>
         <li><b>До ${ex?'экскурсии':'вебинара'}</b> — заявки, созданные между регистрацией и днём ${ex?'экскурсии':'вебинара'}: человек купил до ${ex?'экскурсии':'вебинара'}, в «Купили после» и в сроки они не входят.</li>
