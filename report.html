@@ -397,8 +397,8 @@ footer.method .how{margin-top:3px;font-size:13px;color:var(--muted)}footer.metho
 [hidden]{display:none!important}
 details.dq summary{cursor:pointer;font-weight:600;font-size:15px;color:var(--ink);list-style:none;display:flex;align-items:center;gap:10px}
 details.dq summary::-webkit-details-marker{display:none}
-details.dq summary::before{content:"";width:7px;height:7px;border-right:2px solid var(--ink2);border-bottom:2px solid var(--ink2);transform:rotate(-45deg);transition:transform .15s ease;flex:none;margin-left:2px}
-details.dq[open] summary::before{transform:rotate(45deg) translate(-2px,-2px)}
+details.dq summary::before{content:"";width:7px;height:9px;background:var(--ink2);clip-path:polygon(0 0,100% 50%,0 100%);border-radius:1px;transition:transform .15s ease;flex:none;margin-left:2px}   /* треугольник ▸, раскрыто — ▾ */
+details.dq[open] summary::before{transform:rotate(90deg)}
 details.dq summary:focus:not(:focus-visible){outline:none}
 details.dq ul{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:6px}
 details.dq li{display:grid;grid-template-columns:4px 1fr;gap:10px;font-size:13px;padding:6px 10px;background:var(--surface2);border-radius:6px}
