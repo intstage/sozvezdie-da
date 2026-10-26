@@ -206,7 +206,7 @@ svg[role="img"]{touch-action:pan-y;-webkit-user-select:none;user-select:none;-we
 svg .cross{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3}
 /* Навигация внутри вкладок: карточки и чипы ведут к блокам, строки и столбики выбирают месяц / теплоход / вебинар */
 .kpi.go{cursor:pointer;transition:border-color .15s,box-shadow .15s}
-.kpi.go .lbl{display:flex;justify-content:space-between;gap:8px}.kpi.go .lbl::after{content:"↓";color:var(--accent);font-size:13px;letter-spacing:0}
+.kpi.go .lbl{display:flex;justify-content:space-between;gap:8px}.kpi.go .lbl::after{content:"";flex:none;align-self:center;width:9px;height:7px;background:var(--accent);clip-path:polygon(0 0,100% 0,50% 100%);border-radius:1px}   /* треугольник ▼ — как у раскрывающихся блоков */
 .kpi.go[data-go^="@"] .lbl::after{content:"→"}
 .sig li[data-go],.side h3[data-go]{cursor:pointer;border-radius:6px}
 @media (hover:hover){.sig li[data-go]:hover{background:var(--surface2)}.side h3[data-go]:hover{color:var(--accent)}}
