@@ -635,11 +635,16 @@ function lineChart(id,{labels,series,ticks,height=240,fmtV=v=>fmt(v),fmtA=v=>fmt
 }
 /** Столбики: bars [{label, value, tip}] + необязательная линия поверх (line: {name,color,values}). */
 function barChart(id,{bars,color,height=220,line,ticks,fmtV=v=>fmt(v),name}){
-  const{W,H}=chartBox(id,height),L=44,R=12,T=10,B=26,n=bars.length;if(ticks)ticks=thinTicks(ticks,n,W-L-R);
-  const max=niceMax(Math.max(1,...bars.map(b=>b.value),...(line?line.values.filter(v=>v!=null):[])));
+  // line.right — линия по своей шкале справа (другие единицы, например CTR поверх показов)
+  const RL=!!(line&&line.right),{W,H}=chartBox(id,height),L=44,R=RL?48:12,T=10,B=26,n=bars.length;if(ticks)ticks=thinTicks(ticks,n,W-L-R);
+  const max=niceMax(Math.max(1,...bars.map(b=>b.value),...(line&&!RL?line.values.filter(v=>v!=null):[])));
   const bw=(W-L-R)/n,gap=Math.min(2,bw*.2),y=v=>T+(H-T-B)*(1-v/max);
+  const ST=gridSteps(max);
+  // правая шкала делится на те же ST частей, шаг — «круглое» число
+  const rmax=RL?ST*niceMax(Math.max(line.floor||1,...line.values.filter(v=>v!=null))/ST):0,ly=RL?v=>T+(H-T-B)*(1-v/rmax):y;
   let g='';
-  const ST=gridSteps(max);for(let k=0;k<=ST;k++){const v=max*k/ST;g+=`<line class="gl" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${fmt(v)}</text>`}
+  for(let k=0;k<=ST;k++){const v=max*k/ST;g+=`<line class="gl" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${fmt(v)}</text>`;
+    if(RL)g+=`<text x="${W-R+6}" y="${y(v)+4}" text-anchor="start" fill="${line.color}">${(line.fmtA||fmt)(rmax*k/ST)}</text>`}
   bars.forEach((b,i)=>{const x0=L+i*bw+gap/2,w=Math.max(1,bw-gap),h=y(0)-y(b.value);
     g+=`<g class="bx" style="transform-origin:0 ${y(0)}px;--d:${Math.round(i*400/Math.max(1,n))}ms">`;
     const bar=(bx,bwid,v,fill,ring)=>{const hh=y(0)-y(v);if(hh<=0)return'';const r=Math.min(4,bwid/2,hh);
@@ -661,12 +666,12 @@ function barChart(id,{bars,color,height=220,line,ticks,fmtV=v=>fmt(v),name}){
     const t=ticks?ticks(i):'';if(t)g+=`<text x="${x0+w/2}" y="${H-6}" text-anchor="middle">${esc(t)}</text>`;
   });
 
-  if(line){let d='',open=false;line.values.forEach((v,i)=>{if(v==null){open=false;return}const cx=L+i*bw+bw/2;d+=(open?'L':'M')+cx.toFixed(1)+','+y(v).toFixed(1);open=true});
+  if(line){let d='',open=false;line.values.forEach((v,i)=>{if(v==null){open=false;return}const cx=L+i*bw+bw/2;d+=(open?'L':'M')+cx.toFixed(1)+','+ly(v).toFixed(1);open=true});
     g+=`<path ${line.dash?'class="fd" stroke-dasharray="6 4"':'class="ln" pathLength="1"'} d="${d}" fill="none" stroke="${line.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" pointer-events="none"/>`}
   g+=`<rect class="hit" x="${L}" y="${T}" width="${W-L-R}" height="${H-T-B}"/>`;
   setTimeout(()=>{const svg=document.getElementById(id);if(!svg)return;
     bindScrub(svg,W,px=>Math.max(0,Math.min(n-1,Math.floor((px-L)/bw))),(i,ev)=>{const b=bars[i];
-      showTip(`<b>${esc(b.label)}</b><br>${b.inner!=null||b.parts?'':`<i style="background:${b.color||color}"></i>`}${esc(name||'')}: <b>${fmtV(b.value)}</b>`+(b.tip?'<br>'+b.tip:'')+(line&&line.values[i]!=null?`<br><i style="background:${line.color}"></i>${esc(line.name)}: <b>${fmt(line.values[i],1)}</b>`:''),ev)},
+      showTip(`<b>${esc(b.label)}</b><br>${b.inner!=null||b.parts?'':`<i style="background:${b.color||color}"></i>`}${esc(name||'')}: <b>${fmtV(b.value)}</b>`+(b.tip?'<br>'+b.tip:'')+(line&&line.values[i]!=null?`<br><i style="background:${line.color}"></i>${esc(line.name)}: <b>${(line.fmtV||(v=>fmt(v,1)))(line.values[i])}</b>`:''),ev)},
     ()=>hideTip())},0);
   return`<svg id="${id}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(name||'')}">${g}</svg>`;
 }
@@ -1490,35 +1495,41 @@ function vPop(){
   const done=M.to<D.today?'':` · по ${dShort(M.to)}, сегодня неполный день`;
   let h=`<div class="grid g-kpi">
     <div class="panel kpi go" data-go="pop-days"><div class="lbl">Показы</div><div class="val">${fmt(t[0])}</div>${mutedLine(first?`с ${dShort(first)}${done}`:'показов не было')}</div>
-    <div class="panel kpi go" data-go="pop-camp"><div class="lbl">Клики по кнопке</div><div class="val">${fmt(t[1])}</div>${mutedLine(`CTR ${ctr(t[0],t[1])} — клики / показы`)}</div>
-    <div class="panel kpi go" data-go="pop-camp"><div class="lbl">Закрыли</div><div class="val">${fmt(t[2])}</div>${mutedLine(`${share(t[0],t[2])} показов`)}</div>
-    <div class="panel kpi go" data-go="pop-camp"><div class="lbl">Регистрации</div><div class="val">${hasR?fmt(t[3]):'—'}</div>${mutedLine(hasR?`${pct(t[1]?t[3]/t[1]:null,0)} от кликов · считаются только для: ${esc((M.regCamps||[]).join(', ')||'—')}`:'CRS не считает регистрации за этот месяц')}</div>
+    <div class="panel kpi go" data-go="pop-tbl"><div class="lbl">Клики по кнопке</div><div class="val">${fmt(t[1])}</div>${mutedLine(`CTR ${ctr(t[0],t[1])} — клики / показы`)}</div>
+    <div class="panel kpi go" data-go="pop-tbl"><div class="lbl">Закрыли</div><div class="val">${fmt(t[2])}</div>${mutedLine(`${share(t[0],t[2])} показов`)}</div>
+    <div class="panel kpi go" data-go="pop-tbl"><div class="lbl">Регистрации</div><div class="val">${hasR?fmt(t[3]):'—'}</div>${mutedLine(hasR?`${pct(t[1]?t[3]/t[1]:null,0)} от кликов · считаются только для: ${esc((M.regCamps||[]).join(', ')||'—')}`:'CRS не считает регистрации за этот месяц')}</div>
   </div><!--jump-->`;
-  h+=`<div class="panel sec" id="pop-days" style="margin-bottom:16px"><h2>Показы по дням</h2>${barChart('c-pop',{name:'Показов',color:cssv('--s1'),bars:days.map(x=>({label:dl(x[0]),value:x[1],
-      tip:`Показов: <b>${fmt(x[1])}</b><br>Кликов: <b>${fmt(x[2])}</b> · CTR ${ctr(x[1],x[2])}<br>Закрыли: <b>${fmt(x[3])}</b>${x[4]?`<br>Регистраций: <b>${fmt(x[4])}</b>`:''}`})),
-    ticks:i=>i%Math.max(1,Math.ceil(days.length/10))===0?dShort(days[i][0]):''})}
-    <h2 style="margin-top:14px">CTR по дням</h2>${lineChart('c-popctr',{labels:days.map(x=>dl(x[0])),series:[{name:'CTR',color:cssv('--s2'),values:days.map(x=>x[1]?100*x[2]/x[1]:null)}],
-      ticks:i=>i%Math.max(1,Math.ceil(days.length/10))===0?dShort(days[i][0]):'',fmtV:v=>fmt(v,2)+'%',fmtA:v=>fmt(v,1)+'%',floor:1,height:200})}
+  h+=`<div class="panel sec" id="pop-days" style="margin-bottom:16px"><h2>Показы и CTR по дням</h2>${barChart('c-pop',{name:'Показов',color:cssv('--s1'),bars:days.map(x=>({label:dl(x[0]),value:x[1],
+      tip:`Кликов: <b>${fmt(x[2])}</b><br>Закрыли: <b>${fmt(x[3])}</b>${x[4]?`<br>Регистраций: <b>${fmt(x[4])}</b>`:''}`})),
+    line:{name:'CTR',color:cssv('--s2'),right:1,floor:1,values:days.map(x=>x[1]?100*x[2]/x[1]:null),fmtV:v=>fmt(v,2)+'%',fmtA:v=>fmt(v,1)+'%'},
+    ticks:i=>i%Math.max(1,Math.ceil(days.length/10))===0?dShort(days[i][0]):'',height:260})}
+    ${legend([['Показы',cssv('--s1'),'bar'],['CTR — шкала справа',cssv('--s2')]])}
     <p class="note">Клик и закрытие засчитываются в день показа. Один человек может увидеть попап несколько раз — это показы, не люди.</p></div>`;
-  h+=`<div class="panel sec" id="pop-camp" style="margin-bottom:16px"><h2>Кампании и варианты</h2><p class="sub">Вариант — текст и кнопки попапа; версия — номер публикации (после правки попапа номер растёт)</p>
-    ${tbl('<th>Кампания · вариант</th><th class="r">Версия</th>',M.camp,r=>`<tr><td><b>${esc(r[0])}</b><br><span class="muted">${esc(r[1])}</span></td><td class="r muted">${fmt(r[2])}</td>${cells(r,3)}</tr>`)}
-    ${M.btn.length?`<h2 style="margin-top:14px">Кнопки</h2><div class="tbl"><table><thead><tr><th>Кампания · вариант</th><th>Кнопка</th><th class="r">Кликов</th></tr></thead><tbody>${M.btn.map(b=>`<tr><td>${esc(b[0])}<br><span class="muted">${esc(b[1])}</span></td><td>${esc(b[2])}</td><td class="r b">${fmt(b[3])}</td></tr>`).join('')}</tbody></table></div>`:''}</div>`;
-  h+=`<div class="grid g-2 sec" id="pop-pages" style="margin-bottom:16px"><div class="panel"><h2>Разделы сайта</h2><p class="sub">Где посетитель увидел попап · s-cruises.com</p>
-    ${tbl('<th>Раздел</th>',M.sec,r=>`<tr><td class="b">${esc(POP_SEC[r[0]]||r[0]||'—')}</td>${cells(r,1)}</tr>`)}</div>
-    <div class="panel"><h2>Страницы</h2><p class="sub">Топ ${fmt(M.page.length)} из ${fmt(M.pages)} страниц по показам</p>
-    ${tbl('<th>Страница</th>',M.page,r=>`<tr><td class="nw" title="${esc(r[0])}">${esc(r[0].length>48?r[0].slice(0,46)+'…':r[0])}</td>${cells(r,2)}</tr>`)}</div></div>`;
-  h+=`<div class="grid g-2 sec" id="pop-dev" style="margin-bottom:16px"><div class="panel"><h2>Устройства</h2>${tbl('<th>Устройство</th>',M.dev,r=>`<tr><td class="b">${esc(POP_DEV[r[0]]||r[0])}</td>${cells(r,1)}</tr>`)}
-    <h2 style="margin-top:14px">Системы</h2>${tbl('<th>ОС</th>',M.os,r=>`<tr><td class="b">${esc(POP_OS[r[0]]||r[0])}</td>${cells(r,1)}</tr>`)}</div>
-    <div class="panel"><h2>Города</h2><p class="sub">По адресу посетителя, топ ${fmt(M.city.length)}</p>${tbl('<th>Город</th>',M.city,r=>`<tr><td class="b">${esc(r[1]||'не определён')} <span class="muted">${esc(r[0])}</span></td>${cells(r,2)}</tr>`)}</div></div>`;
+  // кампании: версии одного варианта — одной строкой (регистрации — сумма, где CRS их считает)
+  const cm={};M.camp.forEach(r=>{const k=r[0]+'\u0001'+r[1],v=cm[k]||(cm[k]=[r[0],r[1],0,0,0,null]);v[2]+=r[3];v[3]+=r[4];v[4]+=r[5];if(r[6]!=null)v[5]=(v[5]||0)+r[6]});
+  const camps=Object.values(cm).sort((a,b)=>b[2]-a[2]);
+  const bm={};M.btn.forEach(b=>{const k=b[0]+'\u0001'+b[1]+'\u0001'+b[2];bm[k]=bm[k]?(bm[k][3]+=b[3],bm[k]):[b[0],b[1],b[2],b[3]]});
+  const btns=Object.values(bm).sort((a,b)=>b[3]-a[3]);
   const tg=(M.q.find(x=>x[0]==='tagged')||[0,0])[1];
-  h+=`<div class="panel sec" id="pop-utm" style="margin-bottom:16px"><h2>Откуда пришли</h2><p class="sub">UTM-метки визита, в котором показан попап. Источник известен у ${share(t[0],tg)} показов: метки пишутся только с 21.10 и только у ссылок с UTM</p>
-    ${tbl('<th>Источник · канал · кампания</th>',M.utm,r=>`<tr><td>${r[0]?`<b>${esc(r[0])}</b> · ${esc(r[1])}<br><span class="muted">${esc(r[2])}</span>`:`<span class="muted">${esc(POP_Q[r[3]]||r[3])}</span>`}</td>${cells(r,4)}</tr>`)}</div>`;
+  const PV=[['camp','Кампании',()=>tbl('<th>Кампания · вариант</th>',camps,r=>`<tr><td><b>${esc(r[0])}</b><br><span class="muted">${esc(r[1])}</span></td>${cells(r,2)}</tr>`)],
+    ['btn','Кнопки',()=>`<div class="tbl"><table><thead><tr><th>Кампания · вариант</th><th>Кнопка</th><th class="r">Кликов</th></tr></thead><tbody>${btns.map(b=>`<tr><td>${esc(b[0])}<br><span class="muted">${esc(b[1])}</span></td><td>${esc(b[2])}</td><td class="r b">${fmt(b[3])}</td></tr>`).join('')||'<tr><td colspan="3" class="muted">Кликов не было</td></tr>'}</tbody></table></div>`],
+    ['sec','Разделы',()=>tbl('<th>Раздел сайта</th>',M.sec,r=>`<tr><td class="b">${esc(POP_SEC[r[0]]||r[0]||'—')}</td>${cells(r,1)}</tr>`)],
+    ['page','Страницы',()=>`<p class="sub">Топ ${fmt(M.page.length)} из ${fmt(M.pages)} страниц s-cruises.com по показам</p>`+tbl('<th>Страница</th>',M.page,r=>`<tr><td class="nw" title="${esc(r[0])}">${esc(r[0].length>60?r[0].slice(0,58)+'…':r[0])}</td>${cells(r,2)}</tr>`)],
+    ['dev','Устройства',()=>tbl('<th>Устройство</th>',M.dev,r=>`<tr><td class="b">${esc(POP_DEV[r[0]]||r[0])}</td>${cells(r,1)}</tr>`)],
+    ['os','Системы',()=>tbl('<th>ОС</th>',M.os,r=>`<tr><td class="b">${esc(POP_OS[r[0]]||r[0])}</td>${cells(r,1)}</tr>`)],
+    ['city','Города',()=>`<p class="sub">По адресу посетителя, топ ${fmt(M.city.length)}</p>`+tbl('<th>Город</th>',M.city,r=>`<tr><td class="b">${esc(r[1]||'не определён')} <span class="muted">${esc(r[0])}</span></td>${cells(r,2)}</tr>`)],
+    ['utm','Источники',()=>`<p class="sub">UTM-метки визита с показом. Источник известен у ${share(t[0],tg)} показов: метки пишутся с 21.10 и только у ссылок с UTM</p>`+tbl('<th>Источник · канал · кампания</th>',M.utm,r=>`<tr><td>${r[0]?`<b>${esc(r[0])}</b> · ${esc(r[1])}<br><span class="muted">${esc(r[2])}</span>`:`<span class="muted">${esc(POP_Q[r[3]]||r[3])}</span>`}</td>${cells(r,4)}</tr>`)]];
+  if(!PV.some(p=>p[0]===S.popv))S.popv='camp';
+  h+=`<div class="panel sec" id="pop-tbl" style="margin-bottom:16px"><h2>Где и как сработал попап</h2>
+    <div class="seg" id="seg-popv" style="margin:6px 0 12px">${PV.map(([k,l])=>`<button type="button" data-pv="${k}" aria-pressed="${S.popv===k}">${l}</button>`).join('')}</div>
+    ${PV.find(p=>p[0]===S.popv)[2]()}</div>`;
   const B=M.bots||{other:0,dc:[]},bn=B.other+sum(B.dc.map(x=>x[2]));
   if(bn||M.orphan)h+=`<div class="panel" style="margin-bottom:16px"><h2>Похоже на роботов</h2><p class="sub">Итоги выше их <b>не вычитают</b> — так считает CRS. Робот открывает страницу и попап, но не закрывает его</p><ul class="note">
     ${B.other?`<li>Устройство «Другое»: ${fmt(B.other)} ${plural(B.other,'показ','показа','показов')} (${share(t[0],B.other)})</li>`:''}
     ${B.dc.map(x=>`<li>${esc(x[1])}, ${esc(x[0])}: ${fmt(x[2])} ${plural(x[2],'показ','показа','показов')} и ни одного закрытия</li>`).join('')}
     ${M.orphan?`<li>Кликов без показа: ${fmt(M.orphan)}</li>`:''}</ul></div>`;
-  $('#view').innerHTML=withJump(h,[['pop-days','По дням'],['pop-camp','Кампании'],['pop-pages','Страницы'],['pop-dev','Устройства и города'],['pop-utm','Источники']]);
+  $('#view').innerHTML=withJump(h,[['pop-days','По дням'],['pop-tbl','Таблица']]);
+  $('#seg-popv').onclick=e=>{const b=e.target.closest('[data-pv]');if(!b)return;if(e.detail)b.blur();S.popv=b.dataset.pv;save();render()};
 }
 
 function vChan(){
