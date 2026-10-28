@@ -473,7 +473,7 @@ function delta(cur,prev,{inverse=false,asPct=true}={}){
 let D=null;
 const S={tab:'summary',period:'month'};
 try{Object.assign(S,JSON.parse(localStorage.getItem('sa-state')||'{}'))}catch(e){}
-const TABS=[['summary','Сводка'],['zav','Заявки'],['site','Сайт'],['obr','Обращения'],['web','Мероприятия'],['pay','Оплаты'],['board','Продажи с бортов'],['chan','Каналы и расходы']];
+const TABS=[['summary','Сводка'],['zav','Заявки'],['site','Сайт'],['pop','Попапы'],['obr','Обращения'],['web','Мероприятия'],['pay','Оплаты'],['board','Продажи с бортов'],['chan','Каналы и расходы']];
 function save(){try{localStorage.setItem('sa-state',JSON.stringify(S))}catch(e){}}
 // «Назад»: стек переходов между вкладками (вкладка + период), только в этой сессии
 const HIST=[];
@@ -747,7 +747,7 @@ function renderTab(){
   hideTip();if(!D)return;
   $('#view').onclick=viewClick;
   $('#filters').innerHTML=['zav','site','obr'].includes(S.tab)?periodFilter():'';
-  (TABS.some(t=>t[0]===S.tab)?{summary:vSummary,zav:vZav,site:vSite,obr:vObr,web:vWeb,pay:vPay,board:vBoard,chan:vChan}[S.tab]:(S.tab='summary',vSummary))();
+  (TABS.some(t=>t[0]===S.tab)?{summary:vSummary,zav:vZav,site:vSite,obr:vObr,web:vWeb,pay:vPay,board:vBoard,chan:vChan,pop:vPop}[S.tab]:(S.tab='summary',vSummary))();
   const slot=$('#dq-slot');if(slot)slot.innerHTML=dqBlock();
   bindPeriod();
 }
@@ -1466,6 +1466,61 @@ function bindBoard(months){
   $('#sel-bm').onchange=e=>set('bm',e.target.value);   // тот же выбор в строке вкладок (кнопки месяцев туда не помещаются)
 }
 
+/* ---------- Попапы сайта (сервис попапов CRS; цифры — как считает CRS, по календарным месяцам) ---------- */
+const POP_DEV={phone:'Телефон',desktop:'Компьютер',tablet:'Планшет',other:'Другое',unknown:'Не определено'};
+const POP_OS={android:'Android',windows:'Windows',ios:'iOS',macos:'macOS',linux:'Linux',unknown:'Не определено'};
+const POP_SEC={home:'Главная',cruises:'Круизы',routes:'Маршруты',services:'Услуги',ships:'Теплоходы',about:'О компании',news:'Новости',login:'Вход',account:'Личный кабинет',blog:'Блог',forms:'Формы',other:'Прочее'};
+const POP_Q={tagged:'С UTM-метками',unknown:'Без меток',historical:'До записи источника',invalid:'Неверные метки',partial:'Неполные метки'};
+function vPop(){
+  const P=D.pop,ms=P&&P.months?Object.keys(P.months).sort().reverse():[];
+  if(!P||P.nokey||!ms.length){$('#filters').innerHTML='';$('#view').innerHTML=P&&P.error?`<div class="err"><b>Попапы не загрузились.</b> ${esc(P.error)}</div>`:
+    `<div class="empty"><b>Данных о попапах пока нет.</b> ${P&&P.nokey?'Ждём служебный ключ от владельца CRS: с ним отчёт будет каждую ночь забирать показы, клики и регистрации попапов сайта.':'Ключ CRS есть, данные появятся после ночного обновления или пункта меню «Попапы: обновить из CRS».'}</div>`;return}
+  if(!ms.includes(S.popm))S.popm=ms[0];
+  const M=P.months[S.popm],t=M.t,hasR=t[3]!=null;
+  $('#filters').innerHTML=`<div class="filters"><label><span class="flbl">Месяц</span><select id="sel-popm">${ms.map(m=>`<option value="${m}"${m===S.popm?' selected':''}>${monName(m)}</option>`).join('')}</select></label></div>`;
+  $('#sel-popm').onchange=e=>{histPush();S.popm=e.target.value;save();render();navState()};
+  const ctr=(o,c)=>pct(o?c/o:null,2),share=(o,x)=>pct(o?x/o:null,0);
+  // строка таблицы: показы · клики · CTR · закрыли · регистрации
+  const cells=(r,i)=>`<td class="r">${fmt(r[i])}</td><td class="r">${fmt(r[i+1])}</td><td class="r b">${ctr(r[i],r[i+1])}</td><td class="r muted">${share(r[i],r[i+2])}</td>${hasR?`<td class="r">${r[i+3]==null?'<span class="muted">—</span>':fmt(r[i+3])}</td>`:''}`;
+  const head=first=>`<thead><tr>${first}<th class="r">Показы</th><th class="r">Клики</th><th class="r">CTR</th><th class="r">Закрыли</th>${hasR?'<th class="r">Регистр.</th>':''}</tr></thead>`;
+  const tbl=(first,rows,f)=>`<div class="tbl"><table>${head(first)}<tbody>${rows.map(f).join('')||'<tr><td colspan="6" class="muted">Нет показов</td></tr>'}</tbody></table></div>`;
+  // график — с первого дня показов в месяце (до запуска попапов дни пустые)
+  const f0=M.day.findIndex(x=>x[1]),days=f0>0?M.day.slice(f0):M.day,dl=d=>dShort(d)+', '+['вс','пн','вт','ср','чт','пт','сб'][new Date(d+'T12:00:00Z').getUTCDay()];
+  const live=days.filter(x=>x[1]),first=live.length?live[0][0]:null;
+  const done=M.to<D.today?'':` · по ${dShort(M.to)}, сегодня неполный день`;
+  let h=`<div class="grid g-kpi">
+    <div class="panel kpi go" data-go="pop-days"><div class="lbl">Показы</div><div class="val">${fmt(t[0])}</div>${mutedLine(first?`с ${dShort(first)}${done}`:'показов не было')}</div>
+    <div class="panel kpi go" data-go="pop-camp"><div class="lbl">Клики по кнопке</div><div class="val">${fmt(t[1])}</div>${mutedLine(`CTR ${ctr(t[0],t[1])} — клики / показы`)}</div>
+    <div class="panel kpi go" data-go="pop-camp"><div class="lbl">Закрыли</div><div class="val">${fmt(t[2])}</div>${mutedLine(`${share(t[0],t[2])} показов`)}</div>
+    <div class="panel kpi go" data-go="pop-camp"><div class="lbl">Регистрации</div><div class="val">${hasR?fmt(t[3]):'—'}</div>${mutedLine(hasR?`${pct(t[1]?t[3]/t[1]:null,0)} от кликов · считаются только для: ${esc((M.regCamps||[]).join(', ')||'—')}`:'CRS не считает регистрации за этот месяц')}</div>
+  </div><!--jump-->`;
+  h+=`<div class="panel sec" id="pop-days" style="margin-bottom:16px"><h2>Показы по дням</h2>${barChart('c-pop',{name:'Показов',color:cssv('--s1'),bars:days.map(x=>({label:dl(x[0]),value:x[1],
+      tip:`Показов: <b>${fmt(x[1])}</b><br>Кликов: <b>${fmt(x[2])}</b> · CTR ${ctr(x[1],x[2])}<br>Закрыли: <b>${fmt(x[3])}</b>${x[4]?`<br>Регистраций: <b>${fmt(x[4])}</b>`:''}`})),
+    ticks:i=>i%Math.max(1,Math.ceil(days.length/10))===0?dShort(days[i][0]):''})}
+    <h2 style="margin-top:14px">CTR по дням</h2>${lineChart('c-popctr',{labels:days.map(x=>dl(x[0])),series:[{name:'CTR',color:cssv('--s2'),values:days.map(x=>x[1]?100*x[2]/x[1]:null)}],
+      ticks:i=>i%Math.max(1,Math.ceil(days.length/10))===0?dShort(days[i][0]):'',fmtV:v=>fmt(v,2)+'%',fmtA:v=>fmt(v,1)+'%',floor:1,height:200})}
+    <p class="note">Клик и закрытие засчитываются в день показа. Один человек может увидеть попап несколько раз — это показы, не люди.</p></div>`;
+  h+=`<div class="panel sec" id="pop-camp" style="margin-bottom:16px"><h2>Кампании и варианты</h2><p class="sub">Вариант — текст и кнопки попапа; версия — номер публикации (после правки попапа номер растёт)</p>
+    ${tbl('<th>Кампания · вариант</th><th class="r">Версия</th>',M.camp,r=>`<tr><td><b>${esc(r[0])}</b><br><span class="muted">${esc(r[1])}</span></td><td class="r muted">${fmt(r[2])}</td>${cells(r,3)}</tr>`)}
+    ${M.btn.length?`<h2 style="margin-top:14px">Кнопки</h2><div class="tbl"><table><thead><tr><th>Кампания · вариант</th><th>Кнопка</th><th class="r">Кликов</th></tr></thead><tbody>${M.btn.map(b=>`<tr><td>${esc(b[0])}<br><span class="muted">${esc(b[1])}</span></td><td>${esc(b[2])}</td><td class="r b">${fmt(b[3])}</td></tr>`).join('')}</tbody></table></div>`:''}</div>`;
+  h+=`<div class="grid g-2 sec" id="pop-pages" style="margin-bottom:16px"><div class="panel"><h2>Разделы сайта</h2><p class="sub">Где посетитель увидел попап · s-cruises.com</p>
+    ${tbl('<th>Раздел</th>',M.sec,r=>`<tr><td class="b">${esc(POP_SEC[r[0]]||r[0]||'—')}</td>${cells(r,1)}</tr>`)}</div>
+    <div class="panel"><h2>Страницы</h2><p class="sub">Топ ${fmt(M.page.length)} из ${fmt(M.pages)} страниц по показам</p>
+    ${tbl('<th>Страница</th>',M.page,r=>`<tr><td class="nw" title="${esc(r[0])}">${esc(r[0].length>48?r[0].slice(0,46)+'…':r[0])}</td>${cells(r,2)}</tr>`)}</div></div>`;
+  h+=`<div class="grid g-2 sec" id="pop-dev" style="margin-bottom:16px"><div class="panel"><h2>Устройства</h2>${tbl('<th>Устройство</th>',M.dev,r=>`<tr><td class="b">${esc(POP_DEV[r[0]]||r[0])}</td>${cells(r,1)}</tr>`)}
+    <h2 style="margin-top:14px">Системы</h2>${tbl('<th>ОС</th>',M.os,r=>`<tr><td class="b">${esc(POP_OS[r[0]]||r[0])}</td>${cells(r,1)}</tr>`)}</div>
+    <div class="panel"><h2>Города</h2><p class="sub">По адресу посетителя, топ ${fmt(M.city.length)}</p>${tbl('<th>Город</th>',M.city,r=>`<tr><td class="b">${esc(r[1]||'не определён')} <span class="muted">${esc(r[0])}</span></td>${cells(r,2)}</tr>`)}</div></div>`;
+  const tg=(M.q.find(x=>x[0]==='tagged')||[0,0])[1];
+  h+=`<div class="panel sec" id="pop-utm" style="margin-bottom:16px"><h2>Откуда пришли</h2><p class="sub">UTM-метки визита, в котором показан попап. Источник известен у ${share(t[0],tg)} показов: метки пишутся только с 21.10 и только у ссылок с UTM</p>
+    ${tbl('<th>Источник · канал · кампания</th>',M.utm,r=>`<tr><td>${r[0]?`<b>${esc(r[0])}</b> · ${esc(r[1])}<br><span class="muted">${esc(r[2])}</span>`:`<span class="muted">${esc(POP_Q[r[3]]||r[3])}</span>`}</td>${cells(r,4)}</tr>`)}</div>`;
+  const B=M.bots||{other:0,dc:[]},bn=B.other+sum(B.dc.map(x=>x[2]));
+  if(bn||M.orphan)h+=`<div class="panel" style="margin-bottom:16px"><h2>Похоже на роботов</h2><p class="sub">Итоги выше их <b>не вычитают</b> — так считает CRS. Робот открывает страницу и попап, но не закрывает его</p><ul class="note">
+    ${B.other?`<li>Устройство «Другое»: ${fmt(B.other)} ${plural(B.other,'показ','показа','показов')} (${share(t[0],B.other)})</li>`:''}
+    ${B.dc.map(x=>`<li>${esc(x[1])}, ${esc(x[0])}: ${fmt(x[2])} ${plural(x[2],'показ','показа','показов')} и ни одного закрытия</li>`).join('')}
+    ${M.orphan?`<li>Кликов без показа: ${fmt(M.orphan)}</li>`:''}</ul></div>`;
+  $('#view').innerHTML=withJump(h,[['pop-days','По дням'],['pop-camp','Кампании'],['pop-pages','Страницы'],['pop-dev','Устройства и города'],['pop-utm','Источники']]);
+}
+
 function vChan(){
   const sp=D.spend||[],ms=monthsOf().filter(m=>!D.zav_from||m.m>=D.zav_from.slice(0,7)).reverse();
   let h='';
@@ -1507,6 +1562,7 @@ function dqBlock(){
   (OB.checks||[]).forEach(c=>W.push(c.same+c.missing===c.rows&&!c.missing&&!c.diffs.length?{level:'ok',text:`Продажи с бортов: лист «${c.sheet}» совпадает с главным графиком (${fmt(c.rows)} ${plural(c.rows,'строка','строки','строк')})`}:{level:'warn',text:`Продажи с бортов: лист «${c.sheet}» расходится с главным графиком — ${c.diffs.join('; ')}`}));
   if((OB.dupSheets||[]).length)W.push({level:'info',text:`Продажи с бортов: лист ${OB.dupSheets.map(x=>'«'+x+'»').join(', ')} повторяет месячные сводки — новых строк не дал`});
   if((OB.skipped||[]).length)W.push({level:'warn',text:`Продажи с бортов: не прочитаны листы ${OB.skipped.map(x=>'«'+x+'»').join(', ')} — новый вид листа, нужна доработка`});
+  {const P=D.pop||{};W.push(P.error?{level:'warn',text:'Попапы: '+P.error}:P.nokey||!P.months?{level:'info',text:'Попапы: ждём служебный ключ CRS — вкладка пустая'}:{level:'ok',text:`Попапы: отчёт CRS за ${Object.keys(P.months).length} мес.`})}
   W.push({level:'info',text:'Источник каждой заявки по ClientID — есть с августа 2026, в отчёт ещё не подключён'});
   W.push({level:(D.spend||[]).length?'ok':'info',text:(D.spend||[]).length?'Расходы: лист «Расходы» заполнен':'Расходов нет — лист «Расходы»; карточки CPA, ДРР, ROMI пока серые'});
   W.push({level:(D.plan||[]).length?'ok':'info',text:(D.plan||[]).length?'План: лист «План» заполнен':'Плана нет — лист «План»'});
@@ -1658,6 +1714,7 @@ $('#method').innerHTML='<div id="dq-slot"></div><p id="period" class="ref-info" 
   ['Воронка и когорта мероприятия','Что пришло через сам вебинар и что эти люди купили вообще.','Воронка — только путь через вебинар: лид с типом вебинара в Битриксе → номер заявки в лиде → оплачена ли эта заявка в Букинге (Предоплата или Оплачено; разные заявки, одна заявка у двух лидов — один раз). Когорта — все заявки тех же людей в Букинге с дня мероприятия, любым путём; считаем людей. Заявки между регистрацией и мероприятием — отдельно («до мероприятия»), в «купили» не входят. Поэтому в когорте покупок больше. Переключатель «Что считаем»: по умолчанию круизы; отдельно — доп. услуги к круизу (дочерняя заявка к круизу без пассажиров), билеты «В гости на теплоход», сертификаты, авиабилеты, визы, прочее или всё вместе.'],
   ['Кто пришёл и когда купил','Кем был человек в день регистрации и через сколько дней купил.','Сегмент — по круизам до дня регистрации: новые (не было в базе), в базе без покупок, покупали только других операторов, покупатели Созвездия (последняя покупка меньше 2 лет назад), вернувшиеся (2 года и больше). Созвездие — вместе с Речными линиями. В ячейке — заявок / оплачено заявок: до мероприятия (между регистрацией и мероприятием) и за срок после дня мероприятия; оплата — статусы «Предоплата» и «Оплачено», срок — по дню первой оплаты. «Купили, людей» — человек один раз. Обновляется ночью.'],
   ['Продажи с бортов','Сколько заявок приносят презентации на теплоходах.','Таблица «График PRO_движ», все листы. График: строка — презентация; доходимость — люди / занятые каюты, конверсия — заявки / занятые каюты (где каюты заполнены). Год к году — месячные сводки («Мария»). Брони — листы «…_продажи с бортов». Рабочие листы месяцев сверяются с графиком.'],
+  ['Попапы','Сколько раз показали попап на сайте и сколько людей нажали кнопку.','Отчёт сервиса попапов CRS (только боевые показы, без тестовых), за календарный месяц, даты по Москве. Показ — одно открытие попапа (не человек). Клик и закрытие — показы, после которых нажали кнопку или закрыли попап; засчитываются в день показа. CTR = клики / показы. Регистрация — подтверждённая заявка формы, которую CRS связал с показом и кликом попапа (считаются показы с регистрацией); пока только у кампаний, где CRS подключил приём формы. Показы, похожие на роботов, не вычитаются — перечислены отдельно. Обновление — ночью.'],
   ['Расходы и окупаемость','Окупается ли реклама (заработает, когда появятся расходы).','CPA — расход / заявки; ДРР — расход / оплачено ₽; ROMI — (маржа − расход) / расход. Из листа «Расходы», пока без привязки заявки к каналу.'],
   ['Обновление','Данные за вчера появляются утром.','Букинг и Метрика — каждую ночь около 5:00. Данные на странице хранятся 15 минут; «Обновить данные» перечитывает таблицу не чаще раза в минуту.']
 ].map(([t,m,d])=>`<div><dt>${t}</dt><dd>${esc(m)}<details class="how"><summary>Как считаем</summary>${esc(d)}</details></dd></div>`).join('')+'</dl>';
