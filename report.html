@@ -1516,7 +1516,7 @@ const POP_UNK='__unknown__',POP_TF=['campaign','variant_id','device'];   // на
 let popOpen=null,popQ='',popAnch=null;   // открытое окно: '+' — выбор поля, иначе поле; popAnch — у чего открыто
 function popLbl(M,f,v){
   if(v==null||v===POP_UNK)return 'не определено';
-  if(f==='campaign'){const r=M.camp.find(r=>r[7]===v);return r?r[0]:v}
+  if(f==='campaign'){if(M.names&&M.names[v])return M.names[v];const r=M.camp.find(r=>r[7]===v);return r?r[0]:v}
   if(f==='variant_id'){const r=M.camp.find(r=>r[8]===v);return r?r[1]:v}
   if(f==='hour')return String(v).padStart(2,'0')+':00';
   return ({device:POP_DEV,os:POP_OS,section:POP_SEC,attribution_quality:POP_Q}[f]||{})[v]||v}
@@ -1555,7 +1555,10 @@ function popUnion(P){
     C.k.forEach(k=>{if(C.d[k]){const L=U.d[k]||(U.d[k]=[]),ix=U.ix[k]||(U.ix[k]={});map[k]=C.d[k].map(v=>v in ix?ix[v]:(ix[v]=L.push(v)-1))}});
     C.r.forEach(row=>U.r.push(U.k.map((k,j)=>{const v=pos[j]<0?null:row[pos[j]];return v==null||!map[k]?v:map[k][v]})))});
     if(U)delete U.ix;return U};
-  return P._u={C:merge('cube'),T:merge('timing')}}
+  const U={C:merge('cube'),T:merge('timing'),names:{}};
+  Object.keys(P.months).sort().forEach(m=>Object.assign(U.names,P.months[m].names||{}));
+  if(U.C&&U.C.d.campaign_name){const [,get]=popGet(U.C);U.C.r.forEach(r=>{const n=get(r,'campaign_name');if(n&&n!==POP_UNK)U.names[get(r,'campaign')]=n})}
+  return P._u=U}
 function popFilters(M0,C,F,rows){
   const [,get]=popGet(C),on=POP_FD.filter(([f])=>F[f]&&F[f].v.length),op=C.k.indexOf('opens');
   const nm=f=>POP_FD.find(x=>x[0]===f)[1];
@@ -1573,7 +1576,7 @@ function popFilters(M0,C,F,rows){
     pop=`<div class="pf-pop" data-pf="${f}"><h4>${esc(nm(f))}</h4>
       <div class="seg"><button type="button" data-pfx="0" aria-pressed="${!x.x}">= любое из</button><button type="button" data-pfx="1" aria-pressed="${!!x.x}">≠ все, кроме</button></div>
       ${vals.length>12?`<input class="pf-q" type="search" placeholder="Найти…" value="${esc(popQ)}">`:''}
-      <div class="pf-list">${vals.map(v=>{const lb=popLbl(M0,f,v);return`<label data-s="${esc((lb+' '+v).toLowerCase())}"><input type="checkbox" data-pfv="${esc(v)}"${x.v.includes(v)?' checked':''}><span title="${esc(v)}">${esc(lb)}</span><span class="muted">${fmt(cnt[v])}</span></label>`}).join('')}</div>
+      <div class="pf-list">${vals.map(v=>{const lb=popLbl(M0,f,v);return`<label data-s="${esc((lb+' '+v).toLowerCase())}"><input type="checkbox" data-pfv="${esc(v)}"${x.v.includes(v)?' checked':''}><span title="${esc(v)}">${esc(lb)}${f==='campaign'&&lb!==v?`<br><small class="muted">${esc(v)}</small>`:''}</span><span class="muted">${fmt(cnt[v])}</span></label>`}).join('')}</div>
       <div class="pf-foot"><span class="muted" style="font-size:12px">число — показы с остальными фильтрами</span><button type="button" class="pf-btn" data-pfok="1">Готово</button></div></div>`}
   // условия и «+ Фильтр» — одной строкой в строке периода, окно — поверх (ставит popFlBind)
   return {add:`<div class="pf-wrap"><span class="flbl">Фильтры</span><div class="pf-bar" id="pop-flt"><button type="button" class="pf-add" data-pfe="+">+ Фильтр</button>${chips}${on.length?'<button type="button" class="pf-btn" data-pfr="1">Сбросить</button>':''}</div></div>`,
@@ -1644,7 +1647,7 @@ function vPop(){
   const inP=(r,a,b)=>{const d=cget(r,'day');return d>=a&&d<=b},PR=C.r.filter(r=>inP(r,from,to));
   const bm0={};Ms.forEach(x=>(x.btn||[]).forEach(b=>{const k=b[0]+'\u0001'+b[1]+'\u0001'+b[2];bm0[k]=bm0[k]?(bm0[k][3]+=b[3],bm0[k]):b.slice()}));
   const opI=C.k.indexOf('opens');
-  const M0={camp:[].concat(...ms.map(m=>P.months[m].camp||[])),day:D.days.slice(rg.a,rg.b+1).map(d=>[d,0,0,0,null]),btn:Object.values(bm0),
+  const M0={names:U.names,camp:[].concat(...ms.map(m=>P.months[m].camp||[])),day:D.days.slice(rg.a,rg.b+1).map(d=>[d,0,0,0,null]),btn:Object.values(bm0),
     orphan:sum(Ms.map(x=>x.orphan||0)),regCamps:[...new Set([].concat(...Ms.map(x=>x.regCamps||[])))],regSrc:Ms.length?Ms[Ms.length-1].regSrc:null,
     tmed:Ms.length===1?Ms[0].tmed:null,from,to,t:[sum(PR.map(r=>r[opI]))]};
   const nx=new Date(to+'T12:00:00Z');nx.setUTCDate(nx.getUTCDate()+1);
@@ -1677,12 +1680,12 @@ function vPop(){
     ${legend([['Показы',cssv('--s1'),'bar'],['CTR — шкала справа',cssv('--s2')]])}
     <p class="note">Клик и закрытие засчитываются в день показа. Один человек может увидеть попап несколько раз — это показы, не люди.</p></div>`;
   // кампании: версии одного варианта — одной строкой, по id кампании и варианта (названия меняются); регистрации — сумма, где CRS их считает
-  const cm={};M.camp.forEach(r=>{const k=r[7]!=null?r[7]+'\u0001'+r[8]:r[0]+'\u0001'+r[1],v=cm[k]||(cm[k]=[r[0],r[1],0,0,0,null]);v[2]+=r[3];v[3]+=r[4];v[4]+=r[5];if(r[6]!=null)v[5]=(v[5]||0)+r[6]});
+  const cm={};M.camp.forEach(r=>{const k=r[7]!=null?r[7]+'\u0001'+r[8]:r[0]+'\u0001'+r[1],v=cm[k]||(cm[k]=[r[0],r[1],0,0,0,null,r[7]]);v[2]+=r[3];v[3]+=r[4];v[4]+=r[5];if(r[6]!=null)v[5]=(v[5]||0)+r[6]});
   const camps=Object.values(cm).sort((a,b)=>b[2]-a[2]);
   const bm={};M.btn.forEach(b=>{const k=b[0]+'\u0001'+b[1]+'\u0001'+b[2];bm[k]=bm[k]?(bm[k][3]+=b[3],bm[k]):[b[0],b[1],b[2],b[3]]});
   const btns=Object.values(bm).sort((a,b)=>b[3]-a[3]);
   const tg=(M.q.find(x=>x[0]==='tagged')||[0,0])[1];
-  const PV=[['camp','Кампании',()=>tbl('<th>Кампания · вариант</th>',camps,r=>`<tr><td><b>${esc(r[0])}</b><br><span class="muted">${esc(r[1])}</span></td>${cells(r,2)}</tr>`)],
+  const PV=[['camp','Кампании',()=>tbl('<th>Кампания · вариант</th>',camps,r=>`<tr><td><b>${esc(r[0])}</b><br><span class="muted">${esc(r[1])}${r[6]?` · <span title="ID кампании">${esc(r[6])}</span>`:''}</span></td>${cells(r,2)}</tr>`)],
     ['btn','Кнопки',()=>(FON||!whole?`<p class="sub">${FON?'Без учёта фильтров: CRS отдаёт кнопки только по кампании. ':''}${whole?'':'За месяцы целиком ('+mm.map(monName).join(', ')+'): по дням CRS кнопки не делит'}</p>`:'')+`<div class="tbl"><table><thead><tr><th>Кампания · вариант</th><th>Кнопка</th><th class="r">Кликов</th></tr></thead><tbody>${btns.map(b=>`<tr><td>${esc(b[0])}<br><span class="muted">${esc(b[1])}</span></td><td>${esc(b[2])}</td><td class="r b">${fmt(b[3])}</td></tr>`).join('')||'<tr><td colspan="3" class="muted">Кликов не было</td></tr>'}</tbody></table></div>`],
     ['sec','Разделы',()=>tbl('<th>Раздел сайта</th>',M.sec,r=>`<tr><td class="b">${esc(POP_SEC[r[0]]||r[0]||'—')}</td>${cells(r,1)}</tr>`)],
     ['page','Страницы',()=>`<p class="sub">Топ ${fmt(M.page.length)} из ${fmt(M.pages)} страниц s-cruises.com по показам</p>`+tbl('<th>Страница</th>',M.page,r=>`<tr><td class="nw" title="${esc(r[0])}">${esc(r[0].length>60?r[0].slice(0,58)+'…':r[0])}</td>${cells(r,2)}</tr>`)],
