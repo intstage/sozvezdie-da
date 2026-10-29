@@ -382,9 +382,10 @@ details.dq.pick li{display:block;padding:0;background:none;border-radius:0}detai
 details.pick .pk-short{display:none}
 @media (max-width:560px){details.pick summary .pick-n{flex-basis:100%}details.pick .pk-dot{display:none}.pick-list button{flex-direction:column;align-items:flex-start;gap:2px}.pick-list .pk-s{display:none}.pick-list .pk-f{display:block}}
 #filters .filters{position:relative}
-.pf-wrap{flex:none}
+.pf-wrap{flex:1 1 100%;min-width:0;order:1}   /* своя строка под периодом, после подписи периода */
+#period-note{order:0}
 .pf-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-#pop-flt{min-height:42px}.pf-add{min-height:42px;padding:6px 14px}
+#pop-flt{min-height:42px}.pf-add{min-height:42px;padding:6px 14px}.pf-chip,.pf-x{min-height:42px}
 .pf-chips{flex-basis:100%;margin-top:-4px}
 nav.tabs>.pinned-f :is(.pf-wrap,.pf-chips,.pf-pop){display:none}
 .pf-chip{display:inline-flex;align-items:center;max-width:340px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);border-radius:10px 0 0 10px;padding:6px 6px 6px 12px;font:500 13.5px var(--body);cursor:pointer;white-space:nowrap}
@@ -787,6 +788,7 @@ function renderTab(){
   (TABS.some(t=>t[0]===S.tab)?{summary:vSummary,zav:vZav,site:vSite,obr:vObr,web:vWeb,pay:vPay,board:vBoard,chan:vChan,pop:vPop}[S.tab]:(S.tab='summary',vSummary))();
   const slot=$('#dq-slot');if(slot)slot.innerHTML=dqBlock();
   bindPeriod();
+  if(S.tab==='pop')popPlace();
 }
 
 /* ---------- навигация внутри вкладок ----------
@@ -1573,18 +1575,21 @@ function popFilters(M0,C,F,rows){
       ${vals.length>12?`<input class="pf-q" type="search" placeholder="Найти…" value="${esc(popQ)}">`:''}
       <div class="pf-list">${vals.map(v=>{const lb=popLbl(M0,f,v);return`<label data-s="${esc((lb+' '+v).toLowerCase())}"><input type="checkbox" data-pfv="${esc(v)}"${x.v.includes(v)?' checked':''}><span title="${esc(v)}">${esc(lb)}</span><span class="muted">${fmt(cnt[v])}</span></label>`}).join('')}</div>
       <div class="pf-foot"><span class="muted" style="font-size:12px">число — показы с остальными фильтрами</span><button type="button" class="pf-btn" data-pfok="1">Готово</button></div></div>`}
-  // кнопка — в строке периода, условия — строкой под ней, окно — поверх (ставит popFlBind)
-  return {add:`<div class="pf-wrap"><span class="flbl">Фильтры</span><div class="pf-bar" id="pop-flt"><button type="button" class="pf-add" data-pfe="+">+ Фильтр</button></div></div>`,
-    chips:on.length?`<div class="pf-bar pf-chips">${chips}<button type="button" class="pf-btn" data-pfr="1">Сбросить</button></div>`:'',pop}}
+  // условия и «+ Фильтр» — одной строкой в строке периода, окно — поверх (ставит popFlBind)
+  return {add:`<div class="pf-wrap"><span class="flbl">Фильтры</span><div class="pf-bar" id="pop-flt"><button type="button" class="pf-add" data-pfe="+">+ Фильтр</button>${chips}${on.length?'<button type="button" class="pf-btn" data-pfr="1">Сбросить</button>':''}</div></div>`,
+    chips:'',pop}}
+// окно фильтра — под тем, у чего открыто, не за краем экрана; зовёт renderTab после подписи периода (она меняет высоту строки)
+function popPlace(){
+  const el=$('#filters .filters'),pop=el&&el.querySelector('.pf-pop');if(!pop)return;
+  if(innerWidth<=560)return;   // на телефоне окно — панель снизу (CSS)
+  const a=el.querySelector(`[data-pfe="${popAnch||popOpen}"]`)||el.querySelector('.pf-add'),ar=a.getBoundingClientRect(),er=(pop.offsetParent||el).getBoundingClientRect();
+  pop.style.top=(ar.bottom-er.top+6)+'px';pop.style.left=(ar.left-er.left)+'px';
+  const over=pop.getBoundingClientRect().right-(innerWidth-8);if(over>0)pop.style.left=(ar.left-er.left-over)+'px'}
 function popFlBind(){
   const el=$('#filters .filters');if(!el||!$('#pop-flt'))return;
   const F=S.popf||(S.popf={}),go=()=>{save();render()};
   const pop=el.querySelector('.pf-pop');
-  if(pop){   // окно — под тем, у чего открыто, не за краем экрана
-    const a=el.querySelector(`[data-pfe="${popAnch||popOpen}"]`)||el.querySelector('.pf-add'),ar=a.getBoundingClientRect(),er=el.getBoundingClientRect();
-    pop.style.top=(ar.bottom-er.top+6)+'px';pop.style.left=(ar.left-er.left)+'px';
-    const over=pop.getBoundingClientRect().right-(innerWidth-8);if(over>0)pop.style.left=(ar.left-er.left-over)+'px';
-    const q=pop.querySelector('.pf-q');if(q){q.dispatchEvent(new Event('input',{bubbles:true}));if(document.activeElement===document.body&&matchMedia('(hover:hover)').matches)q.focus()}}
+  if(pop){const q=pop.querySelector('.pf-q');if(q){q.dispatchEvent(new Event('input',{bubbles:true}));if(document.activeElement===document.body&&matchMedia('(hover:hover)').matches)q.focus()}}
   el.addEventListener('input',e=>{if(!e.target.classList.contains('pf-q'))return;popQ=e.target.value;const q=popQ.trim().toLowerCase();el.querySelectorAll('.pf-list label').forEach(l=>l.hidden=!!q&&!l.dataset.s.includes(q))});
   el.addEventListener('change',e=>{const c=e.target.closest('[data-pfv]');if(!c)return;const f=popOpen,x=F[f]||(F[f]={x:0,v:[]});
     x.v=c.checked?x.v.concat([c.dataset.pfv]):x.v.filter(v=>v!==c.dataset.pfv);go()});
