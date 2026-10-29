@@ -382,6 +382,7 @@ details.dq.pick li{display:block;padding:0;background:none;border-radius:0}detai
 details.pick .pk-short{display:none}
 @media (max-width:560px){details.pick summary .pick-n{flex-basis:100%}details.pick .pk-dot{display:none}.pick-list button{flex-direction:column;align-items:flex-start;gap:2px}.pick-list .pk-s{display:none}.pick-list .pk-f{display:block}}
 #filters .filters{position:relative}
+.pop-top td{background:var(--surface2)}   /* строка темы над её кампаниями */
 .pf-wrap{flex:1 1 100%;min-width:0;order:1}   /* своя строка под периодом, после подписи периода */
 #period-note{order:0}
 .pf-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
@@ -1532,10 +1533,11 @@ const POP_OS={android:'Android',windows:'Windows',ios:'iOS',macos:'macOS',linux:
 const POP_SEC={home:'Главная',cruises:'Круизы',routes:'Маршруты',services:'Услуги',ships:'Теплоходы',about:'О компании',news:'Новости',login:'Вход',account:'Личный кабинет',blog:'Блог',forms:'Формы',other:'Прочее'};
 const POP_Q={tagged:'С UTM-метками',unknown:'Без меток',historical:'До записи источника',invalid:'Неверные метки',partial:'Неполные метки'};
 // фильтры «и / или / кроме» — по таблице сочетаний CRS (cube): внутри фильтра — любое из выбранных, между фильтрами — все сразу
-const POP_FD=[['campaign','Тема'],['variant_id','Вариант'],['device','Устройство'],['os','ОС'],['section','Раздел'],['page','Страница'],['country','Страна'],['city','Город'],['utm_source','Источник'],['utm_medium','Канал'],['utm_campaign','Кампания UTM'],['attribution_quality','Метки'],['hour','Время']];
-const POP_UNK='__unknown__',POP_TF=['campaign','variant_id','device'];   // на время действуют только эти фильтры (так режет CRS)
+const POP_FD=[['topic','Тема'],['campaign','Кампания'],['variant_id','Вариант'],['device','Устройство'],['os','ОС'],['section','Раздел'],['page','Страница'],['country','Страна'],['city','Город'],['utm_source','Источник'],['utm_medium','Канал'],['utm_campaign','Кампания UTM'],['attribution_quality','Метки'],['hour','Время']];
+const POP_UNK='__unknown__',POP_TF=['topic','campaign','variant_id','device'];   // на время действуют только эти фильтры (так режет CRS)
 let popOpen=null,popQ='',popAnch=null;   // открытое окно: '+' — выбор поля, иначе поле; popAnch — у чего открыто
 function popLbl(M,f,v){
+  if(f==='topic')return v==null||v===POP_UNK?'Без темы':M.tnames&&M.tnames[v]||v;
   if(v==null||v===POP_UNK)return 'не определено';
   if(f==='campaign'){if(M.names&&M.names[v])return M.names[v];const r=M.camp.find(r=>r[7]===v);return r?r[0]:v}
   if(f==='variant_id'){const r=M.camp.find(r=>r[8]===v);return r?r[1]:v}
@@ -1553,7 +1555,7 @@ function popAgg(M0,C,rows){
   const u=v=>v===POP_UNK?'':v,un=v=>v===POP_UNK?'unknown':v;
   const t=[0,0,0,null];rows.forEach(r=>{const x=n(r);t[0]+=x[0];t[1]+=x[1];t[2]+=x[2];if(x[3]!=null)t[3]=(t[3]||0)+x[3]});
   const dm={};by(r=>get(r,'day'),r=>[get(r,'day')]).forEach(x=>dm[x[0]]=x);
-  const camp=by(r=>get(r,'campaign')+'\u0001'+get(r,'variant_id'),r=>[popLbl(M0,'campaign',get(r,'campaign')),popLbl(M0,'variant_id',get(r,'variant_id')),null],r=>[get(r,'campaign'),get(r,'variant_id')]);
+  const camp=by(r=>get(r,'campaign')+'\u0001'+get(r,'variant_id'),r=>[popLbl(M0,'campaign',get(r,'campaign')),popLbl(M0,'variant_id',get(r,'variant_id')),null],r=>[get(r,'campaign'),get(r,'variant_id'),get(r,'topic')]);
   const page=by(r=>get(r,'page'),r=>[u(get(r,'page')),u(get(r,'section'))]);
   const city=by(r=>get(r,'country')+'\u0001'+get(r,'city'),r=>[u(get(r,'country')),u(get(r,'city'))]);
   const dev=by(r=>get(r,'device'),r=>[un(get(r,'device'))]);
@@ -1576,9 +1578,11 @@ function popUnion(P){
     C.k.forEach(k=>{if(C.d[k]){const L=U.d[k]||(U.d[k]=[]),ix=U.ix[k]||(U.ix[k]={});map[k]=C.d[k].map(v=>v in ix?ix[v]:(ix[v]=L.push(v)-1))}});
     C.r.forEach(row=>U.r.push(U.k.map((k,j)=>{const v=pos[j]<0?null:row[pos[j]];return v==null||!map[k]?v:map[k][v]})))});
     if(U)delete U.ix;return U};
-  const U={C:merge('cube'),T:merge('timing'),names:{}};
+  const U={C:merge('cube'),T:merge('timing'),names:{},tnames:{}};
   Object.keys(P.months).sort().forEach(m=>Object.assign(U.names,P.months[m].names||{}));
   if(U.C&&U.C.d.campaign_name){const [,get]=popGet(U.C);U.C.r.forEach(r=>{const n=get(r,'campaign_name');if(n&&n!==POP_UNK)U.names[get(r,'campaign')]=n})}
+  // тема над кампаниями — topic / topic_name (CRS, 29.10)
+  if(U.C&&U.C.d.topic_name){const [,get]=popGet(U.C);U.C.r.forEach(r=>{const n=get(r,'topic_name'),k=get(r,'topic');if(n&&n!==POP_UNK&&k&&k!==POP_UNK)U.tnames[k]=n})}
   return P._u=U}
 function popFilters(M0,C,F,rows){
   const [,get]=popGet(C),on=POP_FD.filter(([f])=>F[f]&&F[f].v.length),op=C.k.indexOf('opens');
@@ -1597,7 +1601,7 @@ function popFilters(M0,C,F,rows){
     pop=`<div class="pf-pop" data-pf="${f}"><h4>${esc(nm(f))}</h4>
       <div class="seg"><button type="button" data-pfx="0" aria-pressed="${!x.x}">= любое из</button><button type="button" data-pfx="1" aria-pressed="${!!x.x}">≠ все, кроме</button></div>
       ${vals.length>12?`<input class="pf-q" type="search" placeholder="Найти…" value="${esc(popQ)}">`:''}
-      <div class="pf-list">${vals.map(v=>{const lb=popLbl(M0,f,v);return`<label data-s="${esc((lb+' '+v).toLowerCase())}"><input type="checkbox" data-pfv="${esc(v)}"${x.v.includes(v)?' checked':''}><span title="${esc(v)}">${esc(lb)}${f==='campaign'&&lb!==v?`<br><small class="muted">${esc(v)}</small>`:''}</span><span class="muted">${fmt(cnt[v])}</span></label>`}).join('')}</div>
+      <div class="pf-list">${vals.map(v=>{const lb=popLbl(M0,f,v);return`<label data-s="${esc((lb+' '+v).toLowerCase())}"><input type="checkbox" data-pfv="${esc(v)}"${x.v.includes(v)?' checked':''}><span title="${esc(v)}">${esc(lb)}${(f==='campaign'||f==='topic')&&lb!==v&&v!==POP_UNK?`<br><small class="muted">${esc(v)}</small>`:''}</span><span class="muted">${fmt(cnt[v])}</span></label>`}).join('')}</div>
       <div class="pf-foot"><span class="muted" style="font-size:12px">число — показы с остальными фильтрами</span><button type="button" class="pf-btn" data-pfok="1">Готово</button></div></div>`}
   // условия и «+ Фильтр» — одной строкой в строке периода, окно — поверх (ставит popFlBind)
   return {add:`<div class="pf-wrap"><span class="flbl">Фильтры</span><div class="pf-bar" id="pop-flt"><button type="button" class="pf-add" data-pfe="+">+ Фильтр</button>${chips}${on.length?'<button type="button" class="pf-btn" data-pfr="1">Сбросить</button>':''}</div></div>`,
@@ -1639,20 +1643,20 @@ function popTiming(M0,F,T,from,to){
   const cnt=(m,b)=>sum(rows.filter(r=>get(r,'metric')===m&&(b==null||get(r,'bucket')===b)).map(r=>r[I.count]));
   const col=(m,b)=>{const a=cnt(m),v=cnt(m,b);return`<td class="r">${fmt(v)}</td><td class="r muted">${a?pct(v/a,0):'—'}</td><td style="width:22%"><div class="pbar"><i style="width:${a?100*v/a:0}%"></i></div></td>`};
   const sec=s=>s==null?'—':s<60?fmt(s,s<10?1:0)+' с':s<3600?fmt(s/60,1)+' мин':fmt(s/3600,1)+' ч';
-  const cf=F.campaign&&F.campaign.v.length?F.campaign:null;
-  const med=(M0.tmed||[]).filter(x=>!cf||cf.v.includes(x.campaign)!==!!cf.x);
+  const fl=f=>F[f]&&F[f].v.length?F[f]:null,cf=fl('campaign'),tf=fl('topic');
+  const med=(M0.tmed||[]).filter(x=>(!cf||cf.v.includes(x.campaign)!==!!cf.x)&&(!tf||tf.v.includes(x.topic||POP_UNK)!==!!tf.x));
   const cids=[...new Set(med.map(x=>x.campaign))];
   const mv=(c,m)=>{const x=med.find(y=>y.campaign===c&&y.metric===m);return x?`${sec(x.median_seconds)} <span class="muted">· ${fmt(x.count)}</span>`:'<span class="muted">—</span>'};
   const reg=cnt('click_to_registration');
   return `<div class="panel sec" id="pop-time" style="margin-bottom:16px"><h2>Время до действия</h2>
-    <p class="sub">Сколько попап был на экране до клика по кнопке и до закрытия${orX?'. <b>Фильтры на время не применены</b>: условия соединены «или», а CRS режет время только по теме, варианту и устройству':ign.length?`. <b>${ign.length>1?'Фильтры':'Фильтр'} «${esc(ign.join('», «'))}» на время не ${ign.length>1?'действуют':'действует'}</b> — CRS режет время только по теме, варианту и устройству`:''}</p>
+    <p class="sub">Сколько попап был на экране до клика по кнопке и до закрытия${orX?'. <b>Фильтры на время не применены</b>: условия соединены «или», а CRS режет время только по теме, кампании, варианту и устройству':ign.length?`. <b>${ign.length>1?'Фильтры':'Фильтр'} «${esc(ign.join('», «'))}» на время не ${ign.length>1?'действуют':'действует'}</b> — CRS режет время только по теме, кампании, варианту и устройству`:''}</p>
     <div class="tbl"><table><thead><tr><th>Сколько был на экране</th><th class="r">До клика</th><th class="r">%</th><th></th><th class="r">До закрытия</th><th class="r">%</th><th></th></tr></thead><tbody>
     ${POP_TB.filter(([b])=>b!==POP_UNK||cnt('open_to_click',b)||cnt('open_to_close',b)).map(([b,l])=>`<tr><td class="b">${l}</td>${col('open_to_click',b)}${col('open_to_close',b)}</tr>`).join('')}
     <tr class="b"><td>Всего</td><td class="r">${fmt(cnt('open_to_click'))}</td><td></td><td></td><td class="r">${fmt(cnt('open_to_close'))}</td><td></td><td></td></tr></tbody></table></div>
     ${reg?`<p class="sub" style="margin-top:12px"><b>От клика до регистрации:</b> ${POP_RB.filter(([b])=>cnt('click_to_registration',b)).map(([b,l])=>`${l} — ${fmt(cnt('click_to_registration',b))}`).join(' · ')}</p>`:''}
-    ${cids.length?`<h2 style="margin-top:16px">Медиана по теме</h2><div class="tbl"><table><thead><tr><th>Тема</th><th class="r">До клика</th><th class="r">До закрытия</th><th class="r">Клик → регистрация</th></tr></thead><tbody>
+    ${cids.length?`<h2 style="margin-top:16px">Медиана по кампании</h2><div class="tbl"><table><thead><tr><th>Кампания</th><th class="r">До клика</th><th class="r">До закрытия</th><th class="r">Клик → регистрация</th></tr></thead><tbody>
       ${cids.map(c=>`<tr><td class="b">${esc(popLbl(M0,'campaign',c))}</td><td class="r">${mv(c,'open_to_click')}</td><td class="r">${mv(c,'open_to_close')}</td><td class="r">${mv(c,'click_to_registration')}</td></tr>`).join('')}</tbody></table></div>
-      <p class="note">Медиана — половина действий быстрее, половина дольше; после точки — сколько действий. Считает CRS по всей теме за месяц: фильтры, кроме темы, на неё не действуют. Закрытия с ошибкой времени (отрицательный интервал) — в «не определено» и в медиану не входят</p>`:''}
+      <p class="note">Медиана — половина действий быстрее, половина дольше; после точки — сколько действий. Считает CRS по всей кампании за месяц: фильтры, кроме темы и кампании, на неё не действуют. Медиану темы из медиан кампаний не сложить — её нет. Закрытия с ошибкой времени (отрицательный интервал) — в «не определено» и в медиану не входят</p>`:''}
   </div>`}
 function vPop(){
   const P=D.pop,ms=P&&P.months?Object.keys(P.months).sort().reverse():[];
@@ -1668,7 +1672,7 @@ function vPop(){
   const inP=(r,a,b)=>{const d=cget(r,'day');return d>=a&&d<=b},PR=C.r.filter(r=>inP(r,from,to));
   const bm0={};Ms.forEach(x=>(x.btn||[]).forEach(b=>{const k=b[0]+'\u0001'+b[1]+'\u0001'+b[2];bm0[k]=bm0[k]?(bm0[k][3]+=b[3],bm0[k]):b.slice()}));
   const opI=C.k.indexOf('opens');
-  const M0={names:U.names,camp:[].concat(...ms.map(m=>P.months[m].camp||[])),day:D.days.slice(rg.a,rg.b+1).map(d=>[d,0,0,0,null]),btn:Object.values(bm0),
+  const M0={names:U.names,tnames:U.tnames,camp:[].concat(...ms.map(m=>P.months[m].camp||[])),day:D.days.slice(rg.a,rg.b+1).map(d=>[d,0,0,0,null]),btn:Object.values(bm0),
     orphan:sum(Ms.map(x=>x.orphan||0)),regCamps:[...new Set([].concat(...Ms.map(x=>x.regCamps||[])))],regSrc:Ms.length?Ms[Ms.length-1].regSrc:null,
     tmed:Ms.length===1?Ms[0].tmed:null,from,to,t:[sum(PR.map(r=>r[opI]))]};
   const nx=new Date(to+'T12:00:00Z');nx.setUTCDate(nx.getUTCDate()+1);
@@ -1701,13 +1705,17 @@ function vPop(){
     ${legend([['Показы',cssv('--s1'),'bar'],['CTR — шкала справа',cssv('--s2')]])}
     <p class="note">Клик и закрытие засчитываются в день показа. Один человек может увидеть попап несколько раз — это показы, не люди.</p></div>`;
   // кампании: версии одного варианта — одной строкой, по id кампании и варианта (названия меняются); регистрации — сумма, где CRS их считает
-  const cm={};M.camp.forEach(r=>{const k=r[7]!=null?r[7]+'\u0001'+r[8]:r[0]+'\u0001'+r[1],v=cm[k]||(cm[k]=[r[0],r[1],0,0,0,null,r[7]]);v[2]+=r[3];v[3]+=r[4];v[4]+=r[5];if(r[6]!=null)v[5]=(v[5]||0)+r[6]});
+  const cm={};M.camp.forEach(r=>{const k=r[7]!=null?r[7]+'\u0001'+r[8]:r[0]+'\u0001'+r[1],v=cm[k]||(cm[k]=[r[0],r[1],0,0,0,null,r[7],r[9]]);v[2]+=r[3];v[3]+=r[4];v[4]+=r[5];if(r[6]!=null)v[5]=(v[5]||0)+r[6]});
   const camps=Object.values(cm).sort((a,b)=>b[2]-a[2]);
+  // темы: сумма своих кампаний; «Без темы» — кампании без topic в CRS
+  const tm={};camps.forEach(r=>{const k=r[7]==null?POP_UNK:r[7],v=tm[k]||(tm[k]=[popLbl(M0,'topic',k),k,0,0,0,null,[]]);v[2]+=r[2];v[3]+=r[3];v[4]+=r[4];if(r[5]!=null)v[5]=(v[5]||0)+r[5];v[6].push(r)});
+  const tops=Object.values(tm).sort((a,b)=>(a[1]===POP_UNK)-(b[1]===POP_UNK)||b[2]-a[2]);
   const bm={};M.btn.forEach(b=>{const k=b[0]+'\u0001'+b[1]+'\u0001'+b[2];bm[k]=bm[k]?(bm[k][3]+=b[3],bm[k]):[b[0],b[1],b[2],b[3]]});
   const btns=Object.values(bm).sort((a,b)=>b[3]-a[3]);
   const tg=(M.q.find(x=>x[0]==='tagged')||[0,0])[1];
-  const PV=[['camp','Темы',()=>tbl('<th>Тема · вариант</th>',camps,r=>`<tr><td><b>${esc(r[0])}</b><br><span class="muted">${esc(r[1])}${r[6]?` · <span title="ID темы">${esc(r[6])}</span>`:''}</span></td>${cells(r,2)}</tr>`)],
-    ['btn','Кнопки',()=>(FON||!whole?`<p class="sub">${FON?'Без учёта фильтров: CRS отдаёт кнопки только по теме. ':''}${whole?'':'За месяцы целиком ('+mm.map(monName).join(', ')+'): по дням CRS кнопки не делит'}</p>`:'')+`<div class="tbl"><table><thead><tr><th>Тема · вариант</th><th>Кнопка</th><th class="r">Кликов</th></tr></thead><tbody>${btns.map(b=>`<tr><td>${esc(b[0])}<br><span class="muted">${esc(b[1])}</span></td><td>${esc(b[2])}</td><td class="r b">${fmt(b[3])}</td></tr>`).join('')||'<tr><td colspan="3" class="muted">Кликов не было</td></tr>'}</tbody></table></div>`],
+  const PV=[['camp','Темы',()=>`<p class="sub">Тема — сумма своих кампаний; под темой — кампании и их варианты</p>`+tbl('<th>Тема → кампания · вариант</th>',tops,t=>`<tr class="pop-top"><td><b>${esc(t[0])}</b>${t[1]!==POP_UNK?` <span class="muted" title="ID темы">${esc(t[1])}</span>`:''}</td>${cells(t,2).replace(/<td class="r">/g,'<td class="r b">')}</tr>`
+      +t[6].map(r=>`<tr><td style="padding-left:22px">${esc(r[0])}<br><span class="muted">${esc(r[1])}${r[6]?` · <span title="ID кампании">${esc(r[6])}</span>`:''}</span></td>${cells(r,2)}</tr>`).join(''))],
+    ['btn','Кнопки',()=>(FON||!whole?`<p class="sub">${FON?'Без учёта фильтров: CRS отдаёт кнопки только по кампании. ':''}${whole?'':'За месяцы целиком ('+mm.map(monName).join(', ')+'): по дням CRS кнопки не делит'}</p>`:'')+`<div class="tbl"><table><thead><tr><th>Кампания · вариант</th><th>Кнопка</th><th class="r">Кликов</th></tr></thead><tbody>${btns.map(b=>`<tr><td>${esc(b[0])}<br><span class="muted">${esc(b[1])}</span></td><td>${esc(b[2])}</td><td class="r b">${fmt(b[3])}</td></tr>`).join('')||'<tr><td colspan="3" class="muted">Кликов не было</td></tr>'}</tbody></table></div>`],
     ['sec','Разделы',()=>tbl('<th>Раздел сайта</th>',M.sec,r=>`<tr><td class="b">${esc(POP_SEC[r[0]]||r[0]||'—')}</td>${cells(r,1)}</tr>`)],
     ['page','Страницы',()=>`<p class="sub">Топ ${fmt(M.page.length)} из ${fmt(M.pages)} страниц s-cruises.com по показам</p>`+tbl('<th>Страница</th>',M.page,r=>`<tr><td class="nw" title="${esc(r[0])}">${esc(r[0].length>60?r[0].slice(0,58)+'…':r[0])}</td>${cells(r,2)}</tr>`)],
     ['dev','Устройства',()=>tbl('<th>Устройство</th>',M.dev,r=>`<tr><td class="b">${esc(POP_DEV[r[0]]||r[0])}</td>${cells(r,1)}</tr>`)],
@@ -1928,7 +1936,7 @@ $('#method').innerHTML='<div id="dq-slot"></div><p id="period" class="ref-info" 
   ['Воронка и когорта мероприятия','Что пришло через сам вебинар и что эти люди купили вообще.','Воронка — только путь через вебинар: лид с типом вебинара в Битриксе → номер заявки в лиде → оплачена ли эта заявка в Букинге (Предоплата или Оплачено; разные заявки, одна заявка у двух лидов — один раз). Когорта — все заявки тех же людей в Букинге с дня мероприятия, любым путём; считаем людей. Заявки между регистрацией и мероприятием — отдельно («до мероприятия»), в «купили» не входят. Поэтому в когорте покупок больше. Переключатель «Что считаем»: по умолчанию круизы; отдельно — доп. услуги к круизу (дочерняя заявка к круизу без пассажиров), билеты «В гости на теплоход», сертификаты, авиабилеты, визы, прочее или всё вместе.'],
   ['Кто пришёл и когда купил','Кем был человек в день регистрации и через сколько дней купил.','Сегмент — по круизам до дня регистрации: новые (не было в базе), в базе без покупок, покупали только других операторов, покупатели Созвездия (последняя покупка меньше 2 лет назад), вернувшиеся (2 года и больше). Созвездие — вместе с Речными линиями. В ячейке — заявок / оплачено заявок: до мероприятия (между регистрацией и мероприятием) и за срок после дня мероприятия; оплата — статусы «Предоплата» и «Оплачено», срок — по дню первой оплаты. «Купили, людей» — человек один раз. Обновляется ночью.'],
   ['Продажи с бортов','Сколько заявок приносят презентации на теплоходах.','Таблица «График PRO_движ», все листы. График: строка — презентация; доходимость — люди / занятые каюты, конверсия — заявки / занятые каюты (где каюты заполнены). Год к году — месячные сводки («Мария»). Брони — листы «…_продажи с бортов». Рабочие листы месяцев сверяются с графиком.'],
-  ['Попапы','Сколько раз показали попап на сайте и сколько людей нажали кнопку.','Отчёт сервиса попапов CRS (только боевые показы, без тестовых), за выбранный период, даты по Москве; сравнение — с прошлым периодом при тех же фильтрах. Кнопки и медианы времени CRS даёт только за месяц целиком. Показ — одно открытие попапа (не человек). Клик и закрытие — показы, после которых нажали кнопку или закрыли попап; засчитываются в день показа. CTR = клики / показы. Регистрация — подтверждённая заявка формы, которую CRS связал с показом и кликом попапа (считаются показы с регистрацией); пока только у тем, где CRS подключил приём формы. Подозрительный трафик (устройство «Другое», города без закрытий) не вычитается — перечислен отдельно как гипотеза. Фильтры считаются по таблице сочетаний CRS (день, час, тема, вариант, устройство, ОС, раздел, страница, страна, город, UTM): в условии — любое из выбранных («=») или все, кроме них («≠»); между условиями — «и» (все сразу) или «или» (хотя бы одно); с «или» и полями, которых у времени нет, время считается без фильтров. Кнопки фильтр не режет. Время до клика и до закрытия — от показа, до регистрации — от клика; режется только по теме, варианту и устройству; медиана — от CRS по всей теме. Тема — кампания попапа в CRS (название — campaign_name, фильтр — по ID). Обновление — ночью.'],
+  ['Попапы','Сколько раз показали попап на сайте и сколько людей нажали кнопку.','Отчёт сервиса попапов CRS (только боевые показы, без тестовых), за выбранный период, даты по Москве; сравнение — с прошлым периодом при тех же фильтрах. Кнопки и медианы времени CRS даёт только за месяц целиком. Показ — одно открытие попапа (не человек). Клик и закрытие — показы, после которых нажали кнопку или закрыли попап; засчитываются в день показа. CTR = клики / показы. Регистрация — подтверждённая заявка формы, которую CRS связал с показом и кликом попапа (считаются показы с регистрацией); пока только у кампаний, где CRS подключил приём формы. Подозрительный трафик (устройство «Другое», города без закрытий) не вычитается — перечислен отдельно как гипотеза. Фильтры считаются по таблице сочетаний CRS (день, час, тема, кампания, вариант, устройство, ОС, раздел, страница, страна, город, UTM): в условии — любое из выбранных («=») или все, кроме них («≠»); между условиями — «и» (все сразу) или «или» (хотя бы одно); с «или» и полями, которых у времени нет, время считается без фильтров. Кнопки фильтр не режет. Время до клика и до закрытия — от показа, до регистрации — от клика; режется только по теме, кампании, варианту и устройству; медиана — от CRS по всей кампании. Уровни: тема → кампания → вариант. Тема объединяет кампании (в CRS — topic_name, ID — topic; кампании без темы — «Без темы»), её цифры — сумма её кампаний. Кампания — campaign_name, ID — campaign. Обновление — ночью.'],
   ['Расходы и окупаемость','Окупается ли реклама (заработает, когда появятся расходы).','CPA — расход / заявки; ДРР — расход / оплачено ₽; ROMI — (маржа − расход) / расход. Из листа «Расходы», пока без привязки заявки к каналу.'],
   ['Обновление','Данные за вчера появляются утром.','Букинг и Метрика — каждую ночь около 5:00. Данные на странице хранятся 15 минут; «Обновить данные» перечитывает таблицу не чаще раза в минуту.']
 ].map(([t,m,d])=>`<div><dt>${t}</dt><dd>${esc(m)}<details class="how"><summary>Как считаем</summary>${esc(d)}</details></dd></div>`).join('')+'</dl>';
