@@ -696,11 +696,16 @@ function barChart(id,{bars,color,height=220,line,ticks,fmtV=v=>fmt(v),name}){
     const t=ticks?ticks(i):'';if(t)g+=`<text x="${x0+w/2}" y="${H-6}" text-anchor="middle">${esc(t)}</text>`;
   });
 
-  if(line){let d='',open=false;line.values.forEach((v,i)=>{if(v==null){open=false;return}const cx=L+i*bw+bw/2;d+=(open?'L':'M')+cx.toFixed(1)+','+ly(v).toFixed(1);open=true});
+  if(line){
+    // line.dashFrom — с этой точки линия пунктиром (свежие дни ещё «дозревают»); сплошная часть доходит до неё же, без зазора
+    const pathOf=(a,b)=>{let d='',open=false;line.values.forEach((v,i)=>{if(i<a||i>b||v==null){open=false;return}const cx=L+i*bw+bw/2;d+=(open?'L':'M')+cx.toFixed(1)+','+ly(v).toFixed(1);open=true});return d};
+    const DF=line.dashFrom!=null&&line.dashFrom<n?line.dashFrom:null;
     // line.width — толщина (по умолчанию 2); line.halo — светлая подложка, чтобы линия читалась поверх столбиков
     const lw=line.width||2;
-    if(line.halo)g+=`<path ${line.dash?'class="fd"':'class="ln" pathLength="1"'} d="${d}" fill="none" stroke="${cssv('--surface')}" stroke-width="${lw+3}" stroke-linejoin="round" stroke-linecap="round" pointer-events="none"/>`;
-    g+=`<path ${line.dash?'class="fd" stroke-dasharray="6 4"':'class="ln" pathLength="1"'} d="${d}" fill="none" stroke="${line.color}" stroke-width="${lw}" stroke-linejoin="round" stroke-linecap="round" pointer-events="none"/>`}
+    const draw=(d,dash)=>{if(!d)return;
+      if(line.halo)g+=`<path ${dash?'class="fd"':'class="ln" pathLength="1"'} d="${d}" fill="none" stroke="${cssv('--surface')}" stroke-width="${lw+3}" stroke-linejoin="round" stroke-linecap="round" pointer-events="none"/>`;
+      g+=`<path ${dash?'class="fd" stroke-dasharray="6 4"':'class="ln" pathLength="1"'} d="${d}" fill="none" stroke="${line.color}" stroke-width="${lw}" stroke-linejoin="round" stroke-linecap="round" pointer-events="none"/>`};
+    if(DF==null)draw(pathOf(0,n-1),line.dash);else{draw(pathOf(0,DF),line.dash);draw(pathOf(DF,n-1),true)}}
   g+=`<rect class="hit" x="${L}" y="${T}" width="${W-L-R}" height="${H-T-B}"/>`;
   setTimeout(()=>{const svg=document.getElementById(id);if(!svg)return;
     bindScrub(svg,W,px=>Math.max(0,Math.min(n-1,Math.floor((px-L)/bw))),(i,ev)=>{const b=bars[i];
@@ -1114,6 +1119,11 @@ function vWeb(){
   // продажи среза: оплачено — по статусу заявки в Букинге (номер заявки из лида/сделки, 21/30); нет расчёта — по стадии сделки Б24
   const regsOf=x=>{const i=x.cols.indexOf('noReg');return i<0?x.rows:x.rows.filter(r=>r[i]!==1)};
   const srezOf=x=>{const b=x.seg&&x.seg.srezBk,z=x.srez;if(b)return{bk:1,leads:b.rows,withReq:b.withReq,sold:b.paid,sum:b.sum,soldNew:b.fresh,soldNoContact:0};return z||null};
+  // экскурсия (29.10.2026): «оплатили» — люди (регистрации), чей статус брони в Букинге «Оплачено» / «Предоплата», как в «Статусах броней»;
+  // срез Б24 считает брони по стадии сделки — другие единицы и другой источник, показывается только подписью
+  const paidSt=s=>/^(оплачен|предоплат)/i.test(String(s||'').trim());
+  const paidOf=x=>{if(x.type!=='экскурсия')return null;const i=x.cols.indexOf('stage');return i<0?null:regsOf(x).filter(r=>r[i]>=0&&paidSt(x.dict.stage[r[i]])).length};
+  const soldOf=x=>{const p=paidOf(x);return p!=null?p:srezOf(x)?srezOf(x).sold:null};
   if(W.error&&!L.length){$('#view').innerHTML=`<div class="err"><b>Мероприятия не загрузились.</b> ${esc(W.error)}</div>`;return}
   if(!L.length){$('#view').innerHTML='<div class="empty">В справочнике мероприятий пока нет мероприятий с регистрациями.</div>';return}
   if(!L.some(w=>w.name===S.web))S.web=L[0].name;
@@ -1133,8 +1143,8 @@ function vWeb(){
   // подпись в списке: полная дата с годом впереди, «· дд.мм» из названия убираем
   const wl=x=>x.date?dd(x.date)+' · '+x.name.replace(/\s*·\s*\d{2}\.\d{2}$/,''):x.name;
   let h=`<div class="pin-f"><span class="flbl">Мероприятия · ${L.length}</span>
-    <details class="panel dq pick" id="web-pick"><summary><span>${esc(wl(w))}</span><span class="muted pick-n"><span class="pk-dot"> · </span>${fmt(n)} ${plural(n,'регистрация','регистрации','регистраций')}</span><span class="muted pk-short" title="${fmt(n)} ${plural(n,'регистрация','регистрации','регистраций')}${srezOf(w)?` · ${fmt(srezOf(w).sold)} ${plural(srezOf(w).sold,'продажа','продажи','продаж')}`:''}">${fmt(n)} рег.${srezOf(w)?' · продаж '+fmt(srezOf(w).sold):''}</span></summary>
-    <ul class="pick-list">${L.map(x=>`<li><button type="button" data-w="${esc(x.name)}" aria-current="${x.name===w.name}"><span>${esc(wl(x))}</span><span class="muted pk-s">${fmt(regsOf(x).length)} рег.${srezOf(x)?` · продаж ${fmt(srezOf(x).sold)}`:''}</span><span class="muted pk-f">${fmt(regsOf(x).length)} ${plural(regsOf(x).length,'регистрация','регистрации','регистраций')}${srezOf(x)?` · ${fmt(srezOf(x).sold)} ${plural(srezOf(x).sold,'продажа','продажи','продаж')}`:''}</span></button></li>`).join('')}</ul></details></div>
+    <details class="panel dq pick" id="web-pick"><summary><span>${esc(wl(w))}</span><span class="muted pick-n"><span class="pk-dot"> · </span>${fmt(n)} ${plural(n,'регистрация','регистрации','регистраций')}</span><span class="muted pk-short" title="${fmt(n)} ${plural(n,'регистрация','регистрации','регистраций')}${soldOf(w)!=null?` · ${fmt(soldOf(w))} ${ex?plural(soldOf(w),'оплатил','оплатили','оплатили'):plural(soldOf(w),'продажа','продажи','продаж')}`:''}">${fmt(n)} рег.${soldOf(w)!=null?(ex?' · оплатили ':' · продаж ')+fmt(soldOf(w)):''}</span></summary>
+    <ul class="pick-list">${L.map(x=>`<li><button type="button" data-w="${esc(x.name)}" aria-current="${x.name===w.name}"><span>${esc(wl(x))}</span><span class="muted pk-s">${fmt(regsOf(x).length)} рег.${soldOf(x)!=null?`${paidOf(x)!=null?' · оплатили ':' · продаж '}${fmt(soldOf(x))}`:''}</span><span class="muted pk-f">${fmt(regsOf(x).length)} ${plural(regsOf(x).length,'регистрация','регистрации','регистраций')}${soldOf(x)!=null?` · ${fmt(soldOf(x))} ${paidOf(x)!=null?plural(soldOf(x),'оплатил','оплатили','оплатили'):plural(soldOf(x),'продажа','продажи','продаж')}`:''}</span></button></li>`).join('')}</ul></details></div>
     <p class="muted" style="font-size:12.5px;margin:6px 0 16px">${kind} ${dd(w.date)}${ex&&w.guests!=null?` · гостей в действующих бронях: ${fmt(w.guests)}`:''} · регистрации ${dd(w.start)} – ${dd(w.end)}${w.dups?` · повторных регистраций убрано: ${fmt(w.dups)}`:''}</p>`;
   if(!enriched)h+=`<div class="empty" style="margin-bottom:16px"><b>Регистрации ещё не сверены с базами.</b> ${ex?'Новые брони экскурсии проверяются в «Букинге» каждые 15 минут днём — появятся база ИФ и оплаты.':'В таблице мероприятий запустите проверки «Букинг» и «Битрикс» для этого листа — появятся база ИФ, оплаты, заявки и стадии.'}</div>`;
   // экскурсия: три карточки в тех же единицах, что «Места по сеансам» (люди → гости → оплаченные гости)
@@ -1237,8 +1247,17 @@ function vWeb(){
   // регистрации по дням
   const days=[];if(w.start&&w.end){for(let d=new Date(w.start+'T00:00:00');;d.setDate(d.getDate()+1)){const x=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');days.push(x);if(x>=w.end||days.length>120)break}}
   const byDay=Object.fromEntries(days.map(x=>[x,0]));rows.forEach(r=>{if(r[c.day]in byDay)byDay[r[c.day]]++});
-  if(days.length)h+=`<div class="panel sec" id="web-days" style="margin-bottom:16px"><h2>Регистрации по дням</h2>${barChart('c-web',{name:'Регистраций',color:cssv('--s1'),bars:days.map(x=>({label:dShort(x)+' '+x.slice(0,4)+(x===w.date?(ex?' · день экскурсии':' · день вебинара'):''),value:byDay[x],color:x===w.date?cssv('--s2'):undefined})),ticks:i=>i%Math.max(1,Math.ceil(days.length/10))===0?dShort(days[i]):''})}
-    ${days.includes(w.date)?legend([['Регистрации',cssv('--s1'),'bar'],[ex?'День экскурсии':'День вебинара',cssv('--s2'),'bar']]):''}</div>`;
+  // CR экскурсии (29.10.2026): из зарегистрированных в этот день — сколько людей сейчас со статусом «Оплачено» / «Предоплата»;
+  // сумма по дням = «Оплатили, людей» в воронке. Последние 7 дней (до сегодня) — пунктиром: оплата ещё «дозревает»
+  const crOn=ex&&paidOf(w)!=null,pdDay=Object.fromEntries(days.map(x=>[x,0]));
+  if(crOn)rows.forEach(r=>{if(r[c.day]in pdDay&&r[c.stage]>=0&&paidSt(w.dict.stage[r[c.stage]]))pdDay[r[c.day]]++});
+  const crFrom=(()=>{const t=new Date(D.today+'T12:00:00');t.setDate(t.getDate()-6);return t.toISOString().slice(0,10)})(),crDash=days.findIndex(x=>x>=crFrom);
+  if(days.length)h+=`<div class="panel sec" id="web-days" style="margin-bottom:16px"><h2>${crOn?'Регистрации по дням и CR в оплату':'Регистрации по дням'}</h2>${barChart('c-web',{name:'Регистраций',color:cssv('--s1'),bars:days.map(x=>({label:dShort(x)+' '+x.slice(0,4)+(x===w.date?(ex?' · день экскурсии':' · день вебинара'):''),value:byDay[x],color:x===w.date?cssv('--s2'):undefined,
+      tip:crOn&&byDay[x]?`Оплатили: <b>${fmt(pdDay[x])}</b> из ${fmt(byDay[x])}${crDash>=0&&x>=crFrom?'<br><span class="muted">ещё дозревает</span>':''}`:''})),
+    line:crOn?{name:'CR в оплату',color:cssv('--s3'),right:1,floor:10,width:3,halo:1,values:days.map(x=>byDay[x]?100*pdDay[x]/byDay[x]:null),dashFrom:crDash>=0?crDash:null,fmtV:v=>fmt(v,1)+'%',fmtA:v=>fmt(v,0)+'%'}:undefined,
+    ticks:i=>i%Math.max(1,Math.ceil(days.length/10))===0?dShort(days[i]):''})}
+    ${days.includes(w.date)||crOn?legend([['Регистрации',cssv('--s1'),'bar'],...(days.includes(w.date)?[[ex?'День экскурсии':'День вебинара',cssv('--s2'),'bar']]:[]),...(crOn?[['CR в оплату — шкала справа',cssv('--s3')]]:[])]):''}
+    ${crOn?`<p class="note">CR — из зарегистрированных в этот день сколько людей сейчас со статусом брони «Оплачено» или «Предоплата» (Букинг): ${fmt(Object.values(pdDay).reduce((a,b)=>a+b,0))} из ${fmt(n)}, как «Оплатили, людей» в воронке. Пунктир — последние 7 дней: оплата ещё может прийти. В дни без регистраций линии нет.</p>`:''}</div>`;
   // воронка мероприятия — только путь через само мероприятие (Битрикс: лид вебинара → бронь → оплата по срезу)
   // выборка заявок для когорты и таблицы: c — круизы, x — доп. услуги к круизу, a — всё вместе (до v97 в данных только общая выборка)
   // тип заявки: c круиз (по умолчанию), x доп. услуга, v билет «В гости на теплоход», s сертификат, air авиа (в данных — a), z визы, o прочее, all всё вместе
@@ -1266,11 +1285,13 @@ function vWeb(){
   if(!WK.some(x=>x[0]===S.wkind))S.wkind='c';
   const wk=hasK?S.wkind:'c',SG=wsg(wk),A=SG&&SG.all,wt=WKT.find(x=>x[0]===wk);
   const WKL=[wk==='all'?'Оставили любую заявку':`Оставили заявку на ${wt[2]}`,wk==='all'?'Купили что-либо':`Купили ${wt[2]}`,wt[3]];
-  const steps=ex?[['Регистрации',n],['Бронь в Б24',k.req]].concat(sz?[['Оплачено броней',sz.sold]]:[])
+  const PPL=paidOf(w);
+  const steps=ex?[['Регистрации',n],['Бронь в Б24',k.req]].concat(PPL!=null?[['Оплатили, людей',PPL]]:sz?[['Оплачено броней',sz.sold]]:[])
     :[[nNr?'Участники':'Регистрации',NA],['Лидов вебинара в Б24',sz?sz.leads:cntA('req')]].concat(sz?[[sz.bk?'Оплатили (заявка в Букинге)':'Оплатили (срез сделок)',sz.sold]]:[]);
   const fun=(st,last,base=n)=>`<div class="funnel">${st.map(([name,v],i)=>`<div class="row"><span>${esc(name)}</span><div class="bar"><i style="width:${base?Math.max(v?0.5:0,Math.min(100,v/base*100)):0}%${last&&i===st.length-1?';background:var(--s2)':''}"></i></div><span class="n">${fmt(v)}</span><span class="cr">${i?`${pct(base?v/base:null,1)} <span class="muted">· ${pct(st[i-1][1]?v/st[i-1][1]:null,0)}</span>`:''}</span></div>`).join('')}</div>`;
-  h+=`<div class="grid g-2 sec" id="web-funnel"><div class="panel"><h2>${ex?'Воронка экскурсии':'Воронка вебинара'}</h2><p class="sub">${ex?'Что стало с регистрациями экскурсии: бронь и оплата.':`Только то, что пришло через сам вебинар: лид с типом вебинара в Битриксе → номер заявки в лиде → оплачена ли эта заявка в Букинге (Предоплата или Оплачено)${nNr?`. Участники — люди: ${nw(n,'регистрация','регистрации','регистраций')} и ${nw(nNr,'человек','человека','человек')} без регистрации (оставили заявку через CRM-форму, на лендинге не регистрировались)`:''}${sz?'; ниже — лиды мероприятия в Битриксе (у одного человека бывает несколько) и оплаченные заявки, как в карточках':''}. Где сейчас лиды — в блоке «Стадии лидов».`} Справа — доля от ${nNr?'участников':'регистраций'} · переход с предыдущего шага.</p>
-    ${fun(steps,false,NA)}</div>`;
+  h+=`<div class="grid g-2 sec" id="web-funnel"><div class="panel"><h2>${ex?'Воронка экскурсии':'Воронка вебинара'}</h2><p class="sub">${ex?'Что стало с регистрациями экскурсии: бронь и оплата. Считаем людей; оплатили — статус брони в Букинге «Оплачено» или «Предоплата», как в «Статусах броней».':`Только то, что пришло через сам вебинар: лид с типом вебинара в Битриксе → номер заявки в лиде → оплачена ли эта заявка в Букинге (Предоплата или Оплачено)${nNr?`. Участники — люди: ${nw(n,'регистрация','регистрации','регистраций')} и ${nw(nNr,'человек','человека','человек')} без регистрации (оставили заявку через CRM-форму, на лендинге не регистрировались)`:''}${sz?'; ниже — лиды мероприятия в Битриксе (у одного человека бывает несколько) и оплаченные заявки, как в карточках':''}. Где сейчас лиды — в блоке «Стадии лидов».`} Справа — доля от ${nNr?'участников':'регистраций'} · переход с предыдущего шага.</p>
+    ${fun(steps,false,NA)}${ex&&PPL!=null?(()=>{const pb=SV?SV.flatMap(x=>x.items||[]).filter(i=>/Оплачено|Предоплата/i.test(i.st)).length:null;
+      return pb!=null||sz?`<p class="sub" style="margin-top:8px">Оплаченных броней: ${[pb!=null?`${fmt(pb)} по Букингу`:'',sz?`${fmt(sz.sold)} по сделкам Б24`:''].filter(Boolean).join(' · ')} — у одного человека бывает несколько броней, а Б24 отмечает оплату раньше Букинга.</p>`:''})():''}</div>`;
   // стадии лидов
   // стадии вебинара — по каждому лиду среза Б24 (28.10.2026), как «Лидов в Битриксе»; нет среза — по участникам; экскурсия — статусы броней
   const LS=!ex&&w.srez&&w.srez.stages&&Object.keys(w.srez.stages).length?w.srez.stages:null,LN=LS?Object.values(LS).reduce((a,b)=>a+b,0):0;
