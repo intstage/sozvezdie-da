@@ -381,6 +381,22 @@ details.dq.pick li{display:block;padding:0;background:none;border-radius:0}detai
 .pick-list .pk-s{white-space:nowrap}.pick-list .pk-f{display:none}
 details.pick .pk-short{display:none}
 @media (max-width:560px){details.pick summary .pick-n{flex-basis:100%}details.pick .pk-dot{display:none}.pick-list button{flex-direction:column;align-items:flex-start;gap:2px}.pick-list .pk-s{display:none}.pick-list .pk-f{display:block}}
+.pf-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+details.pf{position:relative}
+details.pf summary{list-style:none;cursor:pointer;font:500 13.5px var(--body);color:var(--ink2);background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:7px 12px;white-space:nowrap;max-width:280px;overflow:hidden;text-overflow:ellipsis}
+details.pf summary::-webkit-details-marker{display:none}
+details.pf.on summary{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+details.pf summary b{font-weight:600}
+.pf-box{position:absolute;left:0;top:100%;margin-top:6px;z-index:15;width:min(380px,86vw);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.15)}
+.pf-box .seg{min-height:0}
+.pf-q{width:100%;box-sizing:border-box;margin-top:8px}
+.pf-list{max-height:min(320px,50vh);overflow:auto;display:grid;gap:2px;margin:8px 0 4px}
+.pf-list label{display:flex;gap:8px;align-items:center;padding:5px 6px;border-radius:6px;font-size:13.5px;cursor:pointer}
+@media (hover:hover){.pf-list label:hover{background:var(--surface2)}}
+.pf-list label>span:first-of-type{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pf-btn{font:500 13px var(--body);border:0;background:none;color:var(--accent);cursor:pointer;padding:6px 8px}
+.pbar{height:8px;background:var(--surface2);border-radius:4px;min-width:60px}.pbar i{display:block;height:100%;background:var(--s1);border-radius:4px}
+@media (max-width:560px){.pf-box{position:fixed;left:16px;right:16px;top:auto;bottom:16px;width:auto}details.pf summary{max-width:calc(100vw - 64px)}}
 footer.method .dq{margin:0 0 22px;font-size:14px;line-height:1.45;color:var(--ink2)}
 footer.method{font-size:12.5px;line-height:1.5;color:var(--muted);margin-top:24px;padding-top:16px;border-top:1px solid var(--line)}
 footer.method h3{font:600 12px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
@@ -1476,12 +1492,107 @@ const POP_DEV={phone:'Телефон',desktop:'Компьютер',tablet:'Пл�
 const POP_OS={android:'Android',windows:'Windows',ios:'iOS',macos:'macOS',linux:'Linux',unknown:'Не определено'};
 const POP_SEC={home:'Главная',cruises:'Круизы',routes:'Маршруты',services:'Услуги',ships:'Теплоходы',about:'О компании',news:'Новости',login:'Вход',account:'Личный кабинет',blog:'Блог',forms:'Формы',other:'Прочее'};
 const POP_Q={tagged:'С UTM-метками',unknown:'Без меток',historical:'До записи источника',invalid:'Неверные метки',partial:'Неполные метки'};
+// фильтры «и / или / кроме» — по таблице сочетаний CRS (cube): внутри фильтра — любое из выбранных, между фильтрами — все сразу
+const POP_FD=[['campaign','Кампания'],['variant_id','Вариант'],['device','Устройство'],['os','ОС'],['section','Раздел'],['page','Страница'],['country','Страна'],['city','Город'],['utm_source','Источник'],['utm_medium','Канал'],['utm_campaign','Кампания UTM'],['attribution_quality','Метки'],['hour','Время']];
+const POP_UNK='__unknown__',POP_TF=['campaign','variant_id','device'];   // на время действуют только эти фильтры (так режет CRS)
+let popOpen=null,popQ='';
+function popLbl(M,f,v){
+  if(v==null||v===POP_UNK)return 'не определено';
+  if(f==='campaign'){const r=M.camp.find(r=>r[7]===v);return r?r[0]:v}
+  if(f==='variant_id'){const r=M.camp.find(r=>r[8]===v);return r?r[1]:v}
+  if(f==='hour')return String(v).padStart(2,'0')+':00';
+  return ({device:POP_DEV,os:POP_OS,section:POP_SEC,attribution_quality:POP_Q}[f]||{})[v]||v}
+function popGet(C){const I={};C.k.forEach((k,i)=>I[k]=i);return [I,(r,f)=>{const v=r[I[f]];return v==null?null:C.d[f]?C.d[f][v]:String(v)}]}
+function popPass(F,get,r,skip){for(const f in F){const x=F[f];if(f===skip||!x.v.length)continue;if(x.v.includes(get(r,f))!==!x.x)return false}return true}
+// строки cube → те же короткие массивы, что и у saPopCompact_ (отрисовка общая)
+function popAgg(M0,C,rows){
+  const [I,get]=popGet(C),n=r=>[r[I.opens],r[I.clicked],r[I.closed],r[I.registered]];
+  const by=(key,head,o)=>{const m={};let L=0;rows.forEach(r=>{const h=head(r),k=key(r),x=n(r),v=m[k]||(m[k]=h.concat([0,0,0,null],o?o(r):[]));L=h.length;
+      v[L]+=x[0];v[L+1]+=x[1];v[L+2]+=x[2];if(x[3]!=null)v[L+3]=(v[L+3]||0)+x[3]});
+    return Object.values(m).sort((a,b)=>b[L]-a[L])};
+  const u=v=>v===POP_UNK?'':v,un=v=>v===POP_UNK?'unknown':v;
+  const t=[0,0,0,null];rows.forEach(r=>{const x=n(r);t[0]+=x[0];t[1]+=x[1];t[2]+=x[2];if(x[3]!=null)t[3]=(t[3]||0)+x[3]});
+  const dm={};by(r=>get(r,'day'),r=>[get(r,'day')]).forEach(x=>dm[x[0]]=x);
+  const camp=by(r=>get(r,'campaign')+'\u0001'+get(r,'variant_id'),r=>[popLbl(M0,'campaign',get(r,'campaign')),popLbl(M0,'variant_id',get(r,'variant_id')),null],r=>[get(r,'campaign'),get(r,'variant_id')]);
+  const page=by(r=>get(r,'page'),r=>[u(get(r,'page')),u(get(r,'section'))]);
+  const city=by(r=>get(r,'country')+'\u0001'+get(r,'city'),r=>[u(get(r,'country')),u(get(r,'city'))]);
+  const dev=by(r=>get(r,'device'),r=>[un(get(r,'device'))]);
+  const utm=by(r=>['utm_source','utm_medium','utm_campaign','attribution_quality'].map(f=>get(r,f)).join('\u0001'),r=>['utm_source','utm_medium','utm_campaign'].map(f=>u(get(r,f))).concat([get(r,'attribution_quality')])).map(x=>x.slice(0,7));
+  const hm={};by(r=>get(r,'hour'),r=>[+get(r,'hour')]).forEach(x=>hm[x[0]]=x);
+  return Object.assign({},M0,{t,
+    day:M0.day.map(x=>dm[x[0]]||[x[0],0,0,0,null]),
+    camp,sec:by(r=>get(r,'section'),r=>[u(get(r,'section'))]),page:page.slice(0,SA_POP_TOPN),pages:page.length,dev,
+    os:by(r=>get(r,'os'),r=>[un(get(r,'os'))]),city:city.slice(0,20),utm:utm.slice(0,20),
+    q:by(r=>get(r,'attribution_quality'),r=>[get(r,'attribution_quality')]).map(x=>[x[0],x[1]]),
+    hours:Array.from({length:24},(_,h)=>hm[h]||[h,0,0,0,null]),
+    bots:{other:((dev.find(x=>x[0]==='other')||[])[1])||0,dc:city.filter(x=>x[2]>=20&&!x[4]).map(x=>[x[0],x[1],x[2]])}})}
+const SA_POP_TOPN=30;
+function popFilters(M0,C,F){
+  const [,get]=popGet(C),on=Object.keys(F).filter(f=>F[f].v.length);
+  const chip=([f,l])=>{
+    const x=F[f]||{x:0,v:[]},cnt={};
+    C.r.forEach(r=>{if(!popPass(F,get,r,f))return;const v=get(r,f);cnt[v]=(cnt[v]||0)+r[C.k.indexOf('opens')]});
+    x.v.forEach(v=>{if(!(v in cnt))cnt[v]=0});
+    const vals=Object.keys(cnt).sort(f==='hour'?(a,b)=>a-b:(a,b)=>cnt[b]-cnt[a]||a.localeCompare(b));
+    const sm=!x.v.length?'все':(x.x?'кроме ':'')+(x.v.length===1?popLbl(M0,f,x.v[0]):x.v.length+' знач.');
+    const big=vals.length>12;
+    return `<details class="pf${x.v.length?' on':''}" data-pf="${f}"${popOpen===f?' open':''}><summary>${l}: <b>${esc(sm)}</b></summary><div class="pf-box">
+      <div class="seg" style="display:flex"><button type="button" data-pfx="0" aria-pressed="${!x.x}">Только выбранные</button><button type="button" data-pfx="1" aria-pressed="${!!x.x}">Все, кроме</button></div>
+      ${big?`<input class="pf-q" type="search" placeholder="Найти…" value="${esc(popOpen===f?popQ:'')}">`:''}
+      <div class="pf-list">${vals.map(v=>{const lb=popLbl(M0,f,v);return`<label data-s="${esc((lb+' '+v).toLowerCase())}"><input type="checkbox" data-pfv="${esc(v)}"${x.v.includes(v)?' checked':''}><span title="${esc(v)}">${esc(lb)}</span><span class="muted">${fmt(cnt[v])}</span></label>`}).join('')}</div>
+      ${x.v.length?'<button type="button" class="pf-btn" data-pfc="1">Снять выбор</button>':''}</div></details>`};
+  return `<div class="panel" id="pop-flt" style="margin-bottom:16px"><div class="pf-row">${POP_FD.map(chip).join('')}${on.length?'<button type="button" class="pf-btn" data-pfr="1">Сбросить все</button>':''}</div>
+    <p class="note" style="margin:8px 0 0">Внутри фильтра — любое из выбранных, между фильтрами — все условия сразу. Число рядом — показы с учётом остальных фильтров</p></div>`}
+function popFlBind(){
+  const el=$('#pop-flt');if(!el)return;
+  const F=S.popf||(S.popf={}),go=()=>{save();render()};
+  el.querySelectorAll('details.pf').forEach(d=>{
+    d.addEventListener('toggle',()=>{if(d.open){const bx=d.querySelector('.pf-box');bx.style.left='';bx.style.right='';if(innerWidth>560&&bx.getBoundingClientRect().right>innerWidth-8){bx.style.left='auto';bx.style.right='0'}if(popOpen!==d.dataset.pf)popQ='';popOpen=d.dataset.pf;el.querySelectorAll('details.pf[open]').forEach(o=>{if(o!==d)o.open=false});const q=d.querySelector('.pf-q');if(q){q.focus();q.dispatchEvent(new Event('input',{bubbles:true}))}}else if(popOpen===d.dataset.pf)popOpen=null})});
+  el.addEventListener('input',e=>{if(!e.target.classList.contains('pf-q'))return;popQ=e.target.value;const q=popQ.trim().toLowerCase();e.target.closest('.pf-box').querySelectorAll('.pf-list label').forEach(l=>l.hidden=!!q&&!l.dataset.s.includes(q))});
+  el.addEventListener('change',e=>{const c=e.target.closest('[data-pfv]');if(!c)return;const f=c.closest('[data-pf]').dataset.pf,x=F[f]||(F[f]={x:0,v:[]});
+    x.v=c.checked?x.v.concat([c.dataset.pfv]):x.v.filter(v=>v!==c.dataset.pfv);go()});
+  el.addEventListener('click',e=>{const b=e.target.closest('[data-pfx],[data-pfc],[data-pfr]');if(!b)return;
+    if(b.dataset.pfr){S.popf={};popOpen=null;return go()}
+    const f=b.closest('[data-pf]').dataset.pf,x=F[f]||(F[f]={x:0,v:[]});
+    if(b.dataset.pfc)x.v=[];else x.x=+b.dataset.pfx;go()});
+  const q=el.querySelector('details.pf[open] .pf-q');if(q&&q.value)q.dispatchEvent(new Event('input',{bubbles:true}));
+  if(!popFlBind.doc){popFlBind.doc=1;document.addEventListener('click',e=>{if(!e.target.closest('details.pf'))document.querySelectorAll('details.pf[open]').forEach(d=>d.open=false)})}
+}
+// время до действия — по timing CRS (день × кампания × вариант × устройство), медианы — по кампании целиком
+const POP_TB=[['0-3s','до 3 с'],['3-10s','3–10 с'],['10-30s','10–30 с'],['30-60s','30–60 с'],['1-3m','1–3 мин'],['3m+','3 мин и дольше'],[POP_UNK,'не определено']];
+const POP_RB=[['<5m','до 5 мин'],['5-30m','5–30 мин'],['30m-2h','30 мин – 2 ч'],['2-24h','2–24 ч'],['1-3d','1–3 дня'],['3d+','3 дня и дольше'],[POP_UNK,'не определено']];
+function popTiming(M0,F){
+  const T=M0.timing;if(!T||!T.r)return '';
+  const F2={};POP_TF.forEach(f=>{if(F[f])F2[f]=F[f]});
+  const [I,get]=popGet(T),rows=T.r.filter(r=>popPass(F2,get,r));
+  const ign=Object.keys(F).filter(f=>F[f].v.length&&!POP_TF.includes(f)).map(f=>POP_FD.find(x=>x[0]===f)[1]);
+  const cnt=(m,b)=>sum(rows.filter(r=>get(r,'metric')===m&&(b==null||get(r,'bucket')===b)).map(r=>r[I.count]));
+  const col=(m,b)=>{const a=cnt(m),v=cnt(m,b);return`<td class="r">${fmt(v)}</td><td class="r muted">${a?pct(v/a,0):'—'}</td><td style="width:22%"><div class="pbar"><i style="width:${a?100*v/a:0}%"></i></div></td>`};
+  const sec=s=>s==null?'—':s<60?fmt(s,s<10?1:0)+' с':s<3600?fmt(s/60,1)+' мин':fmt(s/3600,1)+' ч';
+  const cf=F.campaign&&F.campaign.v.length?F.campaign:null;
+  const med=(M0.tmed||[]).filter(x=>!cf||cf.v.includes(x.campaign)!==!!cf.x);
+  const cids=[...new Set(med.map(x=>x.campaign))];
+  const mv=(c,m)=>{const x=med.find(y=>y.campaign===c&&y.metric===m);return x?`${sec(x.median_seconds)} <span class="muted">· ${fmt(x.count)}</span>`:'<span class="muted">—</span>'};
+  const reg=cnt('click_to_registration');
+  return `<div class="panel sec" id="pop-time" style="margin-bottom:16px"><h2>Время до действия</h2>
+    <p class="sub">Сколько попап был на экране до клика по кнопке и до закрытия${ign.length?`. <b>${ign.length>1?'Фильтры':'Фильтр'} «${esc(ign.join('», «'))}» на время не ${ign.length>1?'действуют':'действует'}</b> — CRS режет время только по кампании, варианту и устройству`:''}</p>
+    <div class="tbl"><table><thead><tr><th>Сколько был на экране</th><th class="r">До клика</th><th class="r">%</th><th></th><th class="r">До закрытия</th><th class="r">%</th><th></th></tr></thead><tbody>
+    ${POP_TB.filter(([b])=>b!==POP_UNK||cnt('open_to_click',b)||cnt('open_to_close',b)).map(([b,l])=>`<tr><td class="b">${l}</td>${col('open_to_click',b)}${col('open_to_close',b)}</tr>`).join('')}
+    <tr class="b"><td>Всего</td><td class="r">${fmt(cnt('open_to_click'))}</td><td></td><td></td><td class="r">${fmt(cnt('open_to_close'))}</td><td></td><td></td></tr></tbody></table></div>
+    ${reg?`<p class="sub" style="margin-top:12px"><b>От клика до регистрации:</b> ${POP_RB.filter(([b])=>cnt('click_to_registration',b)).map(([b,l])=>`${l} — ${fmt(cnt('click_to_registration',b))}`).join(' · ')}</p>`:''}
+    ${cids.length?`<h2 style="margin-top:16px">Медиана по кампании</h2><div class="tbl"><table><thead><tr><th>Кампания</th><th class="r">До клика</th><th class="r">До закрытия</th><th class="r">Клик → регистрация</th></tr></thead><tbody>
+      ${cids.map(c=>`<tr><td class="b">${esc(popLbl(M0,'campaign',c))}</td><td class="r">${mv(c,'open_to_click')}</td><td class="r">${mv(c,'open_to_close')}</td><td class="r">${mv(c,'click_to_registration')}</td></tr>`).join('')}</tbody></table></div>
+      <p class="note">Медиана — половина действий быстрее, половина дольше; после точки — сколько действий. Считает CRS по всей кампании за месяц: фильтры, кроме кампании, на неё не действуют. Закрытия с ошибкой времени (отрицательный интервал) — в «не определено» и в медиану не входят</p>`:''}
+  </div>`}
 function vPop(){
   const P=D.pop,ms=P&&P.months?Object.keys(P.months).sort().reverse():[];
   if(!P||P.nokey||!ms.length){$('#filters').innerHTML='';$('#view').innerHTML=P&&P.error?`<div class="err"><b>Попапы не загрузились.</b> ${esc(P.error)}</div>`:
     `<div class="empty"><b>Данных о попапах пока нет.</b> ${P&&P.nokey?'Ждём служебный ключ от владельца CRS: с ним отчёт будет каждую ночь забирать показы, клики и регистрации попапов сайта.':'Ключ CRS есть, данные появятся после ночного обновления или пункта меню «Попапы: обновить из CRS».'}</div>`;return}
   if(!ms.includes(S.popm))S.popm=ms[0];
-  const M=P.months[S.popm],t=M.t,hasR=t[3]!=null;
+  const M0=P.months[S.popm],C=M0.cube&&M0.cube.r?M0.cube:null,F=S.popf||(S.popf={});
+  Object.keys(F).forEach(f=>{if(!POP_FD.some(x=>x[0]===f))delete F[f]});
+  const FON=C&&Object.keys(F).some(f=>F[f].v.length);
+  const M=C?popAgg(M0,C,(()=>{const [,get]=popGet(C);return C.r.filter(r=>popPass(F,get,r))})()):M0,t=M.t,hasR=t[3]!=null;
   $('#filters').innerHTML=`<div class="filters"><label><span class="flbl">Месяц</span><select id="sel-popm">${ms.map(m=>`<option value="${m}"${m===S.popm?' selected':''}>${monName(m)}</option>`).join('')}</select></label></div>`;
   $('#sel-popm').onchange=e=>{histPush();S.popm=e.target.value;save();render();navState()};
   const ctr=(o,c)=>pct(o?c/o:null,2),share=(o,x)=>pct(o?x/o:null,0);
@@ -1493,7 +1604,7 @@ function vPop(){
   const f0=M.day.findIndex(x=>x[1]),days=f0>0?M.day.slice(f0):M.day,dl=d=>dShort(d)+', '+['вс','пн','вт','ср','чт','пт','сб'][new Date(d+'T12:00:00Z').getUTCDay()];
   const live=days.filter(x=>x[1]),first=live.length?live[0][0]:null;
   const done=M.to<D.today?'':` · по ${dShort(M.to)}, сегодня неполный день`;
-  let h=`<div class="grid g-kpi">
+  let h=(C?popFilters(M0,C,F):'')+(FON?`<p class="sub" style="margin:-6px 0 12px">С фильтром: ${fmt(t[0])} из ${fmt(M0.t[0])} показов (${share(M0.t[0],t[0])})</p>`:'')+`<div class="grid g-kpi">
     <div class="panel kpi go" data-go="pop-days"><div class="lbl">Показы</div><div class="val">${fmt(t[0])}</div>${mutedLine(first?`с ${dShort(first)}${done}`:'показов не было')}</div>
     <div class="panel kpi go" data-go="pop-tbl"><div class="lbl">Клики по кнопке</div><div class="val">${fmt(t[1])}</div>${mutedLine(`CTR ${ctr(t[0],t[1])} — клики / показы`)}</div>
     <div class="panel kpi go" data-go="pop-tbl"><div class="lbl">Закрыли</div><div class="val">${fmt(t[2])}</div>${mutedLine(`${share(t[0],t[2])} показов`)}</div>
@@ -1512,23 +1623,29 @@ function vPop(){
   const btns=Object.values(bm).sort((a,b)=>b[3]-a[3]);
   const tg=(M.q.find(x=>x[0]==='tagged')||[0,0])[1];
   const PV=[['camp','Кампании',()=>tbl('<th>Кампания · вариант</th>',camps,r=>`<tr><td><b>${esc(r[0])}</b><br><span class="muted">${esc(r[1])}</span></td>${cells(r,2)}</tr>`)],
-    ['btn','Кнопки',()=>`<div class="tbl"><table><thead><tr><th>Кампания · вариант</th><th>Кнопка</th><th class="r">Кликов</th></tr></thead><tbody>${btns.map(b=>`<tr><td>${esc(b[0])}<br><span class="muted">${esc(b[1])}</span></td><td>${esc(b[2])}</td><td class="r b">${fmt(b[3])}</td></tr>`).join('')||'<tr><td colspan="3" class="muted">Кликов не было</td></tr>'}</tbody></table></div>`],
+    ['btn','Кнопки',()=>(FON?'<p class="sub">Без учёта фильтров: CRS отдаёт кнопки только по кампании</p>':'')+`<div class="tbl"><table><thead><tr><th>Кампания · вариант</th><th>Кнопка</th><th class="r">Кликов</th></tr></thead><tbody>${btns.map(b=>`<tr><td>${esc(b[0])}<br><span class="muted">${esc(b[1])}</span></td><td>${esc(b[2])}</td><td class="r b">${fmt(b[3])}</td></tr>`).join('')||'<tr><td colspan="3" class="muted">Кликов не было</td></tr>'}</tbody></table></div>`],
     ['sec','Разделы',()=>tbl('<th>Раздел сайта</th>',M.sec,r=>`<tr><td class="b">${esc(POP_SEC[r[0]]||r[0]||'—')}</td>${cells(r,1)}</tr>`)],
     ['page','Страницы',()=>`<p class="sub">Топ ${fmt(M.page.length)} из ${fmt(M.pages)} страниц s-cruises.com по показам</p>`+tbl('<th>Страница</th>',M.page,r=>`<tr><td class="nw" title="${esc(r[0])}">${esc(r[0].length>60?r[0].slice(0,58)+'…':r[0])}</td>${cells(r,2)}</tr>`)],
     ['dev','Устройства',()=>tbl('<th>Устройство</th>',M.dev,r=>`<tr><td class="b">${esc(POP_DEV[r[0]]||r[0])}</td>${cells(r,1)}</tr>`)],
     ['os','Системы',()=>tbl('<th>ОС</th>',M.os,r=>`<tr><td class="b">${esc(POP_OS[r[0]]||r[0])}</td>${cells(r,1)}</tr>`)],
     ['city','Города',()=>`<p class="sub">По адресу посетителя, топ ${fmt(M.city.length)}</p>`+tbl('<th>Город</th>',M.city,r=>`<tr><td class="b">${esc(r[1]||'не определён')} <span class="muted">${esc(r[0])}</span></td>${cells(r,2)}</tr>`)],
     ['utm','Источники',()=>`<p class="sub">UTM-метки визита с показом. Источник известен у ${share(t[0],tg)} показов: метки пишутся с 21.10 и только у ссылок с UTM</p>`+tbl('<th>Источник · канал · кампания</th>',M.utm,r=>`<tr><td>${r[0]?`<b>${esc(r[0])}</b> · ${esc(r[1])}<br><span class="muted">${esc(r[2])}</span>`:`<span class="muted">${esc(POP_Q[r[3]]||r[3])}</span>`}</td>${cells(r,4)}</tr>`)]];
+  if(M.hours)PV.push(['hour','Время',()=>barChart('c-poph',{name:'Показов',color:cssv('--s1'),bars:M.hours.map(x=>({label:String(x[0]).padStart(2,'0')+':00–'+String(x[0]+1).padStart(2,'0')+':00',value:x[1],tip:`Кликов: <b>${fmt(x[2])}</b><br>CTR: <b>${ctr(x[1],x[2])}</b><br>Закрыли: <b>${fmt(x[3])}</b>`})),
+      line:{name:'CTR',color:cssv('--s2'),right:1,floor:1,values:M.hours.map(x=>x[1]?100*x[2]/x[1]:null),fmtV:v=>fmt(v,2)+'%',fmtA:v=>fmt(v,1)+'%'},ticks:i=>i%3===0?String(i).padStart(2,'0'):'',height:220})
+    +legend([['Показы',cssv('--s1'),'bar'],['CTR — шкала справа',cssv('--s2')]])+`<p class="note">Время показа по Москве, по часам за весь месяц. Где показов мало, CTR скачет — смотрите на показы рядом</p>`
+    +tbl('<th>Время</th>',M.hours.filter(x=>x[1]),r=>`<tr><td class="b">${String(r[0]).padStart(2,'0')}:00</td>${cells(r,1)}</tr>`)]);
   if(!PV.some(p=>p[0]===S.popv))S.popv='camp';
   h+=`<div class="panel sec" id="pop-tbl" style="margin-bottom:16px"><h2>Где и как сработал попап</h2>
     <div class="seg" id="seg-popv" style="margin:6px 0 12px">${PV.map(([k,l])=>`<button type="button" data-pv="${k}" aria-pressed="${S.popv===k}">${l}</button>`).join('')}</div>
     ${PV.find(p=>p[0]===S.popv)[2]()}</div>`;
+  h+=popTiming(M0,F);
   const B=M.bots||{other:0,dc:[]},bn=B.other+sum(B.dc.map(x=>x[2]));
   if(bn||M.orphan)h+=`<div class="panel" style="margin-bottom:16px"><h2>Подозрительный трафик</h2><p class="sub">Гипотеза, не доказанные роботы. Итоги выше эти показы <b>не вычитают</b> — так считает CRS; правило очистки не согласовано</p><ul class="note">
     ${B.other?`<li>Устройство «Другое»: ${fmt(B.other)} ${plural(B.other,'показ','показа','показов')} (${share(t[0],B.other)}). Сюда CRS относит ботов по User-Agent, но и часть телевизоров и прочих устройств</li>`:''}
     ${B.dc.map(x=>`<li>${esc(x[1])}, ${esc(x[0])}: ${fmt(x[2])} ${plural(x[2],'показ','показа','показов')} и ни одного закрытия</li>`).join('')}
     ${M.orphan?`<li>Кликов без показа: ${fmt(M.orphan)}</li>`:''}</ul></div>`;
-  $('#view').innerHTML=withJump(h,[['pop-days','По дням'],['pop-tbl','Таблица']]);
+  $('#view').innerHTML=withJump(h,[['pop-flt','Фильтры'],['pop-days','По дням'],['pop-tbl','Таблица'],['pop-time','До действия']]);
+  popFlBind();
   $('#seg-popv').onclick=e=>{const b=e.target.closest('[data-pv]');if(!b)return;if(e.detail)b.blur();S.popv=b.dataset.pv;save();render()};
 }
 
@@ -1725,7 +1842,7 @@ $('#method').innerHTML='<div id="dq-slot"></div><p id="period" class="ref-info" 
   ['Воронка и когорта мероприятия','Что пришло через сам вебинар и что эти люди купили вообще.','Воронка — только путь через вебинар: лид с типом вебинара в Битриксе → номер заявки в лиде → оплачена ли эта заявка в Букинге (Предоплата или Оплачено; разные заявки, одна заявка у двух лидов — один раз). Когорта — все заявки тех же людей в Букинге с дня мероприятия, любым путём; считаем людей. Заявки между регистрацией и мероприятием — отдельно («до мероприятия»), в «купили» не входят. Поэтому в когорте покупок больше. Переключатель «Что считаем»: по умолчанию круизы; отдельно — доп. услуги к круизу (дочерняя заявка к круизу без пассажиров), билеты «В гости на теплоход», сертификаты, авиабилеты, визы, прочее или всё вместе.'],
   ['Кто пришёл и когда купил','Кем был человек в день регистрации и через сколько дней купил.','Сегмент — по круизам до дня регистрации: новые (не было в базе), в базе без покупок, покупали только других операторов, покупатели Созвездия (последняя покупка меньше 2 лет назад), вернувшиеся (2 года и больше). Созвездие — вместе с Речными линиями. В ячейке — заявок / оплачено заявок: до мероприятия (между регистрацией и мероприятием) и за срок после дня мероприятия; оплата — статусы «Предоплата» и «Оплачено», срок — по дню первой оплаты. «Купили, людей» — человек один раз. Обновляется ночью.'],
   ['Продажи с бортов','Сколько заявок приносят презентации на теплоходах.','Таблица «График PRO_движ», все листы. График: строка — презентация; доходимость — люди / занятые каюты, конверсия — заявки / занятые каюты (где каюты заполнены). Год к году — месячные сводки («Мария»). Брони — листы «…_продажи с бортов». Рабочие листы месяцев сверяются с графиком.'],
-  ['Попапы','Сколько раз показали попап на сайте и сколько людей нажали кнопку.','Отчёт сервиса попапов CRS (только боевые показы, без тестовых), за календарный месяц, даты по Москве. Показ — одно открытие попапа (не человек). Клик и закрытие — показы, после которых нажали кнопку или закрыли попап; засчитываются в день показа. CTR = клики / показы. Регистрация — подтверждённая заявка формы, которую CRS связал с показом и кликом попапа (считаются показы с регистрацией); пока только у кампаний, где CRS подключил приём формы. Подозрительный трафик (устройство «Другое», города без закрытий) не вычитается — перечислен отдельно как гипотеза. Обновление — ночью.'],
+  ['Попапы','Сколько раз показали попап на сайте и сколько людей нажали кнопку.','Отчёт сервиса попапов CRS (только боевые показы, без тестовых), за календарный месяц, даты по Москве. Показ — одно открытие попапа (не человек). Клик и закрытие — показы, после которых нажали кнопку или закрыли попап; засчитываются в день показа. CTR = клики / показы. Регистрация — подтверждённая заявка формы, которую CRS связал с показом и кликом попапа (считаются показы с регистрацией); пока только у кампаний, где CRS подключил приём формы. Подозрительный трафик (устройство «Другое», города без закрытий) не вычитается — перечислен отдельно как гипотеза. Фильтры считаются по таблице сочетаний CRS (день, час, кампания, вариант, устройство, ОС, раздел, страница, страна, город, UTM): внутри фильтра — любое из выбранных, между фильтрами — все сразу; «Все, кроме» убирает выбранное. Кнопки фильтр не режет. Время до клика и до закрытия — от показа, до регистрации — от клика; режется только по кампании, варианту и устройству; медиана — от CRS по всей кампании. Обновление — ночью.'],
   ['Расходы и окупаемость','Окупается ли реклама (заработает, когда появятся расходы).','CPA — расход / заявки; ДРР — расход / оплачено ₽; ROMI — (маржа − расход) / расход. Из листа «Расходы», пока без привязки заявки к каналу.'],
   ['Обновление','Данные за вчера появляются утром.','Букинг и Метрика — каждую ночь около 5:00. Данные на странице хранятся 15 минут; «Обновить данные» перечитывает таблицу не чаще раза в минуту.']
 ].map(([t,m,d])=>`<div><dt>${t}</dt><dd>${esc(m)}<details class="how"><summary>Как считаем</summary>${esc(d)}</details></dd></div>`).join('')+'</dl>';
