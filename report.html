@@ -1184,18 +1184,22 @@ function vWeb(){
     const C={paid:cssv('--s3'),conf:cssv('--s1'),proc:cssv('--s1-soft')};
     const v0=v=>v==null?'<span class="muted">—</span>':v?fmt(v):'<span class="muted">0</span>';
     const dif=x=>x.taken==null?null:x.taken-x.guests;
-    const TF={cap:fsum('cap'),taken:T.taken,guests:fsum('guests')};   // сверка с Букингом — только будущие сеансы
+    const tot=(L,f)=>{const g=k=>L.reduce((a,x)=>a+(x[k]||0),0);return{cap:g('cap'),guests:g('guests'),paid:g('paid'),proc:hasSt?g('proc'):null,conf:hasSt?g('conf'):null,manager:g('manager'),crm:hasCrm?g('crm'):null,wait:g('wait'),canc:g('canc'),...f}};
+    const TF=tot(FU,{free:T.free,taken:T.taken});                    // будущие сеансы: сверка с Букингом
+    const TA=tot(SL,{free:null,taken:null,all:true});                 // все сеансы, в том числе прошедшие: без снимка Букинга
+    // строки итога (02.11.2026): есть и прошедшие, и будущие — две строки, иначе одна «Итого»
+    const TR=NP&&FU.length?[['Итого будущие',TF],['Итого все сеансы',TA]]:[['Итого',FU.length?TF:TA]];
     const sn=x=>`${dd(x.date).slice(0,5)}, ${['вс','пн','вт','ср','чт','пт','сб'][new Date(x.date+'T12:00:00').getDay()]} ${esc(x.time)}`;   // «01.11, вс 12:00»
     const difTxt=d=>d==null?'—':d?`<span class="crmtag" title="Занято мест в Букинге не равно числу проданных билетов — см. «Расхождения» ниже">${d>0?'+':''}${fmt(d)}</span>`:'0';
     // полоса — занято в Букинге (мест − свободно), серый остаток = свободно; цвета делят эту длину в долях гостей броней по статусам.
     // shortcut: цвета — доли, а не точное число мест (занято в Букинге ≠ гостей — см. «Разница»). Нет снимка Букинга — по гостям.
     const bar=x=>{const c=x.cap||Math.max(x.guests,1),tk=x.taken!=null?x.taken:x.guests,k=x.guests?tk/x.guests:0,w=v=>Math.max(0,Math.min(100,100*(v||0)*k/c)).toFixed(1)+'%';
-      return`<span class="sbw"><span class="sbar" title="${x.past?`сеанс прошёл: снимка Букинга нет, полоса — гости в бронях ${fmt(tk)} из ${x.cap==null?'—':fmt(x.cap)}`:`занято в Букинге ${fmt(tk)} из ${x.cap==null?'—':fmt(x.cap)} · свободно ${x.free==null?'—':fmt(x.free)}`} · гостей в бронях ${fmt(x.guests)}: оплачено ${fmt(x.paid)} · подтверждено ${x.conf==null?'—':fmt(x.conf)} · в обработке ${x.proc==null?'—':fmt(x.proc)}">${hasSt?`<i style="width:${w(x.paid)};background:${C.paid}"></i><i style="width:${w(x.conf)};background:${C.conf}"></i><i class="pr" style="width:${w(x.proc)}"></i>`:`<i style="width:${w(x.guests)};background:${C.conf}"></i>`}</span>${x.cap!=null?`<small title="${x.past?'гостей в бронях':'занято в Букинге'} / мест">${fmt(tk)}/${fmt(x.cap)}</small>`:''}</span>`};
-    const sl=(name,x,b)=>`<tr${b?' class="b"':''}><td class="nw">${name}${x.past?' <span class="crmtag" title="Сеанс прошёл: свободных мест Букинг больше не показывает, брони и гости — по «Статусам броней»">прошёл</span>':''}</td><td>${bar(b&&NP?{...x,taken:null,past:true}:x)}</td>
-      <td class="r gl">${x.cap!=null?fmt(x.cap):'—'}</td><td class="r"${b&&NP?' title="Только будущие сеансы"':''}>${x.free!=null?fmt(x.free):'—'}</td><td class="r b"${b&&NP?' title="Только будущие сеансы"':''}>${x.taken!=null?fmt(x.taken):'—'}</td>
+      return`<span class="sbw"><span class="sbar" title="${x.past||x.all?`${x.all?'все сеансы':'сеанс прошёл'}: снимка Букинга нет, полоса — гости в бронях ${fmt(tk)} из ${x.cap==null?'—':fmt(x.cap)}`:`занято в Букинге ${fmt(tk)} из ${x.cap==null?'—':fmt(x.cap)} · свободно ${x.free==null?'—':fmt(x.free)}`} · гостей в бронях ${fmt(x.guests)}: оплачено ${fmt(x.paid)} · подтверждено ${x.conf==null?'—':fmt(x.conf)} · в обработке ${x.proc==null?'—':fmt(x.proc)}">${hasSt?`<i style="width:${w(x.paid)};background:${C.paid}"></i><i style="width:${w(x.conf)};background:${C.conf}"></i><i class="pr" style="width:${w(x.proc)}"></i>`:`<i style="width:${w(x.guests)};background:${C.conf}"></i>`}</span>${x.cap!=null?`<small title="${x.past||x.all?'гостей в бронях':'занято в Букинге'} / мест">${fmt(tk)}/${fmt(x.cap)}</small>`:''}</span>`};
+    const sl=(name,x,b)=>`<tr${b?' class="b"':''}><td class="nw">${name}${x.past?' <span class="crmtag" title="Сеанс прошёл: свободных мест Букинг больше не показывает, брони и гости — по «Статусам броней»">прошёл</span>':''}</td><td>${bar(x)}</td>
+      <td class="r gl">${x.cap!=null?fmt(x.cap):'—'}</td><td class="r">${x.free!=null?fmt(x.free):'—'}</td><td class="r b">${x.taken!=null?fmt(x.taken):'—'}</td>
       <td class="r gl">${v0(x.proc)}</td><td class="r">${v0(x.conf)}</td><td class="r">${v0(x.paid)}</td><td class="r eq">${fmt(x.guests)}${sideTag(x)}${x.crm!=null&&x.crm!==x.guests?` <span class="crmtag" title="В Букинге пассажиров ${fmt(x.crm)} — в заявке другое число, см. «Расхождения» ниже">Букинг ${fmt(x.crm)}</span>`:''}</td>
       <td class="r gl">${v0(x.guests-(x.manager||0))}</td><td class="r">${v0(x.manager||0)}</td>
-      <td class="r gl">${difTxt(b?dif(TF):dif(x))}</td></tr>`;
+      <td class="r gl">${difTxt(dif(x))}</td></tr>`;
     const dT=dif(TF), DS=SL.filter(x=>dif(x));                   // DS — сеансы, где Букинг не сходится с бронями
     h+=`<div class="panel sec seats" id="web-seats" style="margin-bottom:16px"><h2>Места по сеансам</h2>
       ${legend([['Оплачено',C.paid,'bar'],['Подтверждено',C.conf,'bar'],['В обработке',C.proc,'bar pr'],['Свободно',cssv('--line'),'bar']])}
@@ -1204,10 +1208,10 @@ function vWeb(){
         <th class="r gl" title="Гости броней со статусом Букинга «В обработке»">В&nbsp;обработке</th><th class="r" title="«Подтверждено» и «Бесплатно»: место за гостем, не оплачено">+&nbsp;Подтверждено</th><th class="r" title="«Оплачено» / «Предоплата»">+&nbsp;Оплачено</th><th class="r" title="Гости во всех действующих бронях (без отменённых)">=&nbsp;Всего в&nbsp;бронях</th>
         <th class="r gl" title="Из всего в бронях: заявки с формы на сайте">С&nbsp;формы</th><th class="r" title="Из всего в бронях: брони, созданные менеджером в Букинге">+&nbsp;Менеджеры</th>
         <th class="r gl" title="Занято в Букинге − всего в бронях">Разница</th></tr></thead>
-      <tbody>${SL.map(x=>sl(sn(x),x)).join('')}${sl('Итого',T,true)}</tbody></table></div>
+      <tbody>${SL.map(x=>sl(sn(x),x)).join('')}${TR.map(([n,x])=>sl(n,x,true)).join('')}</tbody></table></div>
       <div class="seats-f">
         <div><b>Заполненность</b><span>длина — занято в&nbsp;Букинге, серое — свободно; цвета — доли оплачено, подтверждено, в&nbsp;обработке среди гостей броней; на телефоне цифра — занято / мест</span></div>
-        <div><b>Букинг</b><span><i>Мест</i> — вместимость сеанса</span><span><i>Свободно</i> — свободно на сайте; у прошедшего сеанса — прочерк, в «Итого» — только будущие сеансы</span><span><i>Занято</i> — мест минус свободно</span></div>
+        <div><b>Букинг</b><span><i>Мест</i> — вместимость сеанса</span><span><i>Свободно</i> — свободно на сайте; у прошедшего сеанса — прочерк, «Итого будущие» — только будущие сеансы</span><span><i>Занято</i> — мест минус свободно</span></div>
         <div><b>Регистрации</b><span><i>В обработке</i> — новые, в работе</span><span><i>Подтверждено</i> — место за гостем, без оплаты (и «Бесплатно»)</span><span><i>Оплачено</i> — оплата или предоплата</span><span><i>Всего</i> — гости действующих броней</span><span><i>Аннуляция</i> — запрошенная аннуляция: мест не держит, во «Всего» не входит. Лист ожидания держит места — он в «Подтверждено»</span></div>
         <div><b>Кто оформил</b><span><i>С формы</i> — заявка с сайта</span><span><i>Менеджеры</i> — бронь создана в Букинге</span></div>
         <div><b>Разница</b><span>занято в Букинге минус всего в бронях; не&nbsp;0 — см. «Расхождения»</span></div>
