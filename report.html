@@ -666,6 +666,7 @@ function lineChart(id,{labels,series,ticks,height=240,fmtV=v=>fmt(v),fmtA=v=>fmt
 }
 /** Столбики: bars [{label, value, tip}] + необязательная линия поверх (line: {name,color,values}). */
 function barChart(id,{bars,color,height=220,line,ticks,fmtV=v=>fmt(v),name}){
+  // b.stub — у нулевого столбика тонкая черта его цвета (например, день мероприятия без регистраций)
   // line.right — линия по своей шкале справа (другие единицы, например CTR поверх показов)
   const RL=!!(line&&line.right),{W,H}=chartBox(id,height),L=44,R=RL?48:12,T=10,B=26,n=bars.length;if(ticks)ticks=thinTicks(ticks,n,W-L-R);
   const max=niceMax(Math.max(1,...bars.map(b=>b.value),...(line&&!RL?line.values.filter(v=>v!=null):[])));
@@ -677,6 +678,7 @@ function barChart(id,{bars,color,height=220,line,ticks,fmtV=v=>fmt(v),name}){
   for(let k=0;k<=ST;k++){const v=max*k/ST;g+=`<line class="gl" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${fmt(v)}</text>`;
     if(RL)g+=`<text x="${W-R+6}" y="${y(v)+4}" text-anchor="start" fill="${line.color}">${(line.fmtA||fmt)(rmax*k/ST)}</text>`}
   bars.forEach((b,i)=>{const x0=L+i*bw+gap/2,w=Math.max(1,bw-gap),h=y(0)-y(b.value);
+    if(b.stub&&!(b.value>0))g+=`<rect x="${x0}" y="${y(0)-3}" width="${w}" height="3" rx="1.5" fill="${b.color||color}"/>`;
     g+=`<g class="bx" style="transform-origin:0 ${y(0)}px;--d:${Math.round(i*400/Math.max(1,n))}ms">`;
     const bar=(bx,bwid,v,fill,ring)=>{const hh=y(0)-y(v);if(hh<=0)return'';const r=Math.min(4,bwid/2,hh);
       return`<path d="M${bx},${y(0)}V${y(v)+r}Q${bx},${y(v)} ${bx+r},${y(v)}H${bx+bwid-r}Q${bx+bwid},${y(v)} ${bx+bwid},${y(v)+r}V${y(0)}Z" fill="${fill}"${ring?` stroke="${cssv('--surface')}" stroke-width="2"`:''}/>`};
@@ -1271,7 +1273,9 @@ function vWeb(){
     </ul></div>`;
   } else if(ex&&w.promoError)h+=`<div class="empty" style="margin-bottom:16px">Розыгрыш и подбор круиза не прочитаны: ${esc(w.promoError)}</div>`;
   // регистрации по дням
-  const days=[];if(w.start&&w.end){for(let d=new Date(w.start+'T00:00:00');;d.setDate(d.getDate()+1)){const x=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');days.push(x);if(x>=w.end||days.length>120)break}}
+  // дни экскурсии (05.11.2026): ось — до последнего сеанса, даже если в последние дни регистраций нет
+  const dEnd=[w.end,...(ex?evDays(w):[])].filter(Boolean).sort().pop();
+  const days=[];if(w.start&&w.end){for(let d=new Date(w.start+'T00:00:00');;d.setDate(d.getDate()+1)){const x=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');days.push(x);if(x>=dEnd||days.length>120)break}}
   const EXD=evDays(w),sesOf=x=>ex&&w.seats&&w.seats.list?w.seats.list.filter(q=>q.date===x).map(q=>q.time).join(', '):'';
   const byDay=Object.fromEntries(days.map(x=>[x,0]));rows.forEach(r=>{if(r[c.day]in byDay)byDay[r[c.day]]++});
   // CR экскурсии (29.10.2026): из зарегистрированных в этот день — сколько людей сейчас со статусом «Оплачено» / «Предоплата»;
@@ -1279,7 +1283,7 @@ function vWeb(){
   const crOn=ex&&paidOf(w)!=null,pdDay=Object.fromEntries(days.map(x=>[x,0]));
   if(crOn)rows.forEach(r=>{if(r[c.day]in pdDay&&r[c.stage]>=0&&paidSt(w.dict.stage[r[c.stage]]))pdDay[r[c.day]]++});
   const crFrom=(()=>{const t=new Date(D.today+'T12:00:00');t.setDate(t.getDate()-6);return t.toISOString().slice(0,10)})(),crDash=days.findIndex(x=>x>=crFrom);
-  if(days.length)h+=`<div class="panel sec" id="web-days" style="margin-bottom:16px"><h2>${crOn?'Регистрации по дням и CR в оплату':'Регистрации по дням'}</h2>${barChart('c-web',{name:'Регистраций',color:cssv('--s1'),bars:days.map(x=>({label:dShort(x)+' '+x.slice(0,4)+(EXD.includes(x)?(ex?` · день экскурсии${sesOf(x)?` (сеансы ${sesOf(x)})`:''}`:' · день вебинара'):''),value:byDay[x],color:EXD.includes(x)?cssv('--s2'):undefined,
+  if(days.length)h+=`<div class="panel sec" id="web-days" style="margin-bottom:16px"><h2>${crOn?'Регистрации по дням и CR в оплату':'Регистрации по дням'}</h2>${barChart('c-web',{name:'Регистраций',color:cssv('--s1'),bars:days.map(x=>({label:dShort(x)+' '+x.slice(0,4)+(EXD.includes(x)?(ex?` · день экскурсии${sesOf(x)?` (сеансы ${sesOf(x)})`:''}`:' · день вебинара'):''),value:byDay[x],color:EXD.includes(x)?cssv('--s2'):undefined,stub:EXD.includes(x),
       tip:crOn&&byDay[x]?`Оплатили: <b>${fmt(pdDay[x])}</b> из ${fmt(byDay[x])}${crDash>=0&&x>=crFrom?'<br><span class="muted">ещё дозревает</span>':''}`:''})),
     line:crOn?{name:'CR в оплату',color:cssv('--s3'),right:1,floor:10,width:3,halo:1,values:days.map(x=>byDay[x]?100*pdDay[x]/byDay[x]:null),dashFrom:crDash>=0?crDash:null,fmtV:v=>fmt(v,1)+'%',fmtA:v=>fmt(v,0)+'%'}:undefined,
     ticks:i=>i%Math.max(1,Math.ceil(days.length/10))===0?dShort(days[i]):''})}
