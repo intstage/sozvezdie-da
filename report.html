@@ -1268,6 +1268,7 @@ function vWeb(){
     const isRoz=x=>/розыгрыш/i.test(x.name),dash='<span class="muted">—</span>';
     const prow=(l,f,cls)=>`<tr${cls?` class="${cls}"`:''}><td>${l}</td>${PC.map(x=>`<td class="r">${f(x)}</td>`).join('')}</tr>`;
     const stg=Object.entries(PR.total.stages||{}).sort((a,b)=>b[1]-a[1]);
+    const bst=Object.entries((RQ&&RQ.bkStages)||{}).sort((a,b)=>b[1]-a[1]);
     const CG=`<colgroup><col style="width:34%">${PC.map(()=>`<col style="width:${(66/PC.length).toFixed(2)}%">`).join('')}</colgroup>`;
     const SRC=['сайт','офис СРВ','с борта'],srcOf=o=>[...SRC,...Object.keys(o||{}).filter(k=>SRC.indexOf(k)<0)];
     const srcCard=(t,x)=>x&&x.src?`<div class="pr-c"><div class="pr-h">${esc(t)} · ${fmt(x.people)}</div><div class="pr-s">${srcOf(x.src).map(k=>`<div><b>${fmt((x.src||{})[k]||0)}</b><span>${esc(k)}</span></div>`).join('')}</div></div>`:'';
@@ -1289,6 +1290,7 @@ function vWeb(){
     ${PR.extError||w.promoExtError?`<p class="sub" style="margin-top:8px">⚠ ${esc(PR.extError||w.promoExtError)}</p>`:''}
     <div class="pr-l">Откуда люди</div>
     <div class="pr-g">${srcCard('Подбор круиза',POD)}${srcCard('Заявки',RQ)}<div class="pr-c"><div class="pr-h">В обеих формах</div><div class="pr-s"><div><b>${fmt(PR.both)}</b><span>${nw(PR.both,'человек','человека','человек').replace(/^\S+\s/,'')}</span></div></div></div></div>
+    ${bst.length?`<div class="pr-l">Статусы заявок Букинга</div><div class="pr-ch">${bst.map(([k,v])=>`<span>${esc(k)} ${fmt(v)}</span>`).join('')}</div>`:''}
     ${stg.length?`<div class="pr-l">Стадии лидов Б24</div><div class="pr-ch">${stg.map(([k,v])=>`<span>${esc(k)} ${fmt(v)}</span>`).join('')}</div>`:''}
     <div class="pr-l">Что значат строки</div>
     <div class="pr-g">${DEF.map(([t,x])=>`<div class="pr-c"><div class="pr-t">${t}</div><div class="pr-x">${x}</div></div>`).join('')}</div></div>`;
