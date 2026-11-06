@@ -297,6 +297,7 @@ thead th{position:sticky;z-index:3;background:var(--surface);box-shadow:inset 0 
 .pr-ch{display:flex;flex-wrap:wrap;gap:6px}.pr-ch span{border:1px solid var(--line);border-radius:8px;padding:2px 8px;font-size:12px;color:var(--ink2)}
 .pr-t{font-weight:600;font-size:13px;margin-bottom:2px;color:var(--ink)}.pr-x{font-size:12px;line-height:1.45;color:var(--muted)}
 tr.pr-new td{background:var(--accent-soft)}
+table.pr-tb{table-layout:fixed;width:100%}
 .seats-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px 20px;margin:14px 0 0;padding-top:12px;border-top:1px solid var(--line);font-size:12.5px;line-height:1.4;color:var(--muted)}
 .seats-f>div{display:flex;flex-direction:column;gap:3px;min-width:0}
 .seats-f b{font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:600;color:var(--ink2);margin-bottom:2px}
@@ -1267,17 +1268,18 @@ function vWeb(){
     const isRoz=x=>/розыгрыш/i.test(x.name),dash='<span class="muted">—</span>';
     const prow=(l,f,cls)=>`<tr${cls?` class="${cls}"`:''}><td>${l}</td>${PC.map(x=>`<td class="r">${f(x)}</td>`).join('')}</tr>`;
     const stg=Object.entries(PR.total.stages||{}).sort((a,b)=>b[1]-a[1]);
+    const CG=`<colgroup><col style="width:34%">${PC.map(()=>`<col style="width:${(66/PC.length).toFixed(2)}%">`).join('')}</colgroup>`;
     const SRC=['сайт','офис СРВ','с борта'],srcOf=o=>[...SRC,...Object.keys(o||{}).filter(k=>SRC.indexOf(k)<0)];
-    const srcCard=(t,x)=>x?`<div class="pr-c"><div class="pr-h">${esc(t)} · ${fmt(x.people)}</div><div class="pr-s">${srcOf(x.src).map(k=>`<div><b>${fmt((x.src||{})[k]||0)}</b><span>${esc(k)}</span></div>`).join('')}</div></div>`:'';
+    const srcCard=(t,x)=>x&&x.src?`<div class="pr-c"><div class="pr-h">${esc(t)} · ${fmt(x.people)}</div><div class="pr-s">${srcOf(x.src).map(k=>`<div><b>${fmt((x.src||{})[k]||0)}</b><span>${esc(k)}</span></div>`).join('')}</div></div>`:'';
     const POD=PR.forms.find(x=>/подбор/i.test(x.name));
     const DEF=[['Анкет','Каждая анкета: сайт, офис СРВ, с борта. Без тестов, повторы считаются.'],['Людей','Один человек = одна почта или один телефон, внутри каждой колонки.'],
       ['Гости экскурсии','Есть среди регистраций и броней экскурсии.'],['В базе · платили · новые','Проверка в Букинге; у анкеты не с сайта — по строке сайта того же человека.'],
       ['Лид в Б24','Лид «Форма - Следующий круиз». Если заявку сразу оформил менеджер — лида нет.'],['Заявки','Есть заявка в Букинге: номер в лиде или заявка от менеджера.'],['Оплатили','Статус «Оплачено» или «Предоплата».']];
     h+=`<div class="panel sec" id="web-promo" style="margin-bottom:16px"><h2>Розыгрыш и подбор круиза</h2><p class="sub">Анкеты на теплоходе, в офисе и с борта; люди — по почте или телефону; обновляется каждые 15 минут</p>
-    ${PR.days.length?`<div class="tbl"><table><thead><tr><th>Анкеты по дням</th>${PC.map(x=>`<th class="r">${esc(x.name)}</th>`).join('')}</tr></thead><tbody>
+    ${PR.days.length?`<div class="tbl"><table class="pr-tb">${CG}<thead><tr><th>Анкеты по дням</th>${PC.map(x=>`<th class="r">${esc(x.name)}</th>`).join('')}</tr></thead><tbody>
       ${PR.days.map(d=>`<tr><td class="nw">${dShort(d[0])} ${d[0].slice(0,4)}</td>${d.slice(1,1+PC.length).map(v=>`<td class="r">${fmt(v)}</td>`).join('')}</tr>`).join('')}
     </tbody></table></div>`:''}
-    <div class="tbl" style="margin-top:14px"><table><thead><tr><th></th>${PC.map(x=>`<th class="r">${esc(x.name)}</th>`).join('')}</tr></thead><tbody>
+    <div class="tbl" style="margin-top:14px"><table class="pr-tb">${CG}<thead><tr><th></th>${PC.map(x=>`<th class="r">${esc(x.name)}</th>`).join('')}</tr></thead><tbody>
       ${prow('Анкет',x=>fmt(x.ank))}${prow('Людей',x=>fmt(x.people))}
       ${prow('Гости экскурсии',x=>shp(x.ex,x))}${prow('Уже в базе Инфофлота',x=>shp(x.inIF,x))}
       ${prow('Платили Созвездию раньше',x=>shp(x.paid,x))}${prow('Новые для Инфофлота',x=>shp(x.people-x.inIF,x))}
