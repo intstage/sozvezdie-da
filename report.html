@@ -1289,7 +1289,7 @@ function vWeb(){
     </tbody></table></div>
     ${PR.extError||w.promoExtError?`<p class="sub" style="margin-top:8px">⚠ ${esc(PR.extError||w.promoExtError)}</p>`:''}
     <div class="pr-l">Откуда люди</div>
-    <div class="pr-g">${srcCard('Подбор круиза',POD)}${srcCard('Заявки',RQ)}<div class="pr-c"><div class="pr-h">В обеих формах</div><div class="pr-s"><div><b>${fmt(PR.both)}</b><span>${nw(PR.both,'человек','человека','человек').replace(/^\S+\s/,'')}</span></div></div></div></div>
+    <div class="pr-g">${srcCard('Подбор круиза',POD)}${srcCard('Заявки',RQ)}${RQ&&RQ.paidSrc?srcCard('Оплатили',{people:RQ.bkPaid,src:RQ.paidSrc}):''}</div>
     ${bst.length?`<div class="pr-l">Статусы заявок Букинга</div><div class="pr-ch">${bst.map(([k,v])=>`<span>${esc(k)} ${fmt(v)}</span>`).join('')}</div>`:''}
     ${stg.length?`<div class="pr-l">Стадии лидов Б24</div><div class="pr-ch">${stg.map(([k,v])=>`<span>${esc(k)} ${fmt(v)}</span>`).join('')}</div>`:''}
     <div class="pr-l">Что значат строки</div>
