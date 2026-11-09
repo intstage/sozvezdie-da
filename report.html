@@ -1281,7 +1281,7 @@ function vWeb(){
       ${PR.days.map(d=>`<tr><td class="nw">${dShort(d[0])} ${d[0].slice(0,4)}</td>${d.slice(1,1+PC.length).map(v=>`<td class="r">${fmt(v)}</td>`).join('')}</tr>`).join('')}
     </tbody></table></div>`:''}
     <div class="tbl" style="margin-top:14px"><table class="pr-tb">${CG}<thead><tr><th></th>${PC.map(x=>`<th class="r">${esc(x.name)}</th>`).join('')}</tr></thead><tbody>
-      ${prow('Анкет',x=>x.base?`${fmt(x.ank)} <span class="muted">заявок</span>`:fmt(x.ank))}${prow('Людей',x=>fmt(x.people))}
+      ${prow('Анкет',x=>fmt(x.ank))}${prow('Людей',x=>fmt(x.people))}
       ${prow('Гости экскурсии',x=>shp(x.ex,x))}${prow('Уже в базе Инфофлота',x=>shp(x.inIF,x))}
       ${prow('Платили Созвездию раньше',x=>shp(x.paid,x))}${prow('Новые для Инфофлота',x=>shp(bs(x)-x.inIF,x))}
       ${prow('Лид в Б24',x=>shp(x.req,x))}
