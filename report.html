@@ -299,6 +299,9 @@ thead th{position:sticky;z-index:3;background:var(--surface);box-shadow:inset 0 
 .pr-m :is(th,td):first-child{text-align:left}.pr-m :is(th,td)+:is(th,td){padding-left:10px}
 .pr-m tr.b td{border-top:1px solid var(--line);font-weight:600;color:var(--ink)}
 .pr-f{margin-top:6px;font-size:11px;color:var(--muted)}
+.pr-all{overflow-x:auto}.pr-all .pr-m{margin-top:0;font-size:13px;min-width:420px}.pr-all .pr-m td{padding:5px 0}.pr-all .pr-m th{font-size:11.5px;padding-bottom:6px}
+.pr-all .pr-m td.n{font-weight:600;color:var(--ink)}.pr-all .pr-m :is(th,td).gap{padding-left:22px}
+@media (max-width:560px){.pr-all .pr-m{min-width:0;font-size:12px}.pr-all .pr-m th{font-size:10.5px}.pr-all .pr-m :is(th,td)+:is(th,td){padding-left:7px}.pr-all .pr-m :is(th,td).gap{padding-left:9px}.pr-c:has(.pr-all){padding:10px 8px}}
 .pr-ch{display:flex;flex-wrap:wrap;gap:6px}.pr-ch span{border:1px solid var(--line);border-radius:8px;padding:2px 8px;font-size:12px;color:var(--ink2)}
 .pr-t{font-weight:600;font-size:13px;margin-bottom:2px;color:var(--ink)}.pr-x{font-size:12px;line-height:1.45;color:var(--muted)}
 tr.pr-new td{background:var(--accent-soft)}
@@ -1175,7 +1178,8 @@ function vWeb(){
   // срез Б24 считает брони по стадии сделки — другие единицы и другой источник, показывается только подписью
   const paidSt=s=>/^(оплачен|предоплат)/i.test(String(s||'').trim());
   const paidOf=x=>{if(x.type!=='экскурсия')return null;const i=x.cols.indexOf('stage');return i<0?null:regsOf(x).filter(r=>r[i]>=0&&paidSt(x.dict.stage[r[i]])).length};
-  const soldOf=x=>{const p=paidOf(x);return p!=null?p:srezOf(x)?srezOf(x).sold:null};
+  // продаж в списке мероприятий (10.11.2026): у экскурсии с подбором круиза — оплаченные заявки подбора, как в «Сравнении мероприятий»
+  const soldOf=x=>{const q=x.type==='экскурсия'&&x.promo&&x.promo.reqs;if(q&&q.paidReqs!=null)return q.paidReqs;const p=paidOf(x);return p!=null?p:srezOf(x)?srezOf(x).sold:null};
   if(W.error&&!L.length){$('#view').innerHTML=`<div class="err"><b>Мероприятия не загрузились.</b> ${esc(W.error)}</div>`;return}
   if(!L.length){$('#view').innerHTML='<div class="empty">В справочнике мероприятий пока нет мероприятий с регистрациями.</div>';return}
   if(!L.some(w=>w.name===S.web))S.web=L[0].name;
@@ -1316,6 +1320,13 @@ function vWeb(){
     // суммы (10.11.2026): у карточки «Оплачены» — стоимость заявок и внесено по Букингу (saEvPromoSums_)
     const sumR=(l,v,cls)=>`<tr${cls?` class="${cls}"`:''}><td>${l}</td><td>${rubF(v.total)}</td><td>${rubF(v.paidIn)}</td></tr>`;
     const sumT=(m,src,er)=>er?`<div class="pr-f">⚠ ${esc(er)}</div>`:m?`<table class="pr-m"><thead><tr><th></th><th>стоимость</th><th>внесено</th></tr></thead><tbody>${srcOf(src).map(k=>sumR(esc(k),m.src[k]||{total:0,paidIn:0})).join('')}${sumR('Всего',m.all,'b')}</tbody></table>${m.miss?`<div class="pr-f">⚠ нет в Букинге: ${fmt(m.miss)} — оплата по листу, в суммы не вошли</div>`:''}`:'';
+    // одна общая карточка (10.11.2026): по источникам — анкеты подбора, заявки, оплачены, стоимость и внесено
+    const srcAll=(P,Q)=>{const m=Q.paidSum,er=Q.paidSumError,ks=srcOf(Object.assign({},P&&P.src,Q.reqSrc,Q.paidReqSrc)),g=(o,k)=>(o||{})[k]||0;
+      const row=(l,a,r,pd,v,cls)=>`<tr${cls?` class="${cls}"`:''}><td>${l}</td><td class="n">${fmt(a)}</td><td class="n">${fmt(r)}</td><td class="n">${fmt(pd)}</td>${m?`<td class="gap">${fmt(v.total)}</td><td>${fmt(v.paidIn)}</td>`:''}</tr>`;
+      return`<div class="pr-c"><div class="pr-all"><table class="pr-m"><thead><tr><th></th><th>Анкеты</th><th>Заявки</th><th>Оплачены</th>${m?'<th class="gap">Стоимость, ₽</th><th>Внесено, ₽</th>':''}</tr></thead><tbody>
+        ${ks.map(k=>row(esc(k),g(P&&P.src,k),g(Q.reqSrc,k),g(Q.paidReqSrc,k),m&&m.src[k]||{total:0,paidIn:0})).join('')}
+        ${row('Всего',P?P.ank:0,Q.base,Q.paidReqs,m&&m.all,'b')}</tbody></table></div>
+        ${er?`<div class="pr-f">⚠ ${esc(er)}</div>`:m&&m.miss?`<div class="pr-f">⚠ нет в Букинге: ${fmt(m.miss)} — оплата по листу, в суммы не вошли</div>`:''}</div>`};
     const srcCard=(t,x,m,er)=>x&&x.src?`<div class="pr-c"><div class="pr-h">${esc(t)} · ${fmt(x.people)}</div><div class="pr-s">${srcOf(x.src).map(k=>`<div><b>${fmt((x.src||{})[k]||0)}</b><span>${esc(k)}</span></div>`).join('')}</div>${sumT(m,x.src,er)}</div>`:'';
     const POD=PR.forms.find(x=>/подбор/i.test(x.name));
     const DEF=[['Анкет','Каждая анкета: сайт, офис СРВ, с борта. Без тестов, повторы считаются.'],['Людей','Один человек = одна почта или один телефон, внутри каждой колонки.'],
@@ -1334,7 +1345,7 @@ function vWeb(){
     </tbody></table></div>
     ${PR.extError||w.promoExtError?`<p class="sub" style="margin-top:8px">⚠ ${esc(PR.extError||w.promoExtError)}</p>`:''}
     <div class="pr-l">Откуда люди</div>
-    <div class="pr-g">${POD?srcCard('Подбор круиза · анкеты',{people:POD.ank,src:POD.src}):''}${RQ&&RQ.reqSrc?srcCard('Заявки',{people:RQ.ank,src:RQ.reqSrc})+srcCard('Оплачены',{people:RQ.paidReqs,src:RQ.paidReqSrc},RQ.paidSum,RQ.paidSumError):srcCard('Заявки',RQ)}</div>
+    <div class="pr-g">${RQ&&RQ.reqSrc?srcAll(POD,RQ):(POD?srcCard('Подбор круиза · анкеты',{people:POD.ank,src:POD.src}):'')+srcCard('Заявки',RQ)}</div>
     ${bst.length?`<div class="pr-l">Статусы заявок Букинга</div><div class="pr-ch">${bst.map(([k,v])=>`<span>${esc(k)} ${fmt(v)}</span>`).join('')}</div>`:''}
     ${stg.length?`<div class="pr-l">Стадии лидов Б24</div><div class="pr-ch">${stg.map(([k,v])=>`<span>${esc(k)} ${fmt(v)}</span>`).join('')}</div>`:''}
     <div class="pr-l">Что значат строки</div>
