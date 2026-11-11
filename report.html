@@ -1574,6 +1574,7 @@ function vBoard(){
     <div class="tbl"><table><thead><tr><th>Теплоход</th><th class="r">Презентаций</th><th class="r">Людей</th><th class="r">Доходимость</th><th class="r">Заявок</th><th class="r">На рейс</th><th class="r">Конверсия кают</th><th class="r">Продажи</th></tr></thead>
     <tbody id="ob-ships">${bySh.map(a=>shRow(a.x,a,false,a.x)).join('')}${shRow('Итого',tAll,true)}</tbody></table></div></div>`;
   h+=obSales(O,inS);
+  h+=obAbroad(O);
   // список презентаций
   const list=[...rows].sort((a,b)=>b.d.localeCompare(a.d)||a.ship.localeCompare(b.ship));
   const z=r=>r.tot==null?'—':`<b>${fmt(r.tot)}</b>${r.pres!=null||r.gen!=null||r.qr!=null?` <span class="muted">${[r.pres,r.gen,r.qr].map(v=>v==null?0:v).slice(0,r.qr?3:2).join(' + ')}</span>`:''}`;
@@ -1583,7 +1584,7 @@ function vBoard(){
     ${list.map(r=>`<tr><td class="nw">${dm(r.d)}${r.fx?'<span class="muted" title="дата поправлена по датам рейса">*</span>':''}${r.t?` <span class="muted">${r.t}</span>`:''}</td><td class="b nw">${esc(r.ship)}</td><td>${(c=>`${c.range.split(' – ').map(x=>`<span class="nw">${esc(x)}</span>`).join(' – ')}${c.rest?`<div class="muted" style="font-size:12px">${esc(c.rest)}</div>`:''}`)(obCruise(r))}${st(r)}${r.note?`<div class="muted" style="font-size:12px">${esc(r.note)}</div>`:''}</td><td class="r">${fmt(r.cab)}</td><td class="r">${fmt(r.ppl)}</td><td class="r">${r.cab>0&&r.ppl!=null?pct(r.ppl/r.cab,0):'—'}</td><td class="r nw">${z(r)}</td><td class="r">${r.cab>0&&r.tot!=null?pct(r.tot/r.cab,1):'—'}</td><td class="r nw">${r.rub==null?'—':rub(r.rub)}</td><td class="muted" style="font-size:12.5px">${esc(r.rev)}</td></tr>`).join('')}
     </tbody></table></div><p class="note">Источник — таблица «График PRO_движ 2026», лист «График ПРОдвиж_2026» (только чтение). «0 ₽» в продажах — так в таблице: продаж нет или они ещё не внесены.</p></div>`;
   // навигация по блокам вкладки — только по тем, что есть на странице
-  h=withJump(h,[['ob-mix','Откуда заявки'],['ob-yoy','Год к году'],['ob-mon','По месяцам'],['ob-ships-p','По теплоходам'],['ob-sales','Брони'],['ob-list','Презентации']]);
+  h=withJump(h,[['ob-mix','Откуда заявки'],['ob-yoy','Год к году'],['ob-mon','По месяцам'],['ob-ships-p','По теплоходам'],['ob-sales','Брони'],['ob-abroad','ОМС и РКИ'],['ob-list','Презентации']]);
   $('#view').innerHTML=h;bindBoard(months);
 }
 // сводки «Продвижение на бортах …»: период листа — «04-05» (апрель–май) или «06»; месяц отчёта → период
@@ -1635,6 +1636,19 @@ function obSales(O,inS){
     <div class="tbl"><table><thead><tr><th>Теплоход</th><th class="r">Броней</th><th class="r">Из заявок</th><th class="r">Предоплата</th><th class="r">Стоимость</th><th class="r">Средний чек</th><th class="r">Доля предоплаты</th></tr></thead>
     <tbody>${rows.map(([k,a])=>tr(k,a)).join('')}${rows.length>1?tr('Итого',t,true):''}</tbody></table></div>
     <p class="note">Из листа «…_продажи с бортов» (сейчас есть за ${ms.map(m=>monName(m)).join(', ')}); номера броней в отчёт не попадают. «Из заявок» — брони / заявки этого теплохода в сводке месяца.</p></div>`;
+}
+// «ОМС и РКИ»: зарубежные круизы с сопровождающими; итог — заявки рейсов со статусом «встреча проведена»; фильтры вкладки не действуют
+function obAbroad(O){
+  const L=O.abroad||[];if(!L.length)return'';
+  const H=L.filter(x=>x.held),n=sum(H.map(x=>x.n||0)),pays=L.some(x=>x.pay!=null),pay=sum(L.map(x=>x.pay||0));
+  const other=L.filter(x=>!x.held&&x.n!=null);
+  return`<div class="panel sec" id="ob-abroad" style="margin-bottom:16px"><h2>Зарубежные круизы с сопровождающими (ОМС и РКИ)</h2>
+    <p class="sub">Лист «${esc(L[0].sheet)}»: рейсы, где сопровождающие проводят встречу с туристами. Отдельно от речных бортов — в карточки и итоги выше не входит; выбор месяца и теплохода на этот блок не действует.</p>
+    <div class="hero" style="margin-bottom:12px"><span class="big">${fmt(n)}</span><span class="rng">${plural(n,'заявка','заявки','заявок')} с ${fmt(H.length)} ${plural(H.length,'проведённой встречи','проведённых встреч','проведённых встреч')} · в графике ${fmt(L.length)} ${plural(L.length,'рейс','рейса','рейсов')}${H.length?` · ${fmt(n/H.length,1)} на встречу`:''}${pays?` · к выплате ${rub(pay)}`:''}</span></div>
+    <div class="tbl"><table><thead><tr><th>Даты рейса</th><th>Круиз</th><th>Сопровождающие</th><th>Статус</th><th class="r">Заявок</th>${pays?'<th class="r">К выплате</th>':''}</tr></thead><tbody>
+    ${L.map(x=>`<tr><td class="nw">${esc(x.d)}</td><td${x.held?' class="b"':''}>${esc(x.cr)}</td><td>${esc(x.who)||'<span class="muted">—</span>'}</td><td class="nw">${x.st?esc(x.st):'<span class="muted">—</span>'}</td><td class="r${x.held?' b':''}">${x.n==null?'—':fmt(x.n)}</td>${pays?`<td class="r">${x.pay==null?'—':rub(x.pay)}</td>`:''}</tr>`).join('')}
+    </tbody></table></div>
+    <p class="note">Итог — сумма «Общего кол-ва заявок» по рейсам со статусом «встреча проведена».${other.length?` Заявки рейсов без этого статуса (${fmt(sum(other.map(x=>x.n)))}) в итог не вошли.`:''} Источник — таблица «График PRO_движ 2026» (только чтение).</p></div>`;
 }
 function bindBoard(months){
   const set=(k,v)=>{if(S[k]===v)return;S[k]=v;save();render()};
@@ -1902,6 +1916,8 @@ function dqBlock(){
    if(bad.length)W.push({level:'warn',text:`Продажи с бортов: в ${fmt(bad.length)} ${plural(bad.length,'строке','строках','строках')} главного графика «общее кол-во заявок» не равно сумме видов — `+bad.slice(0,5).map(x=>`${x.ship}, ${x.cr}: ${fmt(x.pres||0)}+${fmt(x.gen||0)}${x.qr?'+'+fmt(x.qr):''} ≠ ${fmt(x.tot)}`).join('; ')+(bad.length>5?' …':'')+'. В итоги идёт «общее кол-во».'})}
   (OB.checks||[]).forEach(c=>W.push(c.same+c.missing===c.rows&&!c.missing&&!c.diffs.length?{level:'ok',text:`Продажи с бортов: лист «${c.sheet}» совпадает с главным графиком (${fmt(c.rows)} ${plural(c.rows,'строка','строки','строк')})`}:{level:'warn',text:`Продажи с бортов: лист «${c.sheet}» расходится с главным графиком — ${c.diffs.join('; ')}`}));
   if((OB.dupSheets||[]).length)W.push({level:'info',text:`Продажи с бортов: лист ${OB.dupSheets.map(x=>'«'+x+'»').join(', ')} повторяет месячные сводки — новых строк не дал`});
+  if((OB.abroad||[]).length){const A=OB.abroad,H=A.filter(x=>x.held);W.push({level:'ok',text:`Продажи с бортов: лист «${A[0].sheet}» — ${fmt(A.length)} ${plural(A.length,'рейс','рейса','рейсов')}, встреч проведено ${fmt(H.length)}, заявок ${fmt(sum(H.map(x=>x.n||0)))}`});
+    const noN=H.filter(x=>x.n==null);if(noN.length)W.push({level:'warn',text:`Продажи с бортов, ОМС и РКИ: встреча проведена, а заявок нет — ${noN.map(x=>x.d+' '+x.cr).join('; ')}`})}
   if((OB.skipped||[]).length)W.push({level:'warn',text:`Продажи с бортов: не прочитаны листы ${OB.skipped.map(x=>'«'+x+'»').join(', ')} — новый вид листа, нужна доработка`});
   {const P=D.pop||{};W.push(P.error?{level:'warn',text:'Попапы: '+P.error}:P.nokey||!P.months?{level:'info',text:'Попапы: ждём служебный ключ CRS — вкладка пустая'}:{level:'ok',text:`Попапы: отчёт CRS за ${Object.keys(P.months).length} мес.`})}
   W.push({level:'info',text:'Источник каждой заявки по ClientID — есть с августа 2026, в отчёт ещё не подключён'});
