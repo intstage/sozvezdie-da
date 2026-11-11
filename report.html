@@ -1142,7 +1142,7 @@ $('#view').innerHTML=withJump(h,[['obr-days','По дням'],...(D.ocoh&&D.ocoh
 // Офлайн-встреча (10.11.2026, «Сибирь · 21.11»): вместо лидов Б24 — обзвон и площадки из таблицы организатора (saEvMeet_ в sa_webinars.js).
 // Обзвон и площадки — по заявкам (ID формы), как «Аналитика» организатора; регистрации и каналы регистраций — люди (уникальные по почте).
 const MEET_ST=['Новая','В работе','Не дозвонились','Подтверждено','Отказ','Дубль'];
-const MEET_CH=['Рассылки','Реклама','Соцсети','Другой канал','Без меток'];
+const MEET_CH=['Рассылки','Реклама','Соцсети','Поп-ап','Другой канал','Без меток'];   // «Поп-ап» — с 11.11.2026, канал из «Настроек» встречи
 function meetKpi(M,n){
   if(!M)return`<div class="panel kpi"><div class="lbl">Обзвон</div><div class="val muted" style="font-size:24px">нет данных</div></div><div class="panel kpi"></div><div class="panel kpi"></div>`;
   const C=M.calls,A=Object.values(M.ads||{}),sum=f=>A.some(a=>a[f]!=null)?A.reduce((x,a)=>x+(a[f]||0),0):null,cost=sum('cost');
