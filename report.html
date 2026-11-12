@@ -1206,7 +1206,7 @@ function meetBlock(w,M,rows,c){
   if(!Object.keys(M.ads||{}).length)h+=`<div class="empty" style="margin-bottom:16px">Площадки ещё не внесены — лист «Данные площадок» таблицы встречи пуст.</div>`;
   return h;
 }
-const WB_DIMS=[['med','Канал'],['src','Источник'],['brand','Бренд'],['camp','Кампания']];
+const WB_DIMS=[['med','Канал'],['src','Источник'],['brand','Бренд'],['camp','Кампания'],['utm','Метки']];   // «Метки» — связка utm_source / utm_medium / utm_campaign (12.11.2026)
 function vWeb(){
   const W=D.webinars||{list:[]},L=(W.list||[]).filter(w=>w.rows);
   // продажи среза: оплачено — по статусу заявки в Букинге (номер заявки из лида/сделки, 21/30); нет расчёта — по стадии сделки Б24
@@ -1496,7 +1496,7 @@ function vWeb(){
       </ul></div>`;
   } else h+=`<div class="panel sec" id="web-seg" style="margin-bottom:16px"><h2>Кто пришёл и когда купил</h2><div class="empty">Считается по Букингу ночью (лист «Мероприятия: Букинг») или сразу — меню таблицы «Заявки» → «Мероприятия: пересчитать сегменты по Букингу».</div></div>`;
   // разрез
-  const di=c[S.wdim],g={};all.forEach(r=>{const key=w.dict[S.wdim][r[di]];const x=g[key]||(g[key]={n:0,inIF:0,paid:0,req:0,booked:0,nb:0});x.n++;x.inIF+=r[c.inIF];x.paid+=r[c.paid];x.req+=r[c.req];x.booked+=r[c.booked];x.nb+=r[c.newBooked]});
+  const di=c[S.wdim],g={},keyOf=S.wdim==='utm'?r=>['src','med','camp'].map(k=>w.dict[k][r[c[k]]]).join(' / '):r=>w.dict[S.wdim][r[di]];all.forEach(r=>{const key=keyOf(r);const x=g[key]||(g[key]={n:0,inIF:0,paid:0,req:0,booked:0,nb:0});x.n++;x.inIF+=r[c.inIF];x.paid+=r[c.paid];x.req+=r[c.req];x.booked+=r[c.booked];x.nb+=r[c.newBooked]});
   const gl=Object.entries(g).sort((a,b)=>b[1].n-a[1].n);
   const line=(name,x,b)=>`<tr><td class="${b?'b':''}">${esc(name)}</td><td class="r">${fmt(x.n)}</td><td class="r">${pct(x.n/NA,0)}</td><td class="r">${fmt(x.inIF)} <span class="muted">${pct(x.n?x.inIF/x.n:null,0)}</span></td><td class="r">${fmt(x.paid)} <span class="muted">${pct(x.n?x.paid/x.n:null,0)}</span></td><td class="r">${fmt(x.req)} <span class="muted">${pct(x.n?x.req/x.n:null,0)}</span></td><td class="r">${fmt(x.booked)}</td><td class="r">${fmt(x.nb)}</td></tr>`;
   h+=`<div class="panel sec" id="web-cut" style="margin-bottom:16px"><div class="filters" style="margin-bottom:8px"><div><span class="flbl">Разрез</span><div class="seg" id="seg-wdim">${WB_DIMS.map(([key,l])=>`<button type="button" data-d="${key}" aria-pressed="${S.wdim===key}">${l}</button>`).join('')}</div></div></div>
