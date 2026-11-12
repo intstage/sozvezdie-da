@@ -1151,6 +1151,26 @@ function meetKpi(M,n){
     <div class="panel kpi go" data-go="web-meet" title="Обзвон"><div class="lbl">Ждут звонка</div><div class="val">${fmt(open)}</div><div class="foot"><span>новые, в работе, не дозвонились</span></div>${mutedLine(C.overdue?`<b style="color:var(--bad,#c0392b)">просрочен следующий контакт: ${fmt(C.overdue)}</b>`:'просроченных контактов нет')}</div>
     <div class="panel kpi go" data-go="web-meet" title="Реклама и рассылки"><div class="lbl">Расход на рекламу и рассылки</div><div class="val${cost==null?' muted':''}">${cost==null?'—':rub(cost)}</div><div class="foot"><span>${cost==null?'площадки ещё не внесены':`${n?'на регистрацию '+rub(cost/n):''}`}</span></div>${mutedLine(cost==null?'лист «Данные площадок» таблицы встречи':'все расходы ÷ все регистрации; по каналам — ниже')}</div>`;
 }
+// Рассылки мероприятия (12.11.2026): письма — лист «Рассылки мероприятий» (цифры отчётов Mindbox, saEvMailOut_ в sa_webinars.js),
+// регистрации — люди с самой ранней регистрацией по utm_medium рассылки, заявки и оплаты — Букинг ночью (w.seg.mail, sa_wb_segments.js).
+function mailBlock(w){
+  const m=w.mail;
+  if(!m||!(m.letters||[]).length)return w.mailError?`<div class="empty" style="margin-bottom:16px">Рассылки не прочитаны: ${esc(w.mailError)}.</div>`:'';
+  const L=m.letters,S=L.filter(l=>l.at),B=(w.seg&&w.seg.mail)||null,a=B&&B.a,b=B&&B.b;
+  const n0=v=>v==null?'—':fmt(v),pc=(x,y)=>y?pct(x/y,x/y<0.02?2:1):'—',sh=(v,of)=>v==null?'—':`${fmt(v)}${of&&v?` <span class="muted">${pc(v,of)}</span>`:''}`;
+  const sum=f=>S.some(l=>l[f]!=null)?S.reduce((x,l)=>x+(l[f]||0),0):null;
+  const T={aud:sum('aud'),sent:sum('sent'),deliv:sum('deliv'),opens:sum('opens'),clicks:sum('clicks'),unsub:sum('unsub')};
+  const bk=(x,regs)=>x?`<td class="r">${fmt(x.ppl)}${regs&&x.ppl?` <span class="muted">${pc(x.ppl,regs)}</span>`:''}</td><td class="r b">${fmt(x.buyers)}${x.buyers?` <span class="muted">${rub(x.sum)}</span>`:''}</td>`:'<td class="r muted">—</td><td class="r muted">—</td>';
+  const row=l=>`<tr><td>${esc(l.seg||'—')}<div class="muted" style="font-size:12px">${esc(l.name)} · ${l.at?esc(l.at):'не отправлено'}</div></td><td class="r">${n0(l.aud)}</td>${l.at?`<td class="r">${n0(l.sent)}</td><td class="r">${sh(l.deliv,l.sent)}</td><td class="r">${sh(l.opens,l.deliv)}</td><td class="r">${sh(l.clicks,l.deliv)}</td><td class="r">${l.regs==null?'—':sh(l.regs,l.deliv)}</td>`:`<td class="r muted" colspan="5">получателей ${n0(l.rcpt)}</td>`}<td class="r muted">—</td><td class="r muted">—</td></tr>`;
+  const split=S.length&&S.every(l=>l.regs!=null);
+  return`<div class="panel sec" id="web-mail" style="margin-bottom:16px"><h2>Рассылки</h2><p class="sub">Письма — отчёты Mindbox${m.asOf?`, срез ${esc(m.asOf)}`:''}; открытия и клики дорастают несколько дней. Доставлено — от отправленных; открытия, клики, регистрации — от доставленных. Регистрации — люди, впервые пришедшие по ссылке из письма после отправки. Заявки и оплаты — их заявки на круиз Созвездия в Букинге со дня регистрации${B?' (обновляется ночью)':''}.${split?'':' У писем одна метка, поэтому регистрации — только в итоге.'}</p>
+    <div class="tbl"><table><thead><tr><th>Сегмент · письмо</th><th class="r">В сегменте</th><th class="r">Отправлено</th><th class="r">Доставлено</th><th class="r">Открытия</th><th class="r">Клики</th><th class="r">Регистрации</th><th class="r">Заявки</th><th class="r">Оплачено</th></tr></thead><tbody>
+    ${L.map(row).join('')}
+    ${S.length?`<tr><td class="b">Итого отправлено · ${nw(S.length,'письмо','письма','писем')}</td><td class="r b">${n0(T.aud)}</td><td class="r b">${n0(T.sent)}</td><td class="r b">${sh(T.deliv,T.sent)}</td><td class="r b">${sh(T.opens,T.deliv)}</td><td class="r b">${sh(T.clicks,T.deliv)}</td><td class="r b">${sh(m.regs.after,T.deliv)}</td>${bk(a,a&&a.n)}</tr>`:''}
+    ${m.regs.before?`<tr><td class="muted">Регистрации по ссылке рассылки до отправки писем</td><td colspan="5"></td><td class="r">${fmt(m.regs.before)}</td>${bk(b,b&&b.n)}</tr>`:''}
+    </tbody></table></div>
+    <p class="sub" style="margin-top:8px">${T.unsub!=null?`Отписались: ${fmt(T.unsub)}${T.deliv?` · ${pc(T.unsub,T.deliv)} от доставленных`:''}. `:''}${a?`В Букинге нашлись ${fmt(a.found)} из ${fmt(a.n)}.${a.n!==m.regs.after?` Заявки и оплаты посчитаны ночью по ${nw(a.n,'человеку','людям','людям')} — регистраций с тех пор стало ${fmt(m.regs.after)}.`:''}`:'Заявки и оплаты появятся после ночного обновления Букинга.'}</p></div>`;
+}
 function meetBlock(w,M,rows,c){
   const C=M.calls,ch=M.chan||{},med=w.dict.med;
   const chOf=r=>{const m=String(med[r[c.med]]||'').toLowerCase();return !m||m==='не определён'?'Без меток':ch[m]||'Другой канал'};
@@ -1166,6 +1186,7 @@ function meetBlock(w,M,rows,c){
   const AK=MEET_CH.filter(k=>M.ads[k]);
   h+=`<div class="panel sec" id="web-ads" style="margin-bottom:16px"><h2>Реклама и рассылки</h2><p class="sub">Цифры площадок из листа «Данные площадок» таблицы встречи (вносят по отчётам; строки с отметкой в «Контроле строки» не считаются${M.adsBad?` — таких сейчас ${fmt(M.adsBad)}`:''}). «Заявки / клики» и «Расход / заявку» — по строкам, где таблица нашла заявки за ту же дату и с теми же тремя UTM, как в её «Аналитике». Пусто — у площадки нет такой цифры.</p>
     ${AK.length?`<div class="tbl"><table><thead><tr><th>Канал</th><th class="r">Показы</th><th class="r">Клики</th><th class="r">Отправлено писем</th><th class="r">Доставлено</th><th class="r">Открытия</th><th class="r">Расход</th><th class="r">Заявки / клики</th><th class="r">Расход / заявку</th></tr></thead><tbody>${AK.map(k=>{const a=M.ads[k];return`<tr><td>${k} <span class="muted">· ${nw(a.rows,'строка','строки','строк')}</span></td><td class="r">${n0(a.shows)}</td><td class="r">${n0(a.clicks)}</td><td class="r">${n0(a.sent)}</td><td class="r">${n0(a.deliv)}${a.sent&&a.deliv!=null?` <span class="muted">${pc(a.deliv,a.sent)}</span>`:''}</td><td class="r">${n0(a.opens)}${a.deliv&&a.opens!=null?` <span class="muted">${pc(a.opens,a.deliv)}</span>`:''}</td><td class="r b">${a.cost==null?'—':rub(a.cost)}</td><td class="r">${a.cr==null?'—':pct(a.cr,1)}</td><td class="r b">${a.cpr==null?'—':rub(a.cpr)}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">Площадки ещё не внесены — лист «Данные площадок» таблицы встречи пуст.</div>'}</div>`;
+  h+=mailBlock(w);
   return h;
 }
 const WB_DIMS=[['med','Канал'],['src','Источник'],['brand','Бренд'],['camp','Кампания']];
