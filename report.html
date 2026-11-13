@@ -84,6 +84,7 @@ nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:v
 nav.tabs button{font:600 13.5px var(--display);min-height:40px;color:var(--ink2);background:none;border:1px solid transparent;padding:8px 14px;border-radius:8px;cursor:pointer;white-space:nowrap}
 nav.tabs button:hover{background:var(--surface2)}
 nav.tabs button[aria-selected="true"]{background:var(--navy);color:#FFFFFF}
+:root[data-theme="dark"] nav.tabs button[aria-selected="true"]{color:#0A1A2B}
 nav.tabs button:focus:not(:focus-visible){outline:none}
 /* Фильтры при прокрутке — в строке вкладок (компьютер; как в «Продукте» v26): блок #filters переезжает в прилипшую строку */
 @media (min-width:761px){nav.tabs{display:flex;flex-wrap:wrap;align-items:center}
@@ -163,6 +164,7 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 }
 .grid{display:grid;gap:16px;margin-bottom:16px}
 .g-kpi{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+@media (min-width:600px) and (max-width:900px){.g-kpi:has(>:nth-child(4):last-child){grid-template-columns:repeat(2,1fr)}}
 .g-2{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
 .g-two{grid-template-columns:repeat(2,minmax(0,1fr))}   /* ровно две в ряд; на узком экране — одна */
 @media (max-width:760px){.g-two{grid-template-columns:1fr}}
@@ -250,7 +252,8 @@ td.b{color:var(--ink);font-weight:600}
 thead th{position:sticky;z-index:3;background:var(--surface);box-shadow:inset 0 -1px 0 var(--line)}
 @media (min-width:761px){.tbl{overflow:visible}thead th{top:var(--nav-h,57px)}
   .tbl.wide{overflow-x:auto;overscroll-behavior-x:contain}.tbl.wide thead th{top:0}}   /* шире карточки — прокрутка только вбок (мышью — перетаскиванием); колесо листает страницу */
-@media (max-width:760px){.tbl{max-height:75vh;overflow:auto;overscroll-behavior-x:contain}thead th{top:0}}
+@media (max-width:760px){.tbl{max-height:75vh;overflow:auto;overscroll-behavior-x:contain}thead th{top:0}
+  .tbl{background:linear-gradient(to right,var(--surface) 40%,transparent) 0 0/36px 100% no-repeat local,linear-gradient(to left,var(--surface) 40%,transparent) 100% 0/36px 100% no-repeat local,linear-gradient(to right,rgba(16,58,96,.22),transparent) 0 0/12px 100% no-repeat scroll,linear-gradient(to left,rgba(16,58,96,.22),transparent) 100% 0/12px 100% no-repeat scroll}}   /* тень у края = там есть колонки (13.11.2026) */
 /* «Места по сеансам» экскурсии: группы колонок (Букинг | брони | кто оформил | сверка), формулы над таблицей, полоса заполненности */
 .seats .gl{border-left:2px solid var(--line)}
 /* 12 колонок: заголовки в две строки, плотнее отступы; если всё равно шире панели — прокрутка внутри рамки, а не наружу */
@@ -435,6 +438,7 @@ footer.method{font-size:12.5px;line-height:1.5;color:var(--muted);margin-top:24p
 footer.method h3{font:600 12px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
 footer.method dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px 28px;margin:0}
 footer.method dt{font-weight:600;color:var(--ink2);margin:0 0 2px}footer.method dd{margin:0}
+.panel>details.how{margin:-4px 0 10px}.panel>details.how summary{cursor:pointer;color:var(--link);font-size:12.5px;width:max-content}.panel>details.how .sub{margin:4px 0 0}
 footer.method .how{margin-top:3px;font-size:13px;color:var(--muted)}footer.method .how summary{cursor:pointer;color:var(--link);font-size:12.5px;width:max-content}footer.method .how[open] summary{margin-bottom:2px}
 /* Навигация: «Назад» — к предыдущей вкладке, «Наверх» — в начало страницы */
 .fab{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));z-index:15;display:flex;flex-direction:column;gap:10px}
@@ -443,6 +447,7 @@ footer.method .how{margin-top:3px;font-size:13px;color:var(--muted)}footer.metho
 .fab svg{width:20px;height:20px}
 .dragging{cursor:grabbing;user-select:none}.dragging *{cursor:grabbing}   /* тянут таблицу мышью */
 body.busy #btn-ref svg{animation:sp 1s linear infinite}   /* пока обновляется — значок крутится */
+@media (max-width:760px){.fab{transition:opacity .25s}.fab.idle{opacity:.3}.fab.idle button{box-shadow:none}}   /* в покое не закрывают текст и колонки таблиц (13.11.2026) */
 @media print{.fab{display:none}}
 @media (hover:hover){.btn:hover,.btn.icon-btn:hover,.fab button:hover{background:var(--accent-soft)}.pick-list button:hover{border-color:var(--line)}}
 /* скрытая кнопка скрыта всегда — даже если её стиль задаёт display */
@@ -546,6 +551,8 @@ $('#btn-ref').onclick=e=>{if(e.detail)e.currentTarget.blur();if(!document.body.c
   addEventListener('pointerup',()=>{if(!d)return;const m=d.m;d.el.classList.remove('dragging');d=null;if(!m)return;
     const stop=ev=>{ev.stopPropagation();ev.preventDefault()};addEventListener('click',stop,true);setTimeout(()=>removeEventListener('click',stop,true),50)})})();
 addEventListener('scroll',()=>{$('#btn-top').hidden=scrollY<400},{passive:true});
+const FAB_IDLE_MS=1800;let fabT=0;const fabWake=()=>{const f=document.querySelector('.fab');f.classList.remove('idle');clearTimeout(fabT);fabT=setTimeout(()=>f.classList.add('idle'),FAB_IDLE_MS)};
+addEventListener('scroll',fabWake,{passive:true});addEventListener('touchstart',fabWake,{passive:true});fabWake();
 
 /* ---------- периоды ---------- */
 // Быстрые периоды; ещё два вида задаются значением S.period: 'm:ГГГГ-ММ' — выбранный месяц, 'c:ГГГГ-ММ-ДД:ГГГГ-ММ-ДД' — свой период
@@ -1161,7 +1168,7 @@ function mailBlock(w){
   const bk=(x,regs)=>x?`<td class="r">${bkReq(x,regs)}</td><td class="r b">${bkPaid(x)}</td>`:'<td class="r muted">—</td><td class="r muted">—</td>';
   const row=l=>`<tr><td>${esc(l.seg||'—')}<div class="muted" style="font-size:12px">${esc(l.name)} · ${l.at?esc(l.at):'не отправлено'}</div></td><td class="r">${n0(l.aud)}</td>${l.at?`<td class="r">${n0(l.sent)}</td><td class="r">${sh(l.deliv,l.sent)}</td><td class="r">${sh(l.opens,l.deliv)}</td><td class="r">${sh(l.clicks,l.deliv)}</td><td class="r">${l.regs==null?'—':sh(l.regs,l.deliv)}</td>`:`<td class="r muted" colspan="5">получателей ${n0(l.rcpt)}</td>`}<td class="r muted">—</td><td class="r muted">—</td></tr>`;
   const split=S.length&&S.every(l=>l.regs!=null);
-  return`<div class="panel sec" id="web-mail" style="margin-bottom:16px"><h2>Рассылки</h2><p class="sub">Письма — отчёты Mindbox${m.asOf?`, срез ${esc(m.asOf)}`:''}; открытия и клики дорастают несколько дней. Доставлено — от отправленных; открытия, клики, регистрации — от доставленных. Регистрации — люди, впервые пришедшие по ссылке из письма после отправки. Заявки и оплаты — ${bkWhat(a||b)}${B?' (обновляется ночью)':''}.${split?'':' У писем одна метка, поэтому регистрации — только в итоге.'}</p>
+  return`<div class="panel sec" id="web-mail" style="margin-bottom:16px"><h2>Рассылки</h2><p class="sub">Письма, регистрации из них и что купили эти люди.</p><details class="how"><summary>Как считаем</summary><p class="sub">Письма — отчёты Mindbox${m.asOf?`, срез ${esc(m.asOf)}`:''}; открытия и клики дорастают несколько дней. Доставлено — от отправленных; открытия, клики, регистрации — от доставленных. Регистрации — люди, впервые пришедшие по ссылке из письма после отправки. Заявки и оплаты — ${bkWhat(a||b)}${B?' (обновляется ночью)':''}.${split?'':' У писем одна метка, поэтому регистрации — только в итоге.'}</p></details>
     <div class="tbl"><table><thead><tr><th>Сегмент · письмо</th><th class="r">В сегменте</th><th class="r">Отправлено</th><th class="r">Доставлено</th><th class="r">Открытия</th><th class="r">Клики</th><th class="r">Регистрации</th><th class="r">Заявки</th><th class="r">Оплачено</th></tr></thead><tbody>
     ${L.map(row).join('')}
     ${S.length?`<tr><td class="b">Итого отправлено · ${nw(S.length,'письмо','письма','писем')}</td><td class="r b">${n0(T.aud)}</td><td class="r b">${n0(T.sent)}</td><td class="r b">${sh(T.deliv,T.sent)}</td><td class="r b">${sh(T.opens,T.deliv)}</td><td class="r b">${sh(T.clicks,T.deliv)}</td><td class="r b">${sh(m.regs.after,T.deliv)}</td>${bk(a,a&&a.n)}</tr>`:''}
@@ -1196,7 +1203,7 @@ function meetBlock(w,M,rows,c){
     const K=keys.filter(k=>M.ads[k]||regs[k]);if(!K.length)return'';
     const AC=AF.filter(([f])=>must.indexOf(f)>-1||(f!=='ctr'&&f!=='cpc'&&K.some(k=>M.ads[k]&&M.ads[k][f]!=null))),hasAds=K.some(k=>M.ads[k]),B0=bkOf(K[0]);
     const note=K.map(k=>{const b=bkOf(k),r=regs[k]||0;return b&&(b.n||r)?`${K.length>1?name(k)+': в':'В'} Букинге нашлись ${fmt(b.found)} из ${fmt(b.n)}.${b.n!==r?` Заявки и оплаты посчитаны ночью по ${nw(b.n,'человеку','людям','людям')} — регистраций сейчас ${fmt(r)}.`:''}`:''}).filter(Boolean).join(' ');
-    return`<div class="panel sec" id="${id}" style="margin-bottom:16px"><h2>${title}</h2><p class="sub">${hasAds?`Показы, клики и расход — из листа «Данные площадок» таблицы встречи (вносят по отчётам; строки с отметкой в «Контроле строки» не считаются${M.adsBad?` — таких сейчас ${fmt(M.adsBad)}`:''}); колонки без цифр не показаны.${AC.some(([f])=>f==='cr'||f==='cpr')?' «Заявки на встречу / клики» и «Расход / заявку» — заявки на встречу по ID формы за ту же дату и с теми же тремя UTM, как в «Аналитике» таблицы.':''} `:must.length?'Показы, клики и расход появятся, когда площадку внесут в лист «Данные площадок» таблицы встречи (по отчёту Директа) — пока там прочерки. ':'Цифр площадки (показы, клики, расход) в листе «Данные площадок» таблицы встречи пока нет. '}${must.indexOf('ctr')>-1?'CTR — клики ÷ показы, цена клика — расход ÷ клики. ':''}Регистрации — люди канала, как в «Каналах» выше. Заявки и оплаты — ${bkWhat(B0)}${B0?' (обновляется ночью)':''}: сколько людей оставили заявку (доля от регистраций) и сколько оплатили (и стоимость оплаченных заявок).</p>
+    return`<div class="panel sec" id="${id}" style="margin-bottom:16px"><h2>${title}</h2><p class="sub">Цифры площадки, регистрации канала и что купили эти люди.</p><details class="how"><summary>Как считаем</summary><p class="sub">${hasAds?`Показы, клики и расход — из листа «Данные площадок» таблицы встречи (вносят по отчётам; строки с отметкой в «Контроле строки» не считаются${M.adsBad?` — таких сейчас ${fmt(M.adsBad)}`:''}); колонки без цифр не показаны.${AC.some(([f])=>f==='cr'||f==='cpr')?' «Заявки на встречу / клики» и «Расход / заявку» — заявки на встречу по ID формы за ту же дату и с теми же тремя UTM, как в «Аналитике» таблицы.':''} `:must.length?'Показы, клики и расход появятся, когда площадку внесут в лист «Данные площадок» таблицы встречи (по отчёту Директа) — пока там прочерки. ':'Цифр площадки (показы, клики, расход) в листе «Данные площадок» таблицы встречи пока нет. '}${must.indexOf('ctr')>-1?'CTR — клики ÷ показы, цена клика — расход ÷ клики. ':''}Регистрации — люди канала, как в «Каналах» выше. Заявки и оплаты — ${bkWhat(B0)}${B0?' (обновляется ночью)':''}: сколько людей оставили заявку (доля от регистраций) и сколько оплатили (и стоимость оплаченных заявок).</p></details>
     <div class="tbl"><table><thead><tr><th>Канал</th>${AC.map(([,l])=>`<th class="r">${l}</th>`).join('')}<th class="r">Регистрации</th><th class="r">Заявки</th><th class="r">Оплачено</th></tr></thead><tbody>${K.map(k=>{const a=M.ads[k]||{},b=bkOf(k);return`<tr><td${M.ads[k]?` title="${nw(a.rows,'строка','строки','строк')} листа «Данные площадок»: по одной на дату и набор UTM"`:''}>${name(k)}</td>${AC.map(([f])=>`<td class="r${f==='cost'||f==='cpr'?' b':''}${M.ads[k]?'':' muted'}">${M.ads[k]?acell(a,f):'—'}</td>`).join('')}<td class="r">${fmt(regs[k]||0)}</td><td class="r">${b?bkReq(b,b.n):'—'}</td><td class="r b">${b?bkPaid(b):'—'}</td></tr>`}).join('')}</tbody></table></div>
     <p class="sub" style="margin-top:8px">${note||'Заявки и оплаты появятся после ночного обновления Букинга.'}</p></div>`};
   h+=mailBlock(w);
@@ -1513,7 +1520,7 @@ function vWeb(){
       if(xs)return`<tr data-pick="w:${esc(x.name)}" title="Открыть это мероприятие"><td class="nw">${dd(evDays(x)[0]||x.date)}</td><td class="b">${esc(x.name.replace(/\s*·\s*\d{2}\.\d{2}$/,''))}${x.type==='встреча'?' · офлайн':''}${x.name===w.name?' ✓':''}</td><td class="r">${fmt(nn)}</td><td class="r">${fmt(xs.reduce((a,i)=>a+i.g,0))} <span class="muted">мест</span></td><td class="r">${fmt(xs.length)} <span class="muted">${cv(xs.length,nn)}</span></td><td class="r">${fmt(xpb)} <span class="muted">${cv(xpb,xs.length)}</span></td><td class="r">${z?rubF(z.sum):'—'}</td></tr>`;
       return`<tr data-pick="w:${esc(x.name)}" title="Открыть это мероприятие"><td class="nw">${dd(evDays(x)[0]||x.date)}</td><td class="b">${esc(x.name.replace(/\s*·\s*\d{2}\.\d{2}$/,''))}${x.type==='встреча'?' · офлайн':''}${x.name===w.name?' ✓':''}</td><td class="r">${fmt(nn)}</td><td class="r">${fmt(ld)} <span class="muted">${cv(ld,nn)}</span></td><td class="r">${wq==null?'—':`${fmt(wq)} <span class="muted">${cv(wq,ld)}</span>`}</td><td class="r">${z?fmt(z.sold):'—'}${wq!=null?` <span class="muted">${cv(z.sold,wq)}</span>`:''}</td><td class="r">${z?rubF(z.sum):'—'}</td></tr>`}).join('')}
     </tbody></table></div></div>`;
-  $('#view').innerHTML=withJump(h,[...(ex&&w.seats?[['web-seats','Места']]:[]),...(ex&&w.promo?[['web-promo','Розыгрыш']]:[]),['web-days','По дням'],['web-funnel','Воронка и стадии'],['web-cohort','Когорта'],['web-seg','Кто и когда купил'],['web-cut','Разрез'],['web-cmp','Сравнение']]);
+  $('#view').innerHTML=withJump(h,[...(ex&&w.seats?[['web-seats','Места']]:[]),...(ex&&w.promo?[['web-promo','Розыгрыш']]:[]),['web-meet','Обзвон'],['web-mail','Рассылки'],['web-adv','Реклама'],['web-days','По дням'],['web-funnel','Воронка и стадии'],['web-cohort','Когорта'],['web-seg','Кто и когда купил'],['web-cut','Разрез'],['web-cmp','Сравнение']]);
   $('#web-pick').onclick=e=>{const b=e.target.closest('[data-w]');if(!b)return;S.web=b.dataset.w;save();render()};
   const ck=$('#chk-wct');if(ck)ck.onchange=e=>{const t=e.target.dataset&&e.target.dataset.t;if(!t)return;const st=new Set(S.wct);if(e.target.checked)st.add(t);else st.delete(t);S.wct=[...st];save();render()};
   const sk=$('#seg-wkind');if(sk)sk.onclick=e=>{const b=e.target.closest('[data-k]');if(!b)return;if(e.detail)b.blur();S.wkind=b.dataset.k;save();render()};
