@@ -1459,7 +1459,7 @@ function vWeb(){
   if(!WK.some(x=>x[0]===S.wkind))S.wkind='c';
   const wk=hasK?S.wkind:'c',SG=wsg(wk),A=SG&&SG.all,wt=WKT.find(x=>x[0]===wk);
   // расчёт по Букингу — ночной или по кнопке: участников в нём может быть меньше, чем сейчас (13.11.2026: 108 регистраций и 93 человека в расчёте)
-  const segWhen=w.seg&&w.seg.updated?(()=>{const t=new Date(w.seg.updated);return isNaN(t)?'':esc(dShort(w.seg.updated.slice(0,10)))+' в '+t.toLocaleTimeString('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit'})})():'';
+  const segWhen=w.seg&&w.seg.updated?(()=>{const t=new Date(w.seg.updated);return isNaN(t)?'':esc(dShort(t.toLocaleDateString('sv-SE',{timeZone:'Europe/Moscow'})))+' в '+t.toLocaleTimeString('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit'})})():'';
   const segLag=A&&A.n!==NA?` <b>Расчёт по Букингу сделан ${segWhen||'раньше'}: в нём ${fmt(A.n)} из ${fmt(NA)} ${nNr?'участников':'регистраций'}${NA>A.n?` — ещё ${fmt(NA-A.n)} появились позже и попадут в расчёт ночью`:''}.</b>`:'';
   const WKL=[wk==='all'?'Оставили любую заявку':`Оставили заявку на ${wt[2]}`,wk==='all'?'Купили что-либо':`Купили ${wt[2]}`,wt[3]];
   const PPL=paidOf(w);
