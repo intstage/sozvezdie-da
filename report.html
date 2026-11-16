@@ -1181,7 +1181,8 @@ function meetBlock(w,M,rows,c){
   // Канал (16.11.2026, как формула организатора): правила по трём меткам (M.rules: наши own и «Ссылки кампаний» — «По звонку», «Блогеры»;
   // пустая campaign — любая), иначе utm_medium по «Настройкам», иначе «Другой канал». Копия saEvMeetRule_ (sa_webinars.js).
   const lo=v=>String(v==null?'':v).trim().toLowerCase(),RU=M.rules||[];
-  const chM=(s,m,cp)=>{m=lo(m);if(!m||m==='не определён'||m==='-')return'Без меток';s=lo(s);cp=lo(cp);const r=RU.find(x=>x[0]===s&&x[1]===m&&(!x[2]||x[2]===cp));return r?r[3]:ch[m]||'Другой канал'};
+  const ruIx=(s,m,cp)=>{s=lo(s);m=lo(m);cp=lo(cp);return RU.findIndex(x=>x[0]===s&&x[1]===m&&(!x[2]||x[2]===cp))};
+  const chM=(s,m,cp)=>{m=lo(m);if(!m||m==='не определён'||m==='-')return'Без меток';const i=ruIx(s,m,cp);return i>-1?RU[i][3]:ch[m]||'Другой канал'};
   const chOf=r=>chM(w.dict.src[r[c.src]],med[r[c.med]],w.dict.camp[r[c.camp]]);
   const regs={};rows.forEach(r=>{const k=chOf(r);regs[k]=(regs[k]||0)+1});
   const ALL=[...new Set([...MEET_CH.slice(0,4),...Object.values(ch),...RU.map(x=>x[3]),...Object.keys(regs),...Object.keys(C.ch),...Object.keys(M.ads||{}),'Другой канал','Без меток'].filter(Boolean))];
@@ -1221,10 +1222,32 @@ function meetBlock(w,M,rows,c){
     return`<div class="panel sec" id="${id}" style="margin-bottom:16px"><h2>${title}</h2><p class="sub">Цифры площадки, регистрации канала и что купили эти люди.</p><details class="how"><summary>Как считаем</summary><p class="sub">${hasAds?`Показы, клики и расход — из листа «Данные площадок» таблицы встречи (вносят по отчётам; строки с отметкой в «Контроле строки» не считаются${M.adsBad?` — таких сейчас ${fmt(M.adsBad)}`:''}); колонки без цифр не показаны.${AC.some(([f])=>f==='cr'||f==='cpr')?' «Заявки на встречу / клики» и «Расход / заявку» — заявки на встречу по ID формы за ту же дату и с теми же тремя UTM, как в «Аналитике» таблицы.':''} `:must.length?'Показы, клики и расход появятся, когда площадку внесут в лист «Данные площадок» таблицы встречи (по отчёту Директа) — пока там прочерки. ':'Цифр площадки (показы, клики, расход) в листе «Данные площадок» таблицы встречи пока нет. '}${must.indexOf('ctr')>-1?'CTR — клики ÷ показы, цена клика — расход ÷ клики. ':''}Регистрации — люди канала, как в «Каналах» выше. Заявки и оплаты — ${bkWhat(B0)}${B0?' (обновляется ночью)':''}: сколько людей оставили заявку (доля от регистраций) и сколько оплатили (и стоимость оплаченных заявок).</p></details>
     <div class="tbl"><table><thead><tr><th>Канал</th>${AC.map(([,l])=>`<th class="r">${l}</th>`).join('')}<th class="r">Регистрации</th><th class="r">Заявки</th><th class="r">Оплачено</th></tr></thead><tbody>${K.map(k=>{const a=M.ads[k]||{},b=bkOf(k);return`<tr><td${M.ads[k]?` title="${nw(a.rows,'строка','строки','строк')} листа «Данные площадок»: по одной на дату и набор UTM"`:''}>${name(k)}</td>${AC.map(([f])=>`<td class="r${f==='cost'||f==='cpr'?' b':''}${M.ads[k]?'':' muted'}">${M.ads[k]?acell(a,f):'—'}</td>`).join('')}<td class="r">${fmt(rgOf(k))}${k==='Поп-ап'&&popX>0?`<div class="muted" style="font-size:12px">из них ${popInT}</div>`:''}</td><td class="r">${b?bkReq(b,b.n):'—'}</td><td class="r b">${b?bkPaid(b):'—'}</td></tr>`}).join('')}</tbody></table></div>
     <p class="sub" style="margin-top:8px">${K.indexOf('Поп-ап')>-1&&popN!=null?`Регистрации поп-апа — люди, пришедшие через поп-ап хоть раз: ID поп-апа в ссылке или его метки, как «Через поп-ап» в таблице встречи.${popX>0?` ${nw(popX,'из них пришёл','из них пришли','из них пришли')} по ссылке поп-апа, но с метками другого канала, и уже ${popX===1?'посчитан':'посчитаны'} там (${popInT}): поэтому сумма регистраций по блокам больше числа людей на ${fmt(popX)}.`:''} `:''}${note||'Заявки и оплаты появятся после ночного обновления Букинга.'}</p></div>`};
+  // «Блогеры» (16.11.2026): строка на каждую ссылку «Ссылок кампаний» с каналом «Блогеры» (M.rules, пятый элемент — размещение),
+  // регистрации — люди канала по самой ранней регистрации, заявки на встречу — рабочие заявки по ссылке (C.rule, как «Размещения» организатора),
+  // заявки и оплаты — ночной расчёт по трём меткам (SG.chU); показы, клики, расход — только итогом канала из «Данных площадок»
+  const blogBlock=()=>{
+    const BL=RU.map((x,i)=>[x,i]).filter(([x])=>x[3]==='Блогеры');if(!BL.length&&!regs['Блогеры'])return'';
+    const ppl={};rows.forEach(r=>{if(chOf(r)!=='Блогеры')return;const i=ruIx(w.dict.src[r[c.src]],med[r[c.med]],w.dict.camp[r[c.camp]]);ppl[i]=(ppl[i]||0)+1});
+    const z=()=>{const x={};BF.forEach(f=>x[f]=0);return x},bk={};
+    if(SG.chU)Object.keys(SG.chU).forEach(key=>{const t=key.split('\t');if(t.length!==3||chM(t[0],t[1],t[2])!=='Блогеры')return;const i=ruIx(t[0],t[1],t[2]);const x=bk[i]||(bk[i]=z());BF.forEach(f=>x[f]+=SG.chU[key][f]||0)});
+    const tot=z();Object.values(bk).forEach(x=>BF.forEach(f=>tot[f]+=x[f]));
+    const RQ=(C.rule||{}),rq=i=>RQ[i]||0,a=M.ads['Блогеры'];
+    const other=(ppl[-1]||0);   // в канале «Блогеры», но без своей ссылки в листе (не должно быть)
+    const tr=(name,q,p,b,cls)=>`<tr${cls?` class="${cls}"`:''}><td>${name}</td><td class="r">${typeof q==='number'?fmt(q):q}</td><td class="r${cls?' b':''}">${fmt(p)}</td><td class="r">${SG.chU?bkReq(b,b.n):'—'}</td><td class="r b">${SG.chU?bkPaid(b):'—'}</td></tr>`;
+    const nP=regs['Блогеры']||0,nQ=BL.reduce((x,[,i])=>x+rq(i),0);
+    const nb=tot.n||0;
+    return`<div class="panel sec" id="web-blog" style="margin-bottom:16px"><h2>Блогеры</h2><p class="sub">Регистрации по ссылке каждого блогера и что купили эти люди.</p><details class="how"><summary>Как считаем</summary><p class="sub">Блогеры — строки листа «Ссылки кампаний» таблицы встречи с каналом «Блогеры»; у каждого своя ссылка (utm_source, utm_medium, utm_campaign). Заявки на встречу — сколько раз заполнили форму по ссылке, с повторами одного человека (как «Размещения» в таблице встречи). Регистрации — люди, у которых самая ранняя регистрация пришла по ссылке блогера; итог равен каналу «Блогеры» в «Каналах». Заявки и оплаты — ${bkWhat(tot)}${SG.chU?' (обновляется ночью)':''}.${a?' Показы, клики и расход — из «Данных площадок», только итогом по каналу.':''}</p></details>
+    <div class="tbl"><table><thead><tr><th>Блогер</th><th class="r">Заявки на встречу</th><th class="r">Регистрации</th><th class="r">Заявки</th><th class="r">Оплачено</th></tr></thead><tbody>
+    ${BL.map(([x,i])=>tr(esc(x[4]||x[0]),rq(i),ppl[i]||0,bk[i]||z())).join('')}
+    ${other?tr('Без ссылки в «Ссылках кампаний»','—',other,bk[-1]||z()):''}
+    ${BL.length>1?tr('Итого',nQ,nP,tot,'b'):''}
+    </tbody></table></div>
+    <p class="sub" style="margin-top:8px">${a?`Площадки: ${[a.shows!=null?'показы '+fmt(a.shows):'',a.clicks!=null?'клики '+fmt(a.clicks):'',a.cost!=null?'расход '+rub(a.cost):''].filter(Boolean).join(' · ')||'цифр пока нет'}. `:''}${SG.chU?`В Букинге нашлись ${fmt(tot.found)} из ${fmt(nb)}.${nb!==nP?` Заявки и оплаты посчитаны ночью по ${nw(nb,'человеку','людям','людям')} — регистраций сейчас ${fmt(nP)}.`:''}`:'Заявки и оплаты появятся после ночного обновления Букинга.'}</p></div>`};
   h+=mailBlock(w);
   h+=chanBlock('web-adv','Реклама',['Реклама'],k=>k,['shows','clicks','ctr','cost','cpc']);   // цифры платной рекламы (Директ) — всегда в начале
   h+=chanBlock('web-ads','Поп-ап на сайте',['Поп-ап'],()=>'Поп-ап на сайте');
-  h+=chanBlock('web-och','Другие каналы',allCh.filter(k=>k!=='Реклама'&&k!=='Поп-ап'&&(k!=='Рассылки'||M.ads[k])),k=>k);
+  h+=blogBlock();
+  h+=chanBlock('web-och','Другие каналы',allCh.filter(k=>k!=='Реклама'&&k!=='Поп-ап'&&k!=='Блогеры'&&(k!=='Рассылки'||M.ads[k])),k=>k);
   if(!Object.keys(M.ads||{}).length)h+=`<div class="empty" style="margin-bottom:16px">Площадки ещё не внесены — лист «Данные площадок» таблицы встречи пуст.</div>`;
   return h;
 }
