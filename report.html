@@ -348,6 +348,7 @@ details.dq.disc summary{font-size:14px}
 .empty{padding:18px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-size:13px;background:var(--surface2)}
 .empty b{color:var(--ink2)}
 .muted{color:var(--muted)}
+.mk-d{color:var(--warn,#b7791f);font-size:12px;white-space:nowrap}
 .nw{white-space:nowrap}
 .note{font-size:12.5px;color:var(--muted);margin:8px 0 0}
 .err{background:var(--bad-soft);color:var(--bad);border-radius:10px;padding:14px 16px;line-height:1.5}.err b{color:var(--ink)}
@@ -1244,16 +1245,20 @@ function meetBlock(w,M,rows,c){
     const tot=z();Object.values(bk).forEach(x=>BF.forEach(f=>tot[f]+=x[f]));
     const RQ=(C.rule||{}),rq=i=>RQ[i]||0,a=M.ads['Блогеры'];
     const other=(ppl[-1]||0);   // в канале «Блогеры», но без своей ссылки в листе (не должно быть)
-    const tr=(name,q,p,b,cls)=>`<tr${cls?` class="${cls}"`:''}><td>${name}</td><td class="r">${typeof q==='number'?fmt(q):q}</td><td class="r${cls?' b':''}">${fmt(p)}</td><td class="r">${SG.chU?bkReq(b,b.n):'—'}</td><td class="r b">${SG.chU?bkPaid(b):'—'}</td></tr>`;
+    // Метрика (16.11.2026): M.mk.by[номер правила] = [визиты, посетители, просмотры, цель «регистрация принята»]; ⚠ — цель ≠ заявкам по ссылке
+    const MK=M.mk&&M.mk.by?M.mk:null,mkz=()=>[0,0,0,0],mkT=mkz();if(MK)BL.forEach(([,i])=>(MK.by[i]||mkz()).forEach((v,k)=>mkT[k]+=v));
+    const mkC=(v,q)=>{if(!MK)return'<td class="r muted">—</td><td class="r muted">—</td><td class="r muted">—</td><td class="r muted">—</td>';const d=typeof q==='number'?v[3]-q:0;
+      return`<td class="r">${fmt(v[0])}</td><td class="r">${fmt(v[1])}</td><td class="r">${fmt(v[2])}</td><td class="r"${d?` title="Цель Метрики ${d>0?'больше':'меньше'} заявок по ссылке на ${fmt(Math.abs(d))}: счётчик не видит визиты с блокировщиком или без согласия на cookies, форму отправили повторно, человек вернулся на страницу без меток"`:''}>${fmt(v[3])}${d?` <span class="mk-d">⚠ ${d>0?'+':'−'}${fmt(Math.abs(d))}</span>`:''}</td>`};
+    const tr=(name,q,p,b,cls,mv)=>`<tr${cls?` class="${cls}"`:''}><td>${name}</td>${mkC(mv||mkz(),q)}<td class="r">${typeof q==='number'?fmt(q):q}</td><td class="r${cls?' b':''}">${fmt(p)}</td><td class="r">${SG.chU?bkReq(b,b.n):'—'}</td><td class="r b">${SG.chU?bkPaid(b):'—'}</td></tr>`;
     const nP=regs['Блогеры']||0,nQ=BL.reduce((x,[,i])=>x+rq(i),0);
     const nb=tot.n||0;
-    return`<div class="panel sec" id="web-blog" style="margin-bottom:16px"><h2>Блогеры</h2><p class="sub">Регистрации по ссылке каждого блогера и что купили эти люди.</p><details class="how"><summary>Как считаем</summary><p class="sub">Блогеры — строки листа «Ссылки кампаний» таблицы встречи с каналом «Блогеры»; у каждого своя ссылка (utm_source, utm_medium, utm_campaign). Заявки на встречу — сколько раз заполнили форму по ссылке, с повторами одного человека (как «Размещения» в таблице встречи). Регистрации — люди, у которых самая ранняя регистрация пришла по ссылке блогера; итог равен каналу «Блогеры» в «Каналах». Заявки и оплаты — ${bkWhat(tot)}${SG.chU?' (обновляется ночью)':''}.${a?' Показы, клики и расход — из «Данных площадок», только итогом по каналу.':''}</p></details>
-    <div class="tbl"><table><thead><tr><th>Блогер</th><th class="r">Заявки на встречу</th><th class="r">Регистрации</th><th class="r">Заявки</th><th class="r">Оплачено</th></tr></thead><tbody>
-    ${BL.map(([x,i])=>tr(esc(x[4]||x[0]),rq(i),ppl[i]||0,bk[i]||z())).join('')}
+    return`<div class="panel sec" id="web-blog" style="margin-bottom:16px"><h2>Блогеры</h2><p class="sub">Регистрации по ссылке каждого блогера и что купили эти люди.</p><details class="how"><summary>Как считаем</summary><p class="sub">Блогеры — строки листа «Ссылки кампаний» таблицы встречи с каналом «Блогеры»; у каждого своя ссылка (utm_source, utm_medium, utm_campaign). Визиты, посетители и просмотры — Яндекс Метрика по меткам ссылки (последний значимый переход)${MK?` с ${MK.from.split('-').reverse().join('.')} по ${(MK.to||'').split('-').reverse().join('.')}`:''}; цель Метрики — «Мероприятия — регистрация принята». ⚠ — цель Метрики не равна заявкам по ссылке: счётчик не видит визиты с блокировщиком или без согласия на cookies, форму отправляют повторно, человек возвращается на страницу без меток; посетители в «Итого» — сумма строк. Заявки на встречу — сколько раз заполнили форму по ссылке, с повторами одного человека (как «Размещения» в таблице встречи). Регистрации — люди, у которых самая ранняя регистрация пришла по ссылке блогера; итог равен каналу «Блогеры» в «Каналах». Заявки и оплаты — ${bkWhat(tot)}${SG.chU?' (обновляется ночью)':''}.${a?' Показы, клики и расход — из «Данных площадок», только итогом по каналу.':''}</p></details>
+    <div class="tbl"><table><thead><tr><th>Блогер</th><th class="r">Визиты</th><th class="r">Посетители</th><th class="r">Просмотры</th><th class="r">Цель Метрики</th><th class="r">Заявки на встречу</th><th class="r">Регистрации</th><th class="r">Заявки</th><th class="r">Оплачено</th></tr></thead><tbody>
+    ${BL.map(([x,i])=>tr(esc(x[4]||x[0]),rq(i),ppl[i]||0,bk[i]||z(),'',MK&&MK.by[i])).join('')}
     ${other?tr('Без ссылки в «Ссылках кампаний»','—',other,bk[-1]||z()):''}
-    ${BL.length>1?tr('Итого',nQ,nP,tot,'b'):''}
+    ${BL.length>1?tr('Итого',nQ,nP,tot,'b',mkT):''}
     </tbody></table></div>
-    <p class="sub" style="margin-top:8px">${a?`Площадки: ${[a.shows!=null?'показы '+fmt(a.shows):'',a.clicks!=null?'клики '+fmt(a.clicks):'',a.cost!=null?'расход '+rub(a.cost):''].filter(Boolean).join(' · ')||'цифр пока нет'}. `:''}${SG.chU?`В Букинге нашлись ${fmt(tot.found)} из ${fmt(nb)}.${nb!==nP?` Заявки и оплаты посчитаны ночью по ${nw(nb,'человеку','людям','людям')} — регистраций сейчас ${fmt(nP)}.`:''}`:'Заявки и оплаты появятся после ночного обновления Букинга.'}</p></div>`};
+    <p class="sub" style="margin-top:8px">${M.mkErr?`Метрика не ответила (${esc(M.mkErr).slice(0,120)}) — колонки Метрики пустые. `:''}${a?`Площадки: ${[a.shows!=null?'показы '+fmt(a.shows):'',a.clicks!=null?'клики '+fmt(a.clicks):'',a.cost!=null?'расход '+rub(a.cost):''].filter(Boolean).join(' · ')||'цифр пока нет'}. `:''}${SG.chU?`В Букинге нашлись ${fmt(tot.found)} из ${fmt(nb)}.${nb!==nP?` Заявки и оплаты посчитаны ночью по ${nw(nb,'человеку','людям','людям')} — регистраций сейчас ${fmt(nP)}.`:''}`:'Заявки и оплаты появятся после ночного обновления Букинга.'}</p></div>`};
   h+=mailBlock(w);
   h+=chanBlock('web-adv','Реклама',['Реклама'],k=>k,['shows','clicks','ctr','cost','cpc']);   // цифры платной рекламы (Директ) — всегда в начале
   h+=chanBlock('web-ads','Поп-ап на сайте',['Поп-ап'],()=>'Поп-ап на сайте');
