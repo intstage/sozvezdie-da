@@ -1149,7 +1149,7 @@ $('#view').innerHTML=withJump(h,[['obr-days','По дням'],...(D.ocoh&&D.ocoh
 // Офлайн-встреча (10.11.2026, «Сибирь · 21.11»): вместо лидов Б24 — обзвон и площадки из таблицы организатора (saEvMeet_ в sa_webinars.js).
 // Обзвон и площадки — по заявкам (ID формы), как «Аналитика» организатора; регистрации и каналы регистраций — люди (уникальные по почте).
 const MEET_ST=['Новая','В работе','Не дозвонились','Подтверждено','Отказ','Дубль'];
-const MEET_CH=['Рассылки','Реклама','Соцсети','Поп-ап','Другой канал','Без меток'];   // «Поп-ап» — с 11.11.2026, канал из «Настроек» встречи
+const MEET_CH=['Рассылки','Реклама','Соцсети','Поп-ап','Другой канал','Без меток'];   // порядок; каналы с другими названиями — между «Поп-апом» и «Другим каналом» (16.11.2026)
 // Заявки и оплаты людей канала в Букинге (рассылки, поп-ап; 12.11.2026): круизы любых операторов, «СЗ N» — из них Созвездие.
 // Расчёт до 12.11.2026 (нет pplSz) — только Созвездие: тогда подпись блока говорит «на круиз Созвездия», а «СЗ» не показывается.
 const bkAny=x=>!!x&&x.pplSz!=null;
@@ -1178,15 +1178,21 @@ function mailBlock(w){
 }
 function meetBlock(w,M,rows,c){
   const C=M.calls,ch=M.chan||{},med=w.dict.med;
-  const chOf=r=>{const m=String(med[r[c.med]]||'').toLowerCase();return !m||m==='не определён'?'Без меток':ch[m]||'Другой канал'};
+  // Канал (16.11.2026, как формула организатора): правила по трём меткам (M.rules: наши own и «Ссылки кампаний» — «По звонку», «Блогеры»;
+  // пустая campaign — любая), иначе utm_medium по «Настройкам», иначе «Другой канал». Копия saEvMeetRule_ (sa_webinars.js).
+  const lo=v=>String(v==null?'':v).trim().toLowerCase(),RU=M.rules||[];
+  const chM=(s,m,cp)=>{m=lo(m);if(!m||m==='не определён'||m==='-')return'Без меток';s=lo(s);cp=lo(cp);const r=RU.find(x=>x[0]===s&&x[1]===m&&(!x[2]||x[2]===cp));return r?r[3]:ch[m]||'Другой канал'};
+  const chOf=r=>chM(w.dict.src[r[c.src]],med[r[c.med]],w.dict.camp[r[c.camp]]);
   const regs={};rows.forEach(r=>{const k=chOf(r);regs[k]=(regs[k]||0)+1});
-  const chans=MEET_CH.filter(k=>regs[k]||(M.ads[k])||(C.ch[k]));
+  const ALL=[...new Set([...MEET_CH.slice(0,4),...Object.values(ch),...RU.map(x=>x[3]),...Object.keys(regs),...Object.keys(C.ch),...Object.keys(M.ads||{}),'Другой канал','Без меток'].filter(Boolean))];
+  const allCh=[...ALL.filter(k=>k!=='Другой канал'&&k!=='Без меток'),'Другой канал','Без меток'];
+  const chans=allCh.filter(k=>regs[k]||(M.ads[k])||(C.ch[k]));
   const n0=v=>v==null?'—':fmt(v),pc=(a,b)=>b?pct(a/b,a/b<0.1?1:0):'—';
   let h=`<div class="grid g-2 sec" id="web-meet"><div class="panel"><h2>Обзвон</h2><p class="sub">Статусы менеджеров из листа «Обзвон» таблицы встречи — по заявкам (ID формы), без контрольных; без статуса — «Новая». Справа — доля от ${nw(C.total,'заявки','заявок','заявок')}.</p>
     <div class="tbl"><table><tbody>${MEET_ST.map(s=>`<tr><td${s==='Подтверждено'?' class="b"':''}>${s}</td><td class="r b">${fmt(C.st[s]||0)}</td><td class="r muted">${pc(C.st[s]||0,C.total)}</td></tr>`).join('')}${C.other?`<tr><td class="muted">Другой статус</td><td class="r">${fmt(C.other)}</td><td></td></tr>`:''}</tbody></table></div>
     ${C.overdue?`<p class="sub" style="margin-top:8px"><b>Просрочен следующий контакт: ${fmt(C.overdue)}</b> — у новых, в работе и не дозвонившихся</p>`:''}
     ${Object.keys(C.who).length?`<h3 style="margin-top:12px;font-size:14px">По ответственным</h3><div class="tbl"><table><thead><tr><th>Менеджер</th><th class="r">Заявок</th><th class="r">Подтвердили</th></tr></thead><tbody>${Object.entries(C.who).sort((a,b)=>b[1].n-a[1].n).map(([p,v])=>`<tr><td>${esc(p)}</td><td class="r">${fmt(v.n)}</td><td class="r">${fmt(v.ok)} <span class="muted">${pc(v.ok,v.n)}</span></td></tr>`).join('')}</tbody></table></div>`:''}</div>
-    <div class="panel"><h2>Каналы</h2><p class="sub">Регистрации — люди (уникальные по почте), канал — по utm_medium и правилу «Настроек» таблицы встречи. Подтвердили — по заявкам обзвона.</p>
+    <div class="panel"><h2>Каналы</h2><p class="sub">Регистрации — люди (уникальные по почте), канал — по самой ранней регистрации: метки из «Ссылок кампаний» таблицы встречи («По звонку», «Блогеры»), иначе utm_medium по её «Настройкам»; «Прямой обзвон» (obzvon_if / email_direct) — наше правило, у организатора это «Другой канал». Подтвердили — по заявкам обзвона.</p>
     <div class="tbl"><table><thead><tr><th>Канал</th><th class="r">Регистраций</th><th class="r">Подтвердили</th></tr></thead><tbody>${chans.map(k=>`<tr><td>${k}</td><td class="r b">${fmt(regs[k]||0)}</td><td class="r">${C.ch[k]?`${fmt(C.ch[k].ok)} <span class="muted">${pc(C.ch[k].ok,C.ch[k].n)}</span>`:'—'}</td></tr>`).join('')||'<tr><td class="muted" colspan="3">регистраций пока нет</td></tr>'}</tbody></table></div></div></div>`;
   // Площадки и каналы встречи (12.11.2026), порядок как в «Каналах»: Рассылки → Реклама → Поп-ап на сайте → прочие площадки.
   // Колонки площадки — только те, где у неё есть цифра («Данные площадок»). Регистрации · Заявки · Оплачено — как в «Рассылках»:
@@ -1194,13 +1200,14 @@ function meetBlock(w,M,rows,c){
   // (любой оператор, «СЗ» — из них Созвездие): ночной расчёт w.seg.ch по utm_medium самой ранней регистрации (sa_wb_segments.js),
   // канал — по «Настройкам» встречи, как у регистраций. Расчёт прежнего вида (w.seg.pop) — только поп-ап.
   const SG=w.seg||{},BF=['n','found','ppl','req','buyers','sale','sum','pplSz','buyersSz','sumSz'];
-  const chN=m=>m==='-'||m==='не определён'?'Без меток':ch[m]||'Другой канал';
+  // ночной расчёт: chU — по трём меткам «source⇥medium⇥campaign» (16.11.2026), раньше ch — только utm_medium
+  const SCH=SG.chU||SG.ch,chN=key=>{const t=String(key).split('\t');return t.length===3?chM(t[0],t[1],t[2]):chM('',t[0],'')};
   // «Поп-ап на сайте» (15.11.2026, как «Через поп-ап» организатора): люди, у кого хоть одна регистрация пришла через поп-ап —
   // ID поп-апа в ссылке или его UTM, даже с рекламными метками (флаг pop строки; заявки и оплаты — ночной w.seg.popAny).
   // Срез поверх каналов: такой человек остаётся и в своём канале («Реклама»). Старые данные без флага — по каналу, как раньше.
   const popN=c.pop!=null?rows.filter(r=>r[c.pop]||chOf(r)==='Поп-ап').length:null,popX=popN!=null?popN-(regs['Поп-ап']||0):0;
   const rgOf=k=>k==='Поп-ап'&&popN!=null?popN:regs[k]||0;
-  const bkOf=k=>{if(k==='Поп-ап'&&SG.popAny)return SG.popAny;if(!SG.ch)return k==='Поп-ап'?SG.pop||null:null;const x={};BF.forEach(f=>x[f]=0);Object.keys(SG.ch).forEach(m=>{if(chN(m)===k)BF.forEach(f=>x[f]+=SG.ch[m][f]||0)});return x};
+  const bkOf=k=>{if(k==='Поп-ап'&&SG.popAny)return SG.popAny;if(!SCH)return k==='Поп-ап'?SG.pop||null:null;const x={};BF.forEach(f=>x[f]=0);Object.keys(SCH).forEach(m=>{if(chN(m)===k)BF.forEach(f=>x[f]+=SCH[m][f]||0)});return x};
   // CTR и цена клика — расчётные (клики ÷ показы, расход ÷ клики), показываются только там, где названы обязательными (реклама)
   const AF=[['shows','Показы'],['clicks','Клики'],['ctr','CTR'],['cost','Расход'],['cpc','Цена клика'],['sent','Отправлено писем'],['deliv','Доставлено'],['opens','Открытия'],['cr','Заявки на встречу / клики'],['cpr','Расход / заявку']];
   const acell=(a,f)=>f==='ctr'?(a.shows&&a.clicks!=null?pct(a.clicks/a.shows,2):'—'):f==='cpc'?(a.cost!=null&&a.clicks?rub(a.cost/a.clicks):'—'):f==='deliv'?`${n0(a.deliv)}${a.sent&&a.deliv!=null?` <span class="muted">${pc(a.deliv,a.sent)}</span>`:''}`:f==='opens'?`${n0(a.opens)}${a.deliv&&a.opens!=null?` <span class="muted">${pc(a.opens,a.deliv)}</span>`:''}`:f==='cost'||f==='cpr'?(a[f]==null?'—':rub(a[f])):f==='cr'?(a.cr==null?'—':pct(a.cr,1)):n0(a[f]);
@@ -1214,7 +1221,7 @@ function meetBlock(w,M,rows,c){
   h+=mailBlock(w);
   h+=chanBlock('web-adv','Реклама',['Реклама'],k=>k,['shows','clicks','ctr','cost','cpc']);   // цифры платной рекламы (Директ) — всегда в начале
   h+=chanBlock('web-ads','Поп-ап на сайте',['Поп-ап'],()=>'Поп-ап на сайте');
-  h+=chanBlock('web-och','Другие каналы',MEET_CH.filter(k=>k!=='Реклама'&&k!=='Поп-ап'&&(k!=='Рассылки'||M.ads[k])),k=>k);
+  h+=chanBlock('web-och','Другие каналы',allCh.filter(k=>k!=='Реклама'&&k!=='Поп-ап'&&(k!=='Рассылки'||M.ads[k])),k=>k);
   if(!Object.keys(M.ads||{}).length)h+=`<div class="empty" style="margin-bottom:16px">Площадки ещё не внесены — лист «Данные площадок» таблицы встречи пуст.</div>`;
   return h;
 }
