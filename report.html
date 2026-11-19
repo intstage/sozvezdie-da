@@ -420,6 +420,7 @@ nav.tabs>.pinned-f :is(.pf-wrap,.pf-chips,.pf-pop){display:none}
 .pf-add{border:1px dashed var(--line);background:none;color:var(--ink2);border-radius:10px;padding:6px 12px;font:500 13.5px var(--body);cursor:pointer}
 @media (hover:hover){.pf-add:hover{color:var(--accent);border-color:var(--accent)}}
 .pf-btn{font:500 13px var(--body);border:0;background:none;color:var(--accent);cursor:pointer;padding:6px 8px}
+#web-sum td small{display:block;color:var(--ink2);font-size:11.5px;font-weight:400;white-space:nowrap}#web-sum .ws-fl .pf-pop{top:100%;left:0;margin-top:6px}
 .pf-pop{position:absolute;z-index:15;width:min(380px,86vw);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.15)}
 .pf-pop .seg{min-height:0;display:flex}.pf-pop .seg button{flex:1}
 .pf-pop h4{margin:2px 0 8px;font:600 14px var(--display);color:var(--navy);display:flex;align-items:center;gap:6px}
@@ -1266,6 +1267,122 @@ function meetBlock(w,M,rows,c){
   if(!Object.keys(M.ads||{}).length)h+=`<div class="empty" style="margin-bottom:16px">Площадки ещё не внесены — лист «Данные площадок» таблицы встречи пуст.</div>`;
   return h;
 }
+/* ---------- «Общая сводная» мероприятий (19.11.2026, карточка — projects/zayavki/сводная-мероприятий-карточка-2026-11-19.md) ----------
+   Данные — D.webinars.pool (ночной расчёт sa_wb_segments.js, без контактов): ev — мероприятия, d — словари меток,
+   q — заявки [тип, тип клиента, день создания, p|w|o, СЗ, стоимость, мероприятие-экскурсия своей брони|-1],
+   p — люди: [[мероприятие, день регистрации, src, med, camp, сегмент, нашёлся 0|1|2, [заявки]], …].
+   Строка мероприятия — люди этого мероприятия, их заявки с дня регистрации на него (как «Каналы» и «Рассылки»).
+   Итог — без повторов: человек один раз; его заявки — с первой подходящей регистрации, каждая один раз и относится
+   к последней подходящей регистрации не позже заявки (своя бронь экскурсии — только если включена галочка);
+   источник — метки самой ранней регистрации человека на каждом мероприятии; новый / повторный — на день первой подходящей регистрации. */
+const WS_FD=[['t','Тип мероприятия'],['med','utm_medium'],['src','utm_source'],['camp','utm_campaign'],['mch','Канал встречи']];
+const WS_SEG=[['new','Новые','не было в базе Инфофлота'],['base','В базе, не покупали','контакт есть, покупок не было'],['other','Покупали не Созвездие','только у других операторов'],['sz','Покупатели Созвездия','последняя покупка СЗ меньше 2 лет назад'],['back','Вернувшиеся','покупали СЗ 2 года назад и раньше']];
+let wsOpen=null,wsQ='';
+function wsMeetCh(M,s,m,cp){   // копия chM из meetBlock: правила по трём меткам, иначе utm_medium по «Настройкам»
+  const lo=v=>String(v==null?'':v).trim().toLowerCase(),RU=M.rules||[],ch=M.chan||{};
+  m=lo(m);if(!m||m==='не определён'||m==='-')return'Без меток';
+  const i=RU.findIndex(x=>x[0]===lo(s)&&x[1]===m&&(!x[2]||x[2]===lo(cp)));return i>-1?RU[i][3]:ch[m]||'Другой канал'}
+function wsVal(P,L,e,f){
+  if(f==='t'){const w=L[e[0]];return w?w.type||'вебинар':'—'}
+  if(f==='mch'){const w=L[e[0]];return w&&w.type==='встреча'&&w.meet?wsMeetCh(w.meet,P.d.src[e[2]],P.d.med[e[3]],P.d.camp[e[4]]):'не встреча'}
+  return P.d[f][e[{src:2,med:3,camp:4}[f]]]}
+const wsLbl=(f,v)=>v==='-'&&f==='med'?'без меток':v===''?'(пусто)':v;
+function wsPass(F,P,L,e,skip){const or=S.wsJ==='or';let has=0;for(const f in F){const x=F[f];if(f===skip||!x.v||!x.v.length)continue;has=1;const ok=x.v.includes(wsVal(P,L,e,f))===!x.x;if(or){if(ok)return true}else if(!ok)return false}return or?!has:true}
+function wsBlock(W,WKT){
+  const P=W.pool;
+  if(!P||P.error||!P.p)return`<div class="panel sec" id="web-sum" style="margin-bottom:16px"><h2>Общая сводная</h2><div class="empty">${P&&P.error?'Список людей мероприятий не прочитан: '+esc(P.error):'Считается ночью по Букингу (лист «Мероприятия: люди») или сразу — меню «Заявки» → «Мероприятия: пересчитать сегменты по Букингу».'}</div></div>`;
+  const byName={};(W.list||[]).forEach(w=>byName[w.name]=w);
+  const L=P.ev.map(n=>byName[n]||{name:n});
+  const F=S.wsF||(S.wsF={}),on=WS_FD.filter(([f])=>F[f]&&F[f].v&&F[f].v.length);
+  // только мероприятия списка: строка справочника с акциями экскурсии («Лунная соната · 01.11», SA_EV_PROMO) — не мероприятие
+  const evAll=P.ev.map((n,i)=>i).filter(i=>byName[P.ev[i]]&&P.p.some(x=>x.some(e=>e[0]===i)));
+  const evOk=new Set(evAll);
+  if(!Array.isArray(S.wsE))S.wsE=[];
+  const evOn=new Set((S.wsE.length?S.wsE:P.ev).map(n=>P.ev.indexOf(n)).filter(i=>evOk.has(i)));
+  const kinds=new Set(P.q.map(r=>r[0]));
+  const WK=WKT.filter(([k])=>k==='c'||k==='all'||kinds.has(k==='air'?'a':k));
+  if(!WK.some(x=>x[0]===S.wsK))S.wsK='c';
+  const kt=S.wsK==='air'?'a':S.wsK,keepK=S.wsK==='all'?()=>true:t=>t===kt;
+  const ctOn=new Set(Array.isArray(S.wct)?S.wct:['p','i','s','g']),own=!!S.wsO,hasOwn=P.q.some(r=>r[6]>-1);
+  const qOk=r=>keepK(r[0])&&(ctOn.has(r[1])||r[1]==='o');
+  const z=()=>({n:0,found:0,ppl:0,pplSz:0,req:0,sale:0,buyers:0,buyersSz:0,sum:0,sumSz:0,wait:0,waitSum:0});
+  const add=(x,found,R)=>{x.n++;if(found)x.found++;const pd=R.filter(r=>r[3]==='p');
+    if(R.length)x.ppl++;if(R.some(r=>r[4]))x.pplSz++;x.req+=R.length;x.sale+=pd.length;if(pd.length)x.buyers++;if(pd.some(r=>r[4]))x.buyersSz++;
+    pd.forEach(r=>{x.sum+=r[5];if(r[4])x.sumSz+=r[5]});R.forEach(r=>{if(r[3]==='w'){x.wait++;x.waitSum+=r[5]}})};
+  const fnd=e=>e[6]===1||(own&&e[6]===2);
+  const rqOf=e=>e[7].map(i=>P.q[i]).filter(r=>qOk(r)&&(own||r[6]!==e[0]));
+  const ok=e=>evOn.has(e[0])&&wsPass(F,P,L,e);
+  // строки мероприятий
+  const rows={};evAll.forEach(i=>{if(evOn.has(i))rows[i]=z()});
+  P.p.forEach(x=>x.forEach(e=>{if(ok(e))add(rows[e[0]],fnd(e),rqOf(e))}));
+  // итог без повторов + новые и повторные
+  const T=z(),SG={};WS_SEG.forEach(([k])=>SG[k]=z());let multi=0;
+  P.p.forEach(x=>{const Q=x.filter(ok).sort((a,b)=>a[1]-b[1]);if(!Q.length)return;if(new Set(Q.map(e=>e[0])).size>1)multi++;
+    const seen=new Set(),R=[];
+    Q.forEach(e=>e[7].forEach(i=>{if(seen.has(i))return;seen.add(i);const r=P.q[i];if(!qOk(r))return;
+      let at=null;Q.forEach(q=>{if(q[1]<=r[2])at=q});if(!at)return;if(!own&&r[6]===at[0])return;R.push(r)}));
+    const found=Q.some(fnd);add(T,found,R);const sk=WS_SEG[Q[0][5]];if(sk)add(SG[sk[0]],found,R)});
+  ['sum','sumSz','waitSum'].forEach(k=>{T[k]=Math.round(T[k])});
+  const S0=Object.values(rows).reduce((a,x)=>{Object.keys(a).forEach(k=>a[k]+=x[k]);return a},z());
+  // фильтры — как на «Попапах»
+  const cnt=f=>{const c={};P.p.forEach(x=>x.forEach(e=>{if(!evOn.has(e[0])||!wsPass(F,P,L,e,f))return;const v=wsVal(P,L,e,f);c[v]=(c[v]||0)+1}));return c};
+  const nm=f=>WS_FD.find(x=>x[0]===f)[1],vt=(f,x)=>x.v.slice(0,2).map(v=>wsLbl(f,v)).join(', ')+(x.v.length>2?` +${x.v.length-2}`:'');
+  const chips=on.map(([f,l],i)=>(i?`<button type="button" class="pf-j" data-wsj="1" title="Переключить: все условия сразу / хотя бы одно">${S.wsJ==='or'?'или':'и'}</button>`:'')
+    +`<button type="button" class="pf-chip" data-wse="${f}" title="${esc(l+(F[f].x?' — все, кроме: ':' — любое из: ')+F[f].v.map(v=>wsLbl(f,v)).join(', '))}"><span>${esc(l)}<i>${F[f].x?'≠':'='}</i><b>${esc(vt(f,F[f]))}</b></span></button><button type="button" class="pf-x" data-wsd="${f}" aria-label="Убрать фильтр ${esc(l)}">×</button>`).join('');
+  let pop='';
+  if(wsOpen==='+')pop=`<div class="pf-pop"><h4>Фильтр по</h4><div class="pf-flds">${WS_FD.filter(([f])=>!on.some(o=>o[0]===f)).map(([f,l])=>`<button type="button" data-wse="${f}">${l}</button>`).join('')}</div></div>`;
+  else if(wsOpen){const f=wsOpen,x=F[f]||{x:0,v:[]},c=cnt(f);x.v.forEach(v=>{if(!(v in c))c[v]=0});
+    const sel=v=>x.v.includes(v)?0:1,vals=Object.keys(c).sort((a,b)=>sel(a)-sel(b)||c[b]-c[a]||a.localeCompare(b));
+    pop=`<div class="pf-pop"><h4>${esc(nm(f))}</h4><div class="seg"><button type="button" data-wsx="0" aria-pressed="${!x.x}">= любое из</button><button type="button" data-wsx="1" aria-pressed="${!!x.x}">≠ все, кроме</button></div>
+      ${vals.length>12?`<input class="pf-q" type="search" placeholder="Найти…" value="${esc(wsQ)}">`:''}
+      <div class="pf-list">${vals.map(v=>`<label data-s="${esc(wsLbl(f,v).toLowerCase())}"><input type="checkbox" data-wsv="${esc(v)}"${x.v.includes(v)?' checked':''}><span title="${esc(v)}">${esc(wsLbl(f,v))}</span><span class="muted">${fmt(c[v])}</span></label>`).join('')}</div>
+      <div class="pf-foot"><span class="muted" style="font-size:12px">число — регистраций с остальными фильтрами</span><button type="button" class="pf-btn" data-wsok="1">Готово</button></div></div>`}
+  const dt=w=>w&&w.date?w.date.slice(8,10)+'.'+w.date.slice(5,7)+'.'+w.date.slice(0,4):'';
+  const evBar=`<div class="seg" id="ws-ev" style="flex-wrap:wrap">${[['','Все']].concat(evAll.map(i=>[P.ev[i],P.ev[i]])).map(([v,l])=>`<button type="button" data-wsev="${esc(v)}" aria-pressed="${v?S.wsE.includes(v):!S.wsE.length}">${esc(l)}</button>`).join('')}</div>`;
+  const ctl=[['p','Частные лица'],['i','ИП'],['s','Самозанятые'],['g','Агентства']].filter(([t])=>P.q.some(r=>r[1]===t));
+  const c2=(a,b)=>`${fmt(a)}${b!=null?`<small>СЗ ${fmt(b)}</small>`:''}`,r2=(a,b)=>`${a?rubF(a):'—'}${b!=null&&a?`<small>СЗ ${rubF(b)}</small>`:''}`;
+  const line=(name,x,cls,hint)=>`<tr class="${cls||''}"><td>${name}${hint?`<small>${esc(hint)}</small>`:''}</td><td class="r b">${fmt(x.n)}</td><td class="r">${fmt(x.found)}</td><td class="r">${c2(x.ppl,x.pplSz)}</td><td class="r">${fmt(x.req)}</td><td class="r b">${fmt(x.sale)}</td><td class="r">${c2(x.buyers,x.buyersSz)}</td><td class="r b">${r2(Math.round(x.sum),Math.round(x.sumSz))}</td><td class="r">${x.wait?`${fmt(x.wait)}<small>${rubF(x.waitSum)}</small>`:'—'}</td></tr>`;
+  const head=`<thead><tr><th></th><th class="r">Людей</th><th class="r">Нашлись в Букинге</th><th class="r">С заявкой</th><th class="r">Заявок</th><th class="r">Продаж</th><th class="r">Покупателей</th><th class="r">Выручка</th><th class="r">Ждут оплаты</th></tr></thead>`;
+  const evR=evAll.filter(i=>rows[i]).map(i=>line(`${esc(P.ev[i])}${L[i].type==='встреча'?' · офлайн':''}`,rows[i],'',/\d{2}\.\d{2}$/.test(P.ev[i])?'':dt(L[i])));
+  const wt=WKT.find(x=>x[0]===S.wsK)||WKT[0];
+  return`<div class="panel sec" id="web-sum" style="margin-bottom:16px"><h2>Общая сводная</h2>
+    <p class="sub">Сколько людей пришло на выбранные мероприятия и что они купили в Букинге с дня регистрации — по любым источникам. Итог — без повторов: каждый человек и каждая заявка считаются один раз.</p>
+    <div class="filters" style="margin:6px 0 8px;flex-wrap:wrap"><div><span class="flbl">Мероприятия</span>${evBar}</div></div>
+    <div class="ws-fl" style="position:relative;margin-bottom:8px"><span class="flbl">Фильтры</span><div class="pf-bar" id="ws-flt"><button type="button" class="pf-add" data-wse="+">+ Фильтр</button>${chips}${on.length?'<button type="button" class="pf-btn" data-wsr="1">Сбросить</button>':''}</div>${pop}</div>
+    <div class="filters" style="margin:4px 0 10px;flex-wrap:wrap"><div><span class="flbl">Что считаем</span><div class="seg wk" id="ws-kind">${WK.map(([k,l])=>`<button type="button" data-k="${k}" aria-pressed="${S.wsK===k}">${l}</button>`).join('')}</div></div>
+      ${ctl.length>1?`<div class="fgroup"><span class="flbl">Тип клиента (общий с блоками выше)</span><div class="checks" id="ws-ct">${ctl.map(([t,l])=>`<label><input type="checkbox" data-t="${t}"${ctOn.has(t)?' checked':''}>${l}</label>`).join('')}</div></div>`:''}
+      ${hasOwn?`<div class="fgroup"><span class="flbl">Экскурсия</span><div class="checks" id="ws-own"><label title="Брони самой экскурсии (билеты, по которым человек зарегистрировался). Обычно в отчёте не считаются; в расчёте для Романа 19.11 — считались"><input type="checkbox"${own?' checked':''}>считать брони самой экскурсии</label></div></div>`:''}</div>
+    <div class="tbl"><table>${head}<tbody>${evR.join('')}
+      ${evR.length>1?line('<span class="muted">Сумма строк (повторы считаются)</span>',S0,''):''}
+      ${line('Итого без повторов',T,'b',multi?`${nw(multi,'человек был','человека были','человек были')} на нескольких мероприятиях`:'')}</tbody></table></div>
+    <h3 style="margin:16px 0 6px;font:600 15px var(--display)">Новые и повторные · итог без повторов</h3>
+    <div class="tbl"><table>${head}<tbody>${WS_SEG.map(([k,l,h])=>line(esc(l),SG[k],'',h)).join('')}${line('Всего',T,'b')}</tbody></table></div>
+    <details class="how"><summary>Как считаем</summary><ul class="sub" style="margin:6px 0 0;padding-left:18px;line-height:1.55">
+      <li><b>Человек</b> — почта или телефон: общая почта или телефон хоть в одной регистрации любого мероприятия — один человек. Сюда же — лиды CRM-формы без регистрации (источник «без регистрации (crm-форма)»).</li>
+      <li><b>Источник</b> — метки самой ранней регистрации человека на этом мероприятии. Если на два мероприятия человек пришёл по разным меткам, он есть в каждом своём источнике.</li>
+      <li><b>Заявки</b> — ${esc(wt[3])} в Букинге, созданные в день регистрации и позже, любой оператор; «СЗ» — из них Созвездие с Речными линиями. В итоге без повторов — с первой подходящей регистрации человека, каждая заявка один раз${hasOwn?'; брони самой экскурсии — только с галочкой':''}.</li>
+      <li><b>Заявок</b> — все заявки, в том числе аннулированные. <b>Продаж</b> — оплаченные (21 Предоплата, 30 Оплачено), <b>выручка</b> — их полная стоимость. <b>Ждут оплаты</b> — статусы 10, 13, 20, 33, число заявок и их стоимость; в выручку не входят. Аннуляции (0) и возвраты (1, 2, 12) не входят ни в продажи, ни в ожидание.</li>
+      <li><b>Новые и повторные</b> — кем человек был в день первой подходящей регистрации: новый — не было в Букинге; «покупал» — оплаченный круиз.</li>
+      <li>Строка мероприятия считает человека на каждом его мероприятии, поэтому «Сумма строк» больше итога. Тип клиента — по карточке клиента в Букинге.</li>
+      <li>Расчёт ночью${P.updated?`, последний — ${esc(new Date(P.updated).toLocaleString('ru-RU',{timeZone:'Europe/Moscow',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}))}`:''}.</li></ul></details></div>`}
+function wsBind(){
+  const el=$('#web-sum');if(!el)return;const F=S.wsF||(S.wsF={}),go=()=>{save();render()};
+  const q=el.querySelector('.pf-q');if(q)q.dispatchEvent(new Event('input',{bubbles:true}));
+  el.addEventListener('input',e=>{if(!e.target.classList.contains('pf-q'))return;wsQ=e.target.value;const s=wsQ.trim().toLowerCase();el.querySelectorAll('.pf-list label').forEach(l=>l.hidden=!!s&&!l.dataset.s.includes(s))});
+  el.addEventListener('change',e=>{const t=e.target;
+    if(t.dataset.wsv!=null){const x=F[wsOpen]||(F[wsOpen]={x:0,v:[]});x.v=t.checked?x.v.concat([t.dataset.wsv]):x.v.filter(v=>v!==t.dataset.wsv);return go()}
+    if(t.closest('#ws-ct')&&t.dataset.t){const st=new Set(Array.isArray(S.wct)?S.wct:['p','i','s','g']);if(t.checked)st.add(t.dataset.t);else st.delete(t.dataset.t);S.wct=[...st];return go()}
+    if(t.closest('#ws-own')){S.wsO=t.checked;return go()}});
+  el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset;
+    if(d.wsev!=null){const v=d.wsev;S.wsE=!v?[]:S.wsE.includes(v)?S.wsE.filter(x=>x!==v):S.wsE.concat([v]);return go()}
+    if(d.k&&b.closest('#ws-kind')){S.wsK=d.k;return go()}
+    if(d.wse){wsOpen=wsOpen===d.wse?null:d.wse;wsQ='';return render()}
+    if(d.wsd){delete F[d.wsd];if(wsOpen===d.wsd)wsOpen=null;return go()}
+    if(d.wsj){S.wsJ=S.wsJ==='or'?'and':'or';return go()}
+    if(d.wsr){S.wsF={};wsOpen=null;return go()}
+    if(d.wsok){wsOpen=null;return render()}
+    if(d.wsx){const x=F[wsOpen]||(F[wsOpen]={x:0,v:[]});x.x=+d.wsx;return go()}});
+  if(!wsBind.doc){wsBind.doc=1;document.addEventListener('click',e=>{if(wsOpen&&!e.target.closest('#web-sum .pf-pop,#ws-flt')&&document.contains(e.target)){wsOpen=null;const p=document.querySelector('#web-sum .pf-pop');if(p)p.remove()}})}}
 const WB_DIMS=[['med','Канал'],['src','Источник'],['brand','Бренд'],['camp','Кампания'],['utm','Метки']];   // «Метки» — связка utm_source / utm_medium / utm_campaign (12.11.2026)
 function vWeb(){
   const W=D.webinars||{list:[]},L=(W.list||[]).filter(w=>w.rows);
@@ -1573,6 +1690,8 @@ function vWeb(){
   h+=`<div class="panel sec" id="web-cut" style="margin-bottom:16px"><div class="filters" style="margin-bottom:8px"><div><span class="flbl">Разрез</span><div class="seg" id="seg-wdim">${WB_DIMS.map(([key,l])=>`<button type="button" data-d="${key}" aria-pressed="${S.wdim===key}">${l}</button>`).join('')}</div></div></div>
     <div class="tbl"><table><thead><tr><th></th><th class="r">${nNr?'Участников':'Регистраций'}</th><th class="r">Доля</th><th class="r">В базе ИФ</th><th class="r">Оплата СЗ</th><th class="r">Заявка Б24</th><th class="r">Забронировали</th><th class="r">Из них новые</th></tr></thead>
     <tbody>${gl.map(([name,x])=>line(name,x)).join('')}${line('Итого',{n:NA,inIF:cntA('inIF'),paid:cntA('paid'),req:cntA('req'),booked:cntA('booked'),nb:cntA('newBooked')},true)}</tbody></table></div></div>`;
+  // «Общая сводная» (19.11.2026): выбранные мероприятия × метки, итог без повторов
+  h+=wsBlock(W,WKT);
   // сравнение вебинаров
   if(L.length>1)h+=`<div class="panel sec" id="web-cmp"><h2>Сравнение мероприятий</h2><p class="sub">Нажмите на строку — откроется это мероприятие</p><div class="tbl"><table><thead><tr><th>Дата</th><th>Мероприятие</th><th class="r">Регистраций</th><th class="r">${L.some(x=>x.type==='экскурсия'&&!(x.promo&&x.promo.reqs))?'Лидов / мест':'Лидов'}</th><th class="r">Заявок в Букинге</th><th class="r">Продажи</th><th class="r">Сумма продаж</th></tr></thead><tbody>
     ${L.map(x=>{const cc=Object.fromEntries(x.cols.map((kk,i)=>[kk,i])),xr=regsOf(x),nn=regN(x),rq=xr.reduce((a,r)=>a+(r[cc.req]?1:0),0),z=srezOf(x),ld=z?z.leads:rq+(x.extra||0),wq=z&&z.bk?z.withReq:null;
@@ -1584,8 +1703,9 @@ function vWeb(){
       if(xs)return`<tr data-pick="w:${esc(x.name)}" title="Открыть это мероприятие"><td class="nw">${dd(evDays(x)[0]||x.date)}</td><td class="b">${esc(x.name.replace(/\s*·\s*\d{2}\.\d{2}$/,''))}${x.type==='встреча'?' · офлайн':''}${x.name===w.name?' ✓':''}</td><td class="r"${pplOf(x)?' title="Придёт людей: регистрации и спутники из комментария, без полных дублей"':''}>${fmt(nn)}${pplOf(x)?' <span class="muted">чел.</span>':''}</td><td class="r">${fmt(xs.reduce((a,i)=>a+i.g,0))} <span class="muted">мест</span></td><td class="r">${fmt(xs.length)} <span class="muted">${cv(xs.length,nn)}</span></td><td class="r">${fmt(xpb)} <span class="muted">${cv(xpb,xs.length)}</span></td><td class="r">${z?rubF(z.sum):'—'}</td></tr>`;
       return`<tr data-pick="w:${esc(x.name)}" title="Открыть это мероприятие"><td class="nw">${dd(evDays(x)[0]||x.date)}</td><td class="b">${esc(x.name.replace(/\s*·\s*\d{2}\.\d{2}$/,''))}${x.type==='встреча'?' · офлайн':''}${x.name===w.name?' ✓':''}</td><td class="r"${pplOf(x)?' title="Придёт людей: регистрации и спутники из комментария, без полных дублей"':''}>${fmt(nn)}${pplOf(x)?' <span class="muted">чел.</span>':''}</td><td class="r">${fmt(ld)} <span class="muted">${cv(ld,nn)}</span></td><td class="r">${wq==null?'—':`${fmt(wq)} <span class="muted">${cv(wq,ld)}</span>`}</td><td class="r">${z?fmt(z.sold):'—'}${wq!=null?` <span class="muted">${cv(z.sold,wq)}</span>`:''}</td><td class="r">${z?rubF(z.sum):'—'}</td></tr>`}).join('')}
     </tbody></table></div></div>`;
-  $('#view').innerHTML=withJump(h,[...(ex&&w.seats?[['web-seats','Места']]:[]),...(ex&&w.promo?[['web-promo','Розыгрыш']]:[]),['web-meet',M&&M.people&&M.people.total?'Люди':'Обзвон'],['web-mail','Рассылки'],['web-adv','Реклама'],['web-days','По дням'],['web-funnel','Воронка и стадии'],['web-cohort','Когорта'],['web-seg','Кто и когда купил'],['web-cut','Разрез'],['web-cmp','Сравнение']]);
+  $('#view').innerHTML=withJump(h,[...(ex&&w.seats?[['web-seats','Места']]:[]),...(ex&&w.promo?[['web-promo','Розыгрыш']]:[]),['web-meet',M&&M.people&&M.people.total?'Люди':'Обзвон'],['web-mail','Рассылки'],['web-adv','Реклама'],['web-days','По дням'],['web-funnel','Воронка и стадии'],['web-cohort','Когорта'],['web-seg','Кто и когда купил'],['web-cut','Разрез'],['web-sum','Сводная'],['web-cmp','Сравнение']]);
   $('#web-pick').onclick=e=>{const b=e.target.closest('[data-w]');if(!b)return;S.web=b.dataset.w;save();render()};
+  wsBind();
   const ck=$('#chk-wct');if(ck)ck.onchange=e=>{const t=e.target.dataset&&e.target.dataset.t;if(!t)return;const st=new Set(S.wct);if(e.target.checked)st.add(t);else st.delete(t);S.wct=[...st];save();render()};
   const sk=$('#seg-wkind');if(sk)sk.onclick=e=>{const b=e.target.closest('[data-k]');if(!b)return;if(e.detail)b.blur();S.wkind=b.dataset.k;save();render()};
   $('#seg-wdim').onclick=e=>{const b=e.target.closest('[data-d]');if(!b)return;if(e.detail)b.blur();S.wdim=b.dataset.d;save();render()};
