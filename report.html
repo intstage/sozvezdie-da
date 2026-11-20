@@ -420,7 +420,15 @@ nav.tabs>.pinned-f :is(.pf-wrap,.pf-chips,.pf-pop){display:none}
 .pf-add{border:1px dashed var(--line);background:none;color:var(--ink2);border-radius:10px;padding:6px 12px;font:500 13.5px var(--body);cursor:pointer}
 @media (hover:hover){.pf-add:hover{color:var(--accent);border-color:var(--accent)}}
 .pf-btn{font:500 13px var(--body);border:0;background:none;color:var(--accent);cursor:pointer;padding:6px 8px}
-#web-sum td small{display:block;color:var(--ink2);font-size:11.5px;font-weight:400;white-space:nowrap}#web-sum .ws-fl .pf-pop{top:100%;left:0;margin-top:6px}
+.fold-b{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;width:100%;cursor:pointer;padding:2px 0}
+.fold-b::before{content:"";width:9px;height:11px;background:var(--accent,var(--ink2));clip-path:polygon(0 0,100% 50%,0 100%);transform:rotate(90deg);transition:transform .15s ease;flex:none}
+.folded .fold-b::before{transform:none}
+.fold-t{flex:1 1 auto;min-width:0}
+.fold-s{flex:none;font-size:13px;font-weight:600;color:var(--accent,var(--ink2));border:1px solid currentColor;border-radius:12px;padding:4px 12px;opacity:.85}
+.fold-b:hover .fold-s{opacity:1}
+.fold-b:focus-visible{outline:2px solid var(--accent,#36c);outline-offset:3px;border-radius:6px}
+.panel.folded>:not(h2.fold-h){display:none!important}
+#web-sum td small{display:block;color:var(--ink2);font-size:11.5px;font-weight:400;white-space:nowrap}@media (min-width:561px){#web-sum .ws-fl .pf-pop{top:100%;left:0;margin-top:6px}}
 .pf-pop{position:absolute;z-index:15;width:min(380px,86vw);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.15)}
 .pf-pop .seg{min-height:0;display:flex}.pf-pop .seg button{flex:1}
 .pf-pop h4{margin:2px 0 8px;font:600 14px var(--display);color:var(--navy);display:flex;align-items:center;gap:6px}
@@ -851,7 +859,7 @@ function viewClick(e){
     if(v[0]==='@'){const[t,sec]=v.slice(1).split('#');
       if(t===S.tab){if(sec)jumpTo(sec,true);return}
       histPush();S.tab=t;save();render();navState();if(sec)jumpTo(sec,false,true);else window.scrollTo({top:0});return}
-    {const el=document.getElementById(v);if(el&&el.tagName==='DETAILS')el.open=true}
+    {const el=document.getElementById(v);if(el&&el.tagName==='DETAILS')el.open=true;if(el&&el.classList.contains('folded')){const b=el.querySelector('[data-fold]');if(b)b.click()}}
     jumpTo(v,true);return}
   const p=e.target.closest('[data-pick]');if(!p)return;
   const v=p.dataset.pick,sec=(p.closest('.sec')||{}).id;
@@ -1288,9 +1296,13 @@ function wsVal(P,L,e,f){
   return P.d[f][e[{src:2,med:3,camp:4}[f]]]}
 const wsLbl=(f,v)=>v==='-'&&f==='med'?'без меток':v===''?'(пусто)':v;
 function wsPass(F,P,L,e,skip){const or=S.wsJ==='or';let has=0;for(const f in F){const x=F[f];if(f===skip||!x.v||!x.v.length)continue;has=1;const ok=x.v.includes(wsVal(P,L,e,f))===!x.x;if(or){if(ok)return true}else if(!ok)return false}return or?!has:true}
+// сворачивание блоков «Общая сводная» и «Сравнение мероприятий» (20.11.2026): заголовок — кнопка, состояние в S.fold
+function wsFoldC(id){return S.fold&&S.fold[id]?' folded':''}
+function wsFoldH(id,t){const f=!!(S.fold&&S.fold[id]);return`<h2 class="fold-h"><button type="button" class="fold-b" data-fold="${id}" aria-expanded="${!f}"><span class="fold-t">${t}</span><span class="fold-s">${f?'Развернуть':'Свернуть'}</span></button></h2>`}
+function wsFoldBind(){document.querySelectorAll('#view [data-fold]').forEach(b=>b.onclick=e=>{e.stopPropagation();const p=b.closest('.panel'),f=p.classList.toggle('folded');(S.fold||(S.fold={}))[b.dataset.fold]=f;b.setAttribute('aria-expanded',!f);b.querySelector('.fold-s').textContent=f?'Развернуть':'Свернуть';save()})}
 function wsBlock(W,WKT){
   const P=W.pool;
-  if(!P||P.error||!P.p)return`<div class="panel sec" id="web-sum" style="margin-bottom:16px"><h2>Общая сводная</h2><div class="empty">${P&&P.error?'Список людей мероприятий не прочитан: '+esc(P.error):'Считается ночью по Букингу (лист «Мероприятия: люди») или сразу — меню «Заявки» → «Мероприятия: пересчитать сегменты по Букингу».'}</div></div>`;
+  if(!P||P.error||!P.p)return`<div class="panel sec${wsFoldC('web-sum')}" id="web-sum" style="margin-bottom:16px">${wsFoldH('web-sum','Общая сводная')}<div class="empty">${P&&P.error?'Список людей мероприятий не прочитан: '+esc(P.error):'Считается ночью по Букингу (лист «Мероприятия: люди») или сразу — меню «Заявки» → «Мероприятия: пересчитать сегменты по Букингу».'}</div></div>`;
   const byName={};(W.list||[]).forEach(w=>byName[w.name]=w);
   const L=P.ev.map(n=>byName[n]||{name:n});
   const F=S.wsF||(S.wsF={}),on=WS_FD.filter(([f])=>F[f]&&F[f].v&&F[f].v.length);
@@ -1345,12 +1357,12 @@ function wsBlock(W,WKT){
   const head=`<thead><tr><th></th><th class="r">Людей</th><th class="r">Нашлись в Букинге</th><th class="r">С заявкой</th><th class="r">Заявок</th><th class="r">Продаж</th><th class="r">Покупателей</th><th class="r">Выручка</th><th class="r">Ждут оплаты</th></tr></thead>`;
   const evR=evAll.filter(i=>rows[i]).map(i=>line(`${esc(P.ev[i])}${L[i].type==='встреча'?' · офлайн':''}`,rows[i],'',/\d{2}\.\d{2}$/.test(P.ev[i])?'':dt(L[i])));
   const wt=WKT.find(x=>x[0]===S.wsK)||WKT[0];
-  return`<div class="panel sec" id="web-sum" style="margin-bottom:16px"><h2>Общая сводная</h2>
+  return`<div class="panel sec${wsFoldC('web-sum')}" id="web-sum" style="margin-bottom:16px">${wsFoldH('web-sum','Общая сводная')}
     <p class="sub">Сколько людей пришло на выбранные мероприятия и что они купили в Букинге с дня регистрации — по любым источникам. Итог — без повторов: каждый человек и каждая заявка считаются один раз.</p>
     <div class="filters" style="margin:6px 0 8px;flex-wrap:wrap"><div><span class="flbl">Мероприятия</span>${evBar}</div></div>
     <div class="ws-fl" style="position:relative;margin-bottom:8px"><span class="flbl">Фильтры</span><div class="pf-bar" id="ws-flt"><button type="button" class="pf-add" data-wse="+">+ Фильтр</button>${chips}${on.length?'<button type="button" class="pf-btn" data-wsr="1">Сбросить</button>':''}</div>${pop}</div>
     <div class="filters" style="margin:4px 0 10px;flex-wrap:wrap"><div><span class="flbl">Что считаем</span><div class="seg wk" id="ws-kind">${WK.map(([k,l])=>`<button type="button" data-k="${k}" aria-pressed="${S.wsK===k}">${l}</button>`).join('')}</div></div>
-      ${ctl.length>1?`<div class="fgroup"><span class="flbl">Тип клиента (общий с блоками выше)</span><div class="checks" id="ws-ct">${ctl.map(([t,l])=>`<label><input type="checkbox" data-t="${t}"${ctOn.has(t)?' checked':''}>${l}</label>`).join('')}</div></div>`:''}
+      ${ctl.length>1?`<div class="fgroup"><span class="flbl">Тип клиента (общий с блоками ниже)</span><div class="checks" id="ws-ct">${ctl.map(([t,l])=>`<label><input type="checkbox" data-t="${t}"${ctOn.has(t)?' checked':''}>${l}</label>`).join('')}</div></div>`:''}
       ${hasOwn?`<div class="fgroup"><span class="flbl">Экскурсия</span><div class="checks" id="ws-own"><label title="Брони самой экскурсии (билеты, по которым человек зарегистрировался). Обычно в отчёте не считаются; в расчёте для Романа 19.11 — считались"><input type="checkbox"${own?' checked':''}>считать брони самой экскурсии</label></div></div>`:''}</div>
     <div class="tbl"><table>${head}<tbody>${evR.join('')}
       ${evR.length>1?line('<span class="muted">Сумма строк (повторы считаются)</span>',S0,''):''}
@@ -1427,7 +1439,7 @@ function vWeb(){
   const ddR=x=>{const L=evDays(x);if(L.length<2)return dd(L[0]);const a=L[0],b=L[L.length-1];return(a.slice(0,7)===b.slice(0,7)?a.slice(8,10):dd(a).slice(0,5))+'–'+dd(b)};   // «01–03.11.2026»
   // в списке мероприятий — только первая дата (10.11.2026: «01.11.2026 · Экскурсия», не «01–03.11.2026»)
   const wl=x=>(x.date?dd(evDays(x)[0]||x.date)+' · '+x.name.replace(/\s*·\s*\d{2}\.\d{2}$/,''):x.name)+(x.type==='встреча'?' · офлайн':'');   // встреча — с пометкой «офлайн» (10.11.2026)
-  let h=`<div class="pin-f"><span class="flbl">Мероприятия · ${L.length}</span>
+  let h=`<!--wsum--><div class="pin-f"><span class="flbl">Мероприятия · ${L.length}</span>
     <details class="panel dq pick" id="web-pick"><summary><span>${esc(wl(w))}</span><span class="muted pick-n"><span class="pk-dot"> · </span>${fmt(nP)} ${regW(w,nP)}</span><span class="muted pk-short" title="${fmt(nP)} ${regW(w,nP)}${soldOf(w)!=null?` · ${fmt(soldOf(w))} ${plural(soldOf(w),'продажа','продажи','продаж')}`:''}">${fmt(nP)} ${regS(w)}${soldOf(w)!=null?' · продаж '+fmt(soldOf(w)):''}</span></summary>
     <ul class="pick-list">${L.map(x=>`<li><button type="button" data-w="${esc(x.name)}" aria-current="${x.name===w.name}"><span>${esc(wl(x))}</span><span class="muted pk-s"><span class="pk-v">${fmt(regN(x))}</span> ${regS(x)} · продаж <span class="pk-v">${soldOf(x)!=null?fmt(soldOf(x)):'—'}</span></span><span class="muted pk-f">${fmt(regN(x))} ${regW(x,regN(x))}${soldOf(x)!=null?` · ${fmt(soldOf(x))} ${plural(soldOf(x),'продажа','продажи','продаж')}`:''}</span></button></li>`).join('')}</ul></details></div>
     <p class="muted" style="font-size:12.5px;margin:6px 0 16px">${kind} ${ddR(w)}${ex&&w.guests!=null?` · гостей в действующих бронях: ${fmt(w.guests)}`:''} · регистрации ${dd(w.start)} – ${dd(w.end)}${mtP?` · заявок ${fmt(mtP.total)}, полных дублей ${fmt(mtP.dup)}`:mtC?` · заявок ${fmt(mtC.total)}, из них дублей ${fmt(mtDup)}`:w.dups?` · повторных регистраций убрано: ${fmt(w.dups)}`:''}</p>`;
@@ -1691,9 +1703,10 @@ function vWeb(){
     <div class="tbl"><table><thead><tr><th></th><th class="r">${nNr?'Участников':'Регистраций'}</th><th class="r">Доля</th><th class="r">В базе ИФ</th><th class="r">Оплата СЗ</th><th class="r">Заявка Б24</th><th class="r">Забронировали</th><th class="r">Из них новые</th></tr></thead>
     <tbody>${gl.map(([name,x])=>line(name,x)).join('')}${line('Итого',{n:NA,inIF:cntA('inIF'),paid:cntA('paid'),req:cntA('req'),booked:cntA('booked'),nb:cntA('newBooked')},true)}</tbody></table></div></div>`;
   // «Общая сводная» (19.11.2026): выбранные мероприятия × метки, итог без повторов
-  h+=wsBlock(W,WKT);
+  const wsH=wsBlock(W,WKT);
   // сравнение вебинаров
-  if(L.length>1)h+=`<div class="panel sec" id="web-cmp"><h2>Сравнение мероприятий</h2><p class="sub">Нажмите на строку — откроется это мероприятие</p><div class="tbl"><table><thead><tr><th>Дата</th><th>Мероприятие</th><th class="r">Регистраций</th><th class="r">${L.some(x=>x.type==='экскурсия'&&!(x.promo&&x.promo.reqs))?'Лидов / мест':'Лидов'}</th><th class="r">Заявок в Букинге</th><th class="r">Продажи</th><th class="r">Сумма продаж</th></tr></thead><tbody>
+  let cmpH='';
+  if(L.length>1)cmpH=`<div class="panel sec${wsFoldC('web-cmp')}" id="web-cmp" style="margin-bottom:16px">${wsFoldH('web-cmp','Сравнение мероприятий')}<p class="sub">Нажмите на строку — откроется это мероприятие</p><div class="tbl"><table><thead><tr><th>Дата</th><th>Мероприятие</th><th class="r">Регистраций</th><th class="r">${L.some(x=>x.type==='экскурсия'&&!(x.promo&&x.promo.reqs))?'Лидов / мест':'Лидов'}</th><th class="r">Заявок в Букинге</th><th class="r">Продажи</th><th class="r">Сумма продаж</th></tr></thead><tbody>
     ${L.map(x=>{const cc=Object.fromEntries(x.cols.map((kk,i)=>[kk,i])),xr=regsOf(x),nn=regN(x),rq=xr.reduce((a,r)=>a+(r[cc.req]?1:0),0),z=srezOf(x),ld=z?z.leads:rq+(x.extra||0),wq=z&&z.bk?z.withReq:null;
       // экскурсия — как «Места по сеансам»: места и брони держат только действующие брони, продажи — оплаченные брони
       const xs=x.type==='экскурсия'&&x.seats&&x.seats.list&&x.seats.list.length?x.seats.list.flatMap(q=>q.items||[]):null,xpb=xs&&xs.filter(i=>/Оплачено|Предоплата/i.test(i.st)).length;
@@ -1703,9 +1716,11 @@ function vWeb(){
       if(xs)return`<tr data-pick="w:${esc(x.name)}" title="Открыть это мероприятие"><td class="nw">${dd(evDays(x)[0]||x.date)}</td><td class="b">${esc(x.name.replace(/\s*·\s*\d{2}\.\d{2}$/,''))}${x.type==='встреча'?' · офлайн':''}${x.name===w.name?' ✓':''}</td><td class="r"${pplOf(x)?' title="Придёт людей: регистрации и спутники из комментария, без полных дублей"':''}>${fmt(nn)}${pplOf(x)?' <span class="muted">чел.</span>':''}</td><td class="r">${fmt(xs.reduce((a,i)=>a+i.g,0))} <span class="muted">мест</span></td><td class="r">${fmt(xs.length)} <span class="muted">${cv(xs.length,nn)}</span></td><td class="r">${fmt(xpb)} <span class="muted">${cv(xpb,xs.length)}</span></td><td class="r">${z?rubF(z.sum):'—'}</td></tr>`;
       return`<tr data-pick="w:${esc(x.name)}" title="Открыть это мероприятие"><td class="nw">${dd(evDays(x)[0]||x.date)}</td><td class="b">${esc(x.name.replace(/\s*·\s*\d{2}\.\d{2}$/,''))}${x.type==='встреча'?' · офлайн':''}${x.name===w.name?' ✓':''}</td><td class="r"${pplOf(x)?' title="Придёт людей: регистрации и спутники из комментария, без полных дублей"':''}>${fmt(nn)}${pplOf(x)?' <span class="muted">чел.</span>':''}</td><td class="r">${fmt(ld)} <span class="muted">${cv(ld,nn)}</span></td><td class="r">${wq==null?'—':`${fmt(wq)} <span class="muted">${cv(wq,ld)}</span>`}</td><td class="r">${z?fmt(z.sold):'—'}${wq!=null?` <span class="muted">${cv(z.sold,wq)}</span>`:''}</td><td class="r">${z?rubF(z.sum):'—'}</td></tr>`}).join('')}
     </tbody></table></div></div>`;
-  $('#view').innerHTML=withJump(h,[...(ex&&w.seats?[['web-seats','Места']]:[]),...(ex&&w.promo?[['web-promo','Розыгрыш']]:[]),['web-meet',M&&M.people&&M.people.total?'Люди':'Обзвон'],['web-mail','Рассылки'],['web-adv','Реклама'],['web-days','По дням'],['web-funnel','Воронка и стадии'],['web-cohort','Когорта'],['web-seg','Кто и когда купил'],['web-cut','Разрез'],['web-sum','Сводная'],['web-cmp','Сравнение']]);
+  // «Общая сводная» и «Сравнение мероприятий» — наверху вкладки, над выбором мероприятия (просьба пользователя 20.11.2026)
+  h=h.replace('<!--wsum-->',wsH+cmpH);
+  $('#view').innerHTML=withJump(h,[['web-sum','Сводная'],['web-cmp','Сравнение'],...(ex&&w.seats?[['web-seats','Места']]:[]),...(ex&&w.promo?[['web-promo','Розыгрыш']]:[]),['web-meet',M&&M.people&&M.people.total?'Люди':'Обзвон'],['web-mail','Рассылки'],['web-adv','Реклама'],['web-days','По дням'],['web-funnel','Воронка и стадии'],['web-cohort','Когорта'],['web-seg','Кто и когда купил'],['web-cut','Разрез']]);
   $('#web-pick').onclick=e=>{const b=e.target.closest('[data-w]');if(!b)return;S.web=b.dataset.w;save();render()};
-  wsBind();
+  wsBind();wsFoldBind();
   const ck=$('#chk-wct');if(ck)ck.onchange=e=>{const t=e.target.dataset&&e.target.dataset.t;if(!t)return;const st=new Set(S.wct);if(e.target.checked)st.add(t);else st.delete(t);S.wct=[...st];save();render()};
   const sk=$('#seg-wkind');if(sk)sk.onclick=e=>{const b=e.target.closest('[data-k]');if(!b)return;if(e.detail)b.blur();S.wkind=b.dataset.k;save();render()};
   $('#seg-wdim').onclick=e=>{const b=e.target.closest('[data-d]');if(!b)return;if(e.detail)b.blur();S.wdim=b.dataset.d;save();render()};
