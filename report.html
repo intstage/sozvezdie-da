@@ -424,10 +424,9 @@ nav.tabs>.pinned-f :is(.pf-wrap,.pf-chips,.pf-pop){display:none}
 .fold-b::before{content:"";width:9px;height:11px;background:var(--accent,var(--ink2));clip-path:polygon(0 0,100% 50%,0 100%);transform:rotate(90deg);transition:transform .15s ease;flex:none}
 .folded .fold-b::before{transform:none}
 .fold-t{flex:1 1 auto;min-width:0}
-.fold-s{flex:none;font-size:13px;font-weight:600;color:var(--accent,var(--ink2));border:1px solid currentColor;border-radius:12px;padding:4px 12px;opacity:.85}
-.fold-b:hover .fold-s{opacity:1}
 .fold-b:focus-visible{outline:2px solid var(--accent,#36c);outline-offset:3px;border-radius:6px}
 .panel.folded>:not(h2.fold-h){display:none!important}
+.panel.folded{padding:0 14px;min-height:36px;display:flex;align-items:center}.panel.folded>h2.fold-h{flex:1 1 auto;margin:0}   /* свёрнутый блок — одной высоты со строкой выбора мероприятия */
 #web-sum td small{display:block;color:var(--ink2);font-size:11.5px;font-weight:400;white-space:nowrap}@media (min-width:561px){#web-sum .ws-fl .pf-pop{top:100%;left:0;margin-top:6px}}
 .pf-pop{position:absolute;z-index:15;width:min(380px,86vw);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.15)}
 .pf-pop .seg{min-height:0;display:flex}.pf-pop .seg button{flex:1}
@@ -1298,8 +1297,8 @@ const wsLbl=(f,v)=>v==='-'&&f==='med'?'без меток':v===''?'(пусто)':
 function wsPass(F,P,L,e,skip){const or=S.wsJ==='or';let has=0;for(const f in F){const x=F[f];if(f===skip||!x.v||!x.v.length)continue;has=1;const ok=x.v.includes(wsVal(P,L,e,f))===!x.x;if(or){if(ok)return true}else if(!ok)return false}return or?!has:true}
 // сворачивание блоков «Общая сводная» и «Сравнение мероприятий» (20.11.2026): заголовок — кнопка, состояние в S.fold
 function wsFoldC(id){return S.fold&&S.fold[id]?' folded':''}
-function wsFoldH(id,t){const f=!!(S.fold&&S.fold[id]);return`<h2 class="fold-h"><button type="button" class="fold-b" data-fold="${id}" aria-expanded="${!f}"><span class="fold-t">${t}</span><span class="fold-s">${f?'Развернуть':'Свернуть'}</span></button></h2>`}
-function wsFoldBind(){document.querySelectorAll('#view [data-fold]').forEach(b=>b.onclick=e=>{e.stopPropagation();const p=b.closest('.panel'),f=p.classList.toggle('folded');(S.fold||(S.fold={}))[b.dataset.fold]=f;b.setAttribute('aria-expanded',!f);b.querySelector('.fold-s').textContent=f?'Развернуть':'Свернуть';save()})}
+function wsFoldH(id,t){const f=!!(S.fold&&S.fold[id]);return`<h2 class="fold-h"><button type="button" class="fold-b" data-fold="${id}" aria-expanded="${!f}" title="${f?'Развернуть':'Свернуть'}"><span class="fold-t">${t}</span></button></h2>`}
+function wsFoldBind(){document.querySelectorAll('#view [data-fold]').forEach(b=>b.onclick=e=>{e.stopPropagation();const p=b.closest('.panel'),f=p.classList.toggle('folded');(S.fold||(S.fold={}))[b.dataset.fold]=f;b.setAttribute('aria-expanded',!f);b.title=f?'Развернуть':'Свернуть';save()})}
 function wsBlock(W,WKT){
   const P=W.pool;
   if(!P||P.error||!P.p)return`<div class="panel sec${wsFoldC('web-sum')}" id="web-sum" style="margin-bottom:16px">${wsFoldH('web-sum','Общая сводная')}<div class="empty">${P&&P.error?'Список людей мероприятий не прочитан: '+esc(P.error):'Считается ночью по Букингу (лист «Мероприятия: люди») или сразу — меню «Заявки» → «Мероприятия: пересчитать сегменты по Букингу».'}</div></div>`;
