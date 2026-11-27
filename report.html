@@ -429,7 +429,7 @@ nav.tabs>.pinned-f :is(.pf-wrap,.pf-chips,.pf-pop){display:none}
 .panel.folded{padding:12px 16px}.panel.folded .fold-b{padding:0;line-height:20px}.panel.folded>h2.fold-h{flex:1 1 auto;margin:0}   /* свёрнутый блок — одной высоты со строкой выбора мероприятия */
 .web-table-panel.folded{align-self:start}.web-table-detail{margin-top:8px}.web-table-detail>summary{cursor:pointer;font-size:13px;color:var(--ink2);margin-bottom:8px}
 #web-analysis td small{display:block;color:var(--ink2);font-size:11.5px;font-weight:400}#web-analysis td.r small{white-space:nowrap}
-.ws-tools{position:relative;margin:12px 0}.ws-toolbar{display:flex;gap:8px;align-items:end;overflow-x:auto;padding:2px 2px 6px}.ws-control{flex:0 0 auto;min-width:0;display:flex;flex-direction:column;gap:4px}.ws-control>button,.ws-control>select,.ws-fields{height:34px;padding:0 9px;font:inherit;font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px}.ws-control>button{cursor:pointer;white-space:nowrap}.ws-control>button::after{content:' ▾'}.ws-switch{display:flex;flex-wrap:wrap;margin-top:10px}.ws-fields{width:100%;margin-bottom:8px}.ws-short{margin-bottom:8px}
+.ws-tools{position:relative;margin:12px 0}.ws-toolbar{display:flex;gap:8px;align-items:end;overflow-x:auto;padding:2px 2px 6px}.ws-control{flex:0 0 auto;min-width:0;display:flex;flex-direction:column;gap:4px}.ws-control>button,.ws-control>select,.ws-fields{height:34px;padding:0 9px;font:inherit;font-size:13px;color:var(--ink);background-color:var(--surface);border:1px solid var(--line);border-radius:8px}.ws-control>select,.ws-fields{padding-right:28px;cursor:pointer}.ws-control>button{cursor:pointer;white-space:nowrap}.ws-control>button::after{content:' ▾'}.ws-switch{display:flex;flex-wrap:wrap;margin-top:10px}.ws-fields{width:100%;margin-bottom:8px}.ws-short{margin-bottom:8px}
 @media (min-width:561px){#web-analysis .pf-pop{top:100%;left:0;margin-top:4px}}
 .pf-pop{position:absolute;z-index:15;width:min(380px,86vw);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.15)}
 .pf-pop .seg{min-height:0;display:flex}.pf-pop .seg button{flex:1}
@@ -1414,7 +1414,7 @@ function wsControls(P,A){
   const {L,F,evAll,evOn,selected,WK,ctOn}=A,on=WS_FD.filter(([f])=>F[f]?.v?.length);
   const label=(t,h)=>`<label class="ws-control"><span class="flbl">${t}</span>${h}</label>`;
   const menu=(k,v)=>`<button type="button" data-wsmenu="${k}" aria-expanded="${wsOpen===k}" aria-controls="ws-menu">${esc(v)}</button>`;
-  const select=(k,t,opts,v)=>`<select${k==='field'?' class="ws-fields"':''} data-wsselect="${k}" aria-label="${t}">${opts.map(([id,n])=>`<option value="${id}"${id===v?' selected':''}>${esc(n)}</option>`).join('')}</select>`;
+  const select=(k,t,opts,v)=>`<select${k==='field'||k==='own'?' class="ws-fields"':''} data-wsselect="${k}" aria-label="${t}">${opts.map(([id,n])=>`<option value="${id}"${id===v?' selected':''}>${esc(n)}</option>`).join('')}</select>`;
   const check=(k,v,n,on)=>`<label><input type="checkbox" data-${k}="${esc(v)}"${on?' checked':''}><span>${esc(n)}</span></label>`;
   const done='<button type="button" class="pf-btn" data-wsok="1">Готово</button>';
   const evName=i=>`${P.ev[i]}${L[i].type==='встреча'?' · офлайн':''}`;
@@ -1426,7 +1426,9 @@ function wsControls(P,A){
     P.p.forEach(person=>person.forEach(e=>{if(!evOn.has(e[0])||!wsPass(F,P,L,e,f))return;const v=wsVal(P,L,e,f);c[v]=(c[v]||0)+1}));
     x.v.forEach(v=>{if(!(v in c))c[v]=0});
     const vals=Object.keys(c).sort((a,b)=>c[b]-c[a]||a.localeCompare(b));
-    pop=`<h4>Настройка фильтров</h4>${select('field','Поле фильтра',WS_FD,wsField)}
+    pop=`<h4>Настройка фильтров</h4>
+      <label><span class="flbl">Вспомогательный продукт</span>${select('own','Вспомогательный продукт',[['0','Без броней экскурсии'],['1','Включить брони экскурсии']],S.wsO?'1':'0')}</label>
+      ${select('field','Поле фильтра',WS_FD,wsField)}
       <div class="pf-bar ws-short">${on.map(([k,n])=>`<button type="button" class="pf-btn" data-wse="${k}">${n} · ${F[k].v.length}</button>`).join('')}${on.length?'<button type="button" class="pf-btn" data-wsr="1">Сбросить все</button>':''}</div>
       <div class="seg ws-short"><button type="button" data-wsx="0" aria-pressed="${!x.x}">Включить выбранные</button><button type="button" data-wsx="1" aria-pressed="${!!x.x}">Исключить выбранные</button></div>
       ${on.length>1?`<div class="ws-short"><label>Условия ${select('join','Объединение условий',[['and','Все (И)'],['or','Любое (ИЛИ)']],S.wsJ==='or'?'or':'and')}</label></div>`:''}
@@ -1438,8 +1440,7 @@ function wsControls(P,A){
     ${label('Мероприятия',menu('events',selected.length===1?evName(selected[0]):selected.length?`Выбрано: ${selected.length}`:'Все мероприятия'))}
     ${label('Что считаем',select('kind','Что считаем',WK,S.wsK))}
     ${label('Тип клиента',menu('clients',ctOn.size===WS_CT.length?'Все клиенты':ctOn.size===1?WS_CT.find(([k])=>ctOn.has(k))?.[1]||'Клиент':`Выбрано: ${ctOn.size}`))}
-    ${label('Экскурсия',select('own','Экскурсия',[['0','Без броней экскурсии'],['1','Включить брони экскурсии']],S.wsO?'1':'0'))}
-    ${label('Фильтры',menu('filters',on.length?`Условий: ${on.length}`:'Настроить'))}
+    ${label('Фильтры',menu('filters',on.length||S.wsO?`Условий: ${on.length+Number(!!S.wsO)}`:'Настроить'))}
     </div>${pop?`<div class="pf-pop" id="ws-menu">${pop}</div>`:''}</div>`;
 }
 function wsSummary(P,A){
@@ -1459,7 +1460,7 @@ function wsSummary(P,A){
     <details class="how"><summary>Как считаем</summary><ul class="sub" style="margin:6px 0 0;padding-left:18px;line-height:1.55">
       <li><b>Человек</b> — почта или телефон: общая почта или телефон хоть в одной регистрации любого мероприятия — один человек. Сюда же — лиды CRM-формы без регистрации (источник «без регистрации (crm-форма)»).</li>
       <li><b>Источник</b> — метки самой ранней регистрации человека на этом мероприятии. Если на два мероприятия человек пришёл по разным меткам, он есть в каждом своём источнике.</li>
-      <li><b>Заявки</b> — ${esc(wt[3])} в Букинге, созданные в день регистрации и позже, любой оператор; «СЗ» — из них Созвездие с Речными линиями. В итоге без повторов — с первой подходящей регистрации человека, каждая заявка один раз${hasOwn?'; брони самой экскурсии включаются настройкой «Экскурсия»':''}.</li>
+      <li><b>Заявки</b> — ${esc(wt[3])} в Букинге, созданные в день регистрации и позже, любой оператор; «СЗ» — из них Созвездие с Речными линиями. В итоге без повторов — с первой подходящей регистрации человека, каждая заявка один раз${hasOwn?'; брони самой экскурсии включаются в «Фильтры» → «Вспомогательный продукт»':''}.</li>
       <li><b>Заявок</b> — все заявки, в том числе аннулированные. <b>Продаж</b> — оплаченные (21 Предоплата, 30 Оплачено), <b>выручка</b> — их полная стоимость. <b>Ждут оплаты</b> — статусы 10, 13, 20, 33, число заявок и их стоимость; в выручку не входят. Аннуляции (0) и возвраты (1, 2, 12) не входят ни в продажи, ни в ожидание.</li>
       <li><b>Новые и повторные</b> — кем человек был в день первой подходящей регистрации: новый — не было в Букинге; «покупал» — оплаченный круиз.</li>
       <li>Строка мероприятия считает человека на каждом его мероприятии, поэтому «Сумма строк» больше итога. Тип клиента — по карточке клиента в Букинге.</li>
