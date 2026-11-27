@@ -1305,7 +1305,18 @@ function wsVal(P,L,e,f){
   if(f==='mch'){const w=L[e[0]];return w&&w.type==='встреча'&&w.meet?wsMeetCh(w.meet,P.d.src[e[2]],P.d.med[e[3]],P.d.camp[e[4]]):'не встреча'}
   return P.d[f][e[{src:2,med:3,camp:4}[f]]]}
 const wsLbl=(f,v)=>v==='-'&&f==='med'?'без меток':v===''?'(пусто)':v;
-function wsPass(F,P,L,e,skip){const or=S.wsJ==='or';let has=0;for(const f in F){const x=F[f];if(f===skip||!x.v||!x.v.length)continue;has=1;const ok=x.v.includes(wsVal(P,L,e,f))===!x.x;if(or){if(ok)return true}else if(!ok)return false}return or?!has:true}
+function wsMatch(F,value,skip){const or=S.wsJ==='or';let has=0;for(const f in F){const x=F[f];if(f===skip||!x.v||!x.v.length)continue;has=1;const ok=x.v.includes(value(f))===!x.x;if(or){if(ok)return true}else if(!ok)return false}return or?!has:true}
+function wsPass(F,P,L,e,skip){return wsMatch(F,f=>wsVal(P,L,e,f),skip)}
+function wsRegistrationRows(w){const i=w.cols.indexOf('noReg');return i<0?w.rows:w.rows.filter(r=>r[i]!==1)}
+function wsRegistrations(w,F){
+  if(!w.rows||!w.cols)return null;
+  const rows=wsRegistrationRows(w);
+  if(!Object.values(F).some(x=>x.v?.length))return rows.length;
+  const col=Object.fromEntries(w.cols.map((k,i)=>[k,i]));
+  return rows.filter(r=>{const tag=k=>w.dict?.[k]?.[r[col[k]]]||'';
+    return wsMatch(F,f=>f==='t'?w.type||'вебинар':f==='mch'?(w.type==='встреча'&&w.meet?wsMeetCh(w.meet,tag('src'),tag('med'),tag('camp')):'не встреча'):tag(f)||(f==='med'?'-':''));
+  }).length;
+}
 // сворачивание блоков «Общая сводная» и «Сравнение мероприятий» (20.11.2026): заголовок — кнопка, состояние в S.fold
 function wsFolded(id){return S.fold?.[id]??(id==='web-analysis'||id.startsWith('web-table:'))}
 function wsFoldC(id){return wsFolded(id)?' folded':''}
@@ -1457,16 +1468,18 @@ function wsSummary(P,A,segments){
   const c2=(a,b)=>`${fmt(a)}${b!=null?`<small>СЗ ${fmt(b)}</small>`:''}`,r2=(a,b)=>`${a?rubF(a):'—'}${b!=null&&a?`<small>СЗ ${rubF(b)}</small>`:''}`;
   const line=(name,x,cls,hint,event)=>`<tr class="${cls||''}"${event?` data-pick="w:${esc(event)}" title="Открыть мероприятие"`:''}><td>${name}${hint?`<small>${esc(hint)}</small>`:''}</td><td class="r b">${fmt(x.n)}</td><td class="r">${fmt(x.found)}</td><td class="r">${c2(x.ppl,x.pplSz)}</td><td class="r">${fmt(x.req)}</td><td class="r b">${fmt(x.sale)}</td><td class="r">${c2(x.buyers,x.buyersSz)}</td><td class="r b">${r2(Math.round(x.sum),Math.round(x.sumSz))}</td><td class="r">${x.wait?`${fmt(x.wait)}<small>${rubF(x.waitSum)}</small>`:'—'}</td></tr>`;
   const head=`<thead><tr><th></th><th class="r">Людей</th><th class="r">Нашлись в Букинге</th><th class="r">С заявкой</th><th class="r">Заявок</th><th class="r">Продаж</th><th class="r">Покупателей</th><th class="r">Выручка</th><th class="r">Ждут оплаты</th></tr></thead>`;
-  const evR=evAll.filter(i=>rows[i]).map(i=>line(`${esc(P.ev[i])}${L[i].type==='встреча'?' · офлайн':''}`,rows[i],'',/\d{2}\.\d{2}$/.test(P.ev[i])?'':dt(L[i]),P.ev[i]));
+  const withReg=(html,n)=>html.replace('</td>',`</td><td class="r">${n==null?'—':fmt(n)}</td>`);
+  const evR=segments?[]:evAll.filter(i=>rows[i]).map(i=>withReg(line(`${esc(P.ev[i])}${L[i].type==='встреча'?' · офлайн':''}`,rows[i],'',/\d{2}\.\d{2}$/.test(P.ev[i])?'':dt(L[i]),P.ev[i]),wsRegistrations(L[i],A.F)));
   const wt=WK.find(x=>x[0]===S.wsK)||WK[0];
   const table=segments?`<p class="sub">Участники по сегментам на день первой подходящей регистрации. Каждый человек и каждая заявка считаются один раз.</p>
     <div class="tbl"><table>${head}<tbody>${WS_SEG.map(([k,l,h])=>line(esc(l),SG[k],'',h)).join('')}${line('Всего',T,'b')}</tbody></table></div>`:
     `<p class="sub">Что участники выбранных мероприятий оформили в Букинге с дня регистрации. Итог — без повторов. Нажмите на строку, чтобы открыть мероприятие.</p>
-    <div class="tbl"><table>${head}<tbody>${evR.join('')}
-      ${evR.length>1?line('<span class="muted">Сумма строк (повторы считаются)</span>',S0,''):''}
-      ${line('Итого без повторов',T,'b',multi?`${nw(multi,'человек был','человека были','человек были')} на нескольких мероприятиях`:'')}</tbody></table></div>`;
+    <div class="tbl"><table>${head.replace('</th>','</th><th class="r">Регистраций</th>')}<tbody>${evR.join('')}
+      ${evR.length>1?withReg(line('<span class="muted">Сумма строк (повторы считаются)</span>',S0,''),evAll.filter(i=>rows[i]).reduce((n,i)=>n+(wsRegistrations(L[i],A.F)||0),0)):''}
+      ${withReg(line('Итого без повторов',T,'b',multi?`${nw(multi,'человек был','человека были','человек были')} на нескольких мероприятиях`:''),null)}</tbody></table></div>`;
   return`${table}<details class="how"><summary>Как считаем</summary><ul class="sub" style="margin:6px 0 0;padding-left:18px;line-height:1.55">
       <li><b>Человек</b> — почта или телефон: общая почта или телефон хоть в одной регистрации любого мероприятия — один человек. Сюда же — лиды CRM-формы без регистрации (источник «без регистрации (crm-форма)»).</li>
+      ${segments?'':'<li><b>Регистраций</b> — уникальные регистрации из карточки мероприятия, без лидов CRM без регистрации. Для офлайн-встреч это регистрации, не число гостей по данным организатора. Без повторов между мероприятиями считаем людей, а не регистрации.</li>'}
       <li><b>Источник</b> — метки самой ранней регистрации человека на этом мероприятии. Если на два мероприятия человек пришёл по разным меткам, он есть в каждом своём источнике.</li>
       <li><b>Заявки</b> — ${esc(wt[3])} в Букинге, созданные в день регистрации и позже, любой оператор; «СЗ» — из них Созвездие с Речными линиями. В итоге без повторов — с первой подходящей регистрации человека, каждая заявка один раз${hasOwn?'; брони самой экскурсии включаются в «Фильтры» → «Вспомогательный продукт»':''}.</li>
       <li><b>Заявок</b> — все заявки, в том числе аннулированные. <b>Продаж</b> — оплаченные (21 Предоплата, 30 Оплачено), <b>выручка</b> — их полная стоимость. <b>Ждут оплаты</b> — статусы 10, 13, 20, 33, число заявок и их стоимость; в выручку не входят. Аннуляции (0) и возвраты (1, 2, 12) не входят ни в продажи, ни в ожидание.</li>
@@ -1518,7 +1531,7 @@ const WB_DIMS=[['med','Канал'],['src','Источник'],['brand','Бре�
 function vWeb(){
   const W=D.webinars||{list:[]},L=(W.list||[]).filter(w=>w.rows);
   // продажи среза: оплачено — по статусу заявки в Букинге (номер заявки из лида/сделки, 21/30); нет расчёта — по стадии сделки Б24
-  const regsOf=x=>{const i=x.cols.indexOf('noReg');return i<0?x.rows:x.rows.filter(r=>r[i]!==1)};
+  const regsOf=wsRegistrationRows;
   // встреча: людей = рабочие заявки обзвона без дублей организатора (пара с общей почтой — два человека); нет обзвона или не встреча — регистрации по почте
   // встреча (16.11.2026, v214): придёт людей = все заявки − полные дубли, как первая карточка; спутники — только справочно в «Сколько людей»
   const pplOf=x=>{const p=x.type==='встреча'&&x.meet&&x.meet.people;return p&&p.total?p:null};
