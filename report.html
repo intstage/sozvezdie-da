@@ -427,7 +427,10 @@ nav.tabs>.pinned-f :is(.pf-wrap,.pf-chips,.pf-pop){display:none}
 .fold-b:focus-visible{outline:2px solid var(--accent,#36c);outline-offset:3px;border-radius:6px}
 .panel.folded>:not(h2.fold-h){display:none!important}
 .panel.folded{padding:12px 16px}.panel.folded .fold-b{padding:0;line-height:20px}.panel.folded>h2.fold-h{flex:1 1 auto;margin:0}   /* свёрнутый блок — одной высоты со строкой выбора мероприятия */
-#web-sum td small,#web-products td small{display:block;color:var(--ink2);font-size:11.5px;font-weight:400}#web-sum td small,#web-products td.r small{white-space:nowrap}@media (min-width:561px){#web-sum .ws-fl .pf-pop{top:100%;left:0;margin-top:6px}}
+.web-table-panel.folded{align-self:start}.web-table-detail{margin-top:8px}.web-table-detail>summary{cursor:pointer;font-size:13px;color:var(--ink2);margin-bottom:8px}
+#web-analysis td small{display:block;color:var(--ink2);font-size:11.5px;font-weight:400}#web-analysis td.r small{white-space:nowrap}
+.ws-tools{position:relative;margin:12px 0}.ws-toolbar{display:flex;gap:8px;align-items:end;overflow-x:auto;padding:2px 2px 6px}.ws-control{flex:0 0 auto;min-width:0;display:flex;flex-direction:column;gap:4px}.ws-control>button,.ws-control>select,.ws-fields{height:34px;padding:0 9px;font:inherit;font-size:13px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px}.ws-control>button{cursor:pointer;white-space:nowrap}.ws-control>button::after{content:' ▾'}.ws-switch{display:flex;flex-wrap:wrap;margin-top:10px}.ws-fields{width:100%;margin-bottom:8px}.ws-short{margin-bottom:8px}
+@media (min-width:561px){#web-analysis .pf-pop{top:100%;left:0;margin-top:4px}}
 .pf-pop{position:absolute;z-index:15;width:min(380px,86vw);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.15)}
 .pf-pop .seg{min-height:0;display:flex}.pf-pop .seg button{flex:1}
 .pf-pop h4{margin:2px 0 8px;font:600 14px var(--display);color:var(--navy);display:flex;align-items:center;gap:6px}
@@ -844,6 +847,10 @@ function renderTab(){
 function histPush(){HIST.push({tab:S.tab,period:S.period,bm:S.bm,bs:S.bs,web:S.web,y:scrollY});if(HIST.length>30)HIST.shift()}
 function jumpTo(id,push,instant){const el=document.getElementById(id);if(!el)return;
   if(push){histPush();navState()}
+  if(S.tab==='web')for(let p=el;p&&p.id!=='view';p=p.parentElement){
+    if(p.classList.contains('folded'))p.querySelector(':scope > .fold-h [data-fold]')?.click();
+    if(p.tagName==='DETAILS')p.open=true;
+  }
   el.scrollIntoView({behavior:instant?'auto':'smooth',block:'start'});el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash')}
 function pickState(patch,sec,tab){histPush();Object.assign(S,patch);if(tab)S.tab=tab;save();render();navState();if(sec)jumpTo(sec,false,true);else window.scrollTo({top:0})}
 // строка-навигация по блокам вкладки (на место <!--jump-->), только по тем блокам, что есть на странице
@@ -854,7 +861,8 @@ function chartPick(id,n,fn){const svg=document.getElementById(id);if(!svg||!n)re
   svg.addEventListener('click',ev=>{const W=svg.viewBox.baseVal.width||760,r=svg.getBoundingClientRect(),px=(ev.clientX-r.left)/r.width*W,i=Math.floor((px-44)/((W-44-12)/n));if(i>=0&&i<n)fn(i)})}
 function viewClick(e){
   const g=e.target.closest('[data-go]');
-  if(g){if(e.detail&&g.blur)g.blur();const v=g.dataset.go;
+  if(g){if(e.detail&&g.blur)g.blur();let v=g.dataset.go;
+    if(S.tab==='web'&&v==='web-cmp'){S.wsView='cmp';wsOpen=null;(S.fold||(S.fold={}))['web-analysis']=false;save();render();v='web-analysis'}
     if(v[0]==='@'){const[t,sec]=v.slice(1).split('#');
       if(t===S.tab){if(sec)jumpTo(sec,true);return}
       histPush();S.tab=t;save();render();navState();if(sec)jumpTo(sec,false,true);else window.scrollTo({top:0});return}
@@ -1284,7 +1292,7 @@ function meetBlock(w,M,rows,c){
    источник — метки самой ранней регистрации человека на каждом мероприятии; новый / повторный — на день первой подходящей регистрации. */
 const WS_FD=[['t','Тип мероприятия'],['med','utm_medium'],['src','utm_source'],['camp','utm_campaign'],['mch','Канал встречи']];
 const WS_SEG=[['new','Новые','не было в базе Инфофлота'],['base','В базе, не покупали','контакт есть, покупок не было'],['other','Покупали не Созвездие','только у других операторов'],['sz','Покупатели Созвездия','последняя покупка СЗ меньше 2 лет назад'],['back','Вернувшиеся','покупали СЗ 2 года назад и раньше']];
-let wsOpen=null,wsQ='';
+let wsOpen=null,wsField='med',wsQ='',wsScroll=0;
 function wsMeetCh(M,s,m,cp){   // копия chM из meetBlock: правила по трём меткам, иначе utm_medium по «Настройкам»
   const lo=v=>String(v==null?'':v).trim().toLowerCase(),RU=M.rules||[],ch=M.chan||{};
   m=lo(m);if(!m||m==='не определён'||m==='-')return'Без меток';
@@ -1296,110 +1304,153 @@ function wsVal(P,L,e,f){
 const wsLbl=(f,v)=>v==='-'&&f==='med'?'без меток':v===''?'(пусто)':v;
 function wsPass(F,P,L,e,skip){const or=S.wsJ==='or';let has=0;for(const f in F){const x=F[f];if(f===skip||!x.v||!x.v.length)continue;has=1;const ok=x.v.includes(wsVal(P,L,e,f))===!x.x;if(or){if(ok)return true}else if(!ok)return false}return or?!has:true}
 // сворачивание блоков «Общая сводная» и «Сравнение мероприятий» (20.11.2026): заголовок — кнопка, состояние в S.fold
-function wsFolded(id){return S.fold?.[id]??(id==='web-products')}
+function wsFolded(id){return S.fold?.[id]??(id==='web-analysis'||id.startsWith('web-table:'))}
 function wsFoldC(id){return wsFolded(id)?' folded':''}
-function wsFoldH(id,t){const f=wsFolded(id);return`<h2 class="fold-h"><button type="button" class="fold-b" data-fold="${id}" aria-expanded="${!f}" title="${f?'Развернуть':'Свернуть'}"><span class="fold-t">${t}</span></button></h2>`}
+function wsFoldH(id,t){const f=wsFolded(id);return`<h2 class="fold-h"><button type="button" class="fold-b" data-fold="${esc(id)}" aria-expanded="${!f}" title="${f?'Развернуть':'Свернуть'}"><span class="fold-t">${t}</span></button></h2>`}
 function wsFoldBind(){document.querySelectorAll('#view [data-fold]').forEach(b=>b.onclick=e=>{e.stopPropagation();const p=b.closest('.panel'),f=p.classList.toggle('folded');(S.fold||(S.fold={}))[b.dataset.fold]=f;b.setAttribute('aria-expanded',!f);b.title=f?'Развернуть':'Свернуть';if(!f)markWide();save()})}
-function wsProducts(P,L){
-  const id='web-products',open=`<div class="panel sec${wsFoldC(id)}" id="${id}" style="margin-bottom:16px">${wsFoldH(id,'Продукты')}`;
-  const empty=t=>`${open}<div class="empty">${t}</div></div>`;
+// На вкладке мероприятий чисто табличную карточку сворачиваем целиком. В смешанной карточке скрываем только таблицу.
+function wsFoldTables(view){
+  const chart='svg[role="img"],.funnel,canvas';
+  const sections=[...view.querySelectorAll('.panel')];
+  sections.forEach((p,i)=>{
+    if(p.closest('#web-analysis,details')||p.classList.contains('kpi'))return;
+    const tables=[...p.querySelectorAll('table')].filter(t=>t.closest('.panel')===p&&!t.closest('details'));
+    if(!tables.length)return;
+    const heading=p.querySelector(':scope > h2'),scope=p.closest('.sec'),base=p.id||`${scope?.id||'web'}:${heading?.textContent.trim()||i}`;
+    if(heading&&!p.querySelector(chart)){
+      const key='web-table:'+base;
+      p.classList.add('web-table-panel');p.classList.toggle('folded',wsFolded(key));
+      const tmp=document.createElement('template');tmp.innerHTML=wsFoldH(key,esc(heading.textContent.trim()));
+      heading.replaceWith(tmp.content);return;
+    }
+    const holders=[...new Set(tables.map(t=>t.closest('.tbl')||t))];
+    holders.forEach((box,j)=>{
+      const key=`web-table:${base}:${j}`,d=document.createElement('details'),s=document.createElement('summary');
+      d.className='web-table-detail';d.open=!wsFolded(key);s.textContent=holders.length===1?'Таблица':`Таблица ${j+1}`;
+      box.replaceWith(d);d.append(s,box);d.ontoggle=()=>{if(!d.isConnected)return;(S.fold||(S.fold={}))[key]=!d.open;if(d.open)markWide();save()};
+    });
+  });
+}
+function wsProducts(P,A){
+  const empty=t=>`<div class="empty">${t}</div>`;
   if(P?.crError)return empty('Не удалось загрузить сведения о рейсах из Букинга.');
   if(!P?.cr||!P.p)return empty('Данные о рейсах появятся после ночного обновления.');
-  const events=new Map(L.map(w=>[w.name,w])),picks=new Map(),groups=new Map();
-  // Заявка один раз на мероприятие: если она связалась с несколькими регистрациями, берём метки самой ранней.
-  P.p.forEach(person=>person.forEach(e=>{
-    if(!events.has(P.ev[e[0]]))return;
-    e[7].forEach(i=>{
-      const r=P.q[i];if(r[0]!=='c'||r[6]===e[0])return;
-      const k=`${e[0]}:${i}`,prev=picks.get(k);
-      if(!prev||e[1]<prev[0][1])picks.set(k,[e,r]);
-    });
-  }));
+  const {L,picks,WK}=A,groups=new Map();
   picks.forEach(([e,r])=>{
-    const ev=P.ev[e[0]],w=events.get(ev),s=wsVal(P,L,e,'src'),m=wsVal(P,L,e,'med'),cp=wsVal(P,L,e,'camp');
+    const ev=P.ev[e[0]],w=L[e[0]],s=wsVal(P,L,e,'src'),m=wsVal(P,L,e,'med'),cp=wsVal(P,L,e,'camp');
     const ch=w.type==='встреча'&&w.meet?wsMeetCh(w.meet,s,m,cp):'';
     const raw=[s,m==='-'?'':m].filter(Boolean).join(' / ');
     const src=ch&&ch!=='Другой канал'&&ch!=='Без меток'?ch:raw||'Без меток',cid=r[7]||0;
-    const k=JSON.stringify([ev,src,cid]);
-    if(!groups.has(k))groups.set(k,{ev,src,cid,n:0,sum:0,wait:0,waitSum:0});
+    const k=JSON.stringify([ev,src,r[0],cid]);
+    if(!groups.has(k))groups.set(k,{ev,src,cid,kind:r[0],n:0,sum:0,wait:0,waitSum:0});
     const x=groups.get(k);x.n++;if(r[3]==='p')x.sum+=r[5];if(r[3]==='w'){x.wait++;x.waitSum+=r[5]}
   });
-  if(!groups.size)return empty('Нет заявок на круизы с дня регистрации на мероприятие.');
+  if(!groups.size)return empty('Нет заявок по выбранным фильтрам.');
   const f=d=>d?d.split('-').reverse().join('.'):'—',dt=x=>x?.[2]||'';
   const rows=[...groups.values()].sort((a,b)=>a.ev.localeCompare(b.ev,'ru')||a.src.localeCompare(b.src,'ru')||dt(P.cr[a.cid]).localeCompare(dt(P.cr[b.cid]))||a.cid-b.cid);
-  return `${open}<p class="sub">Круизные заявки с дня регистрации, без повторов внутри мероприятия. Источник — канал или метки регистрации. Суммы считаются как в «Общей сводной».</p>
+  return `<p class="sub">Заявки с дня регистрации, без повторов внутри мероприятия. Источник — канал или метки регистрации. Суммы считаются как в «Общей сводной».</p>
     <div class="tbl"><table><thead><tr><th>Мероприятие</th><th>Источник</th><th>Теплоход / круиз</th><th>Даты</th><th class="r">Дней</th><th class="r">Количество заявок</th><th class="r">Выручка</th><th class="r">Ждут оплаты</th></tr></thead><tbody>
     ${rows.map(x=>{const c=P.cr[x.cid],ship=c?.[0]||'',route=c?.[1],name=c?.[5]||'';
       const product=route?`${esc(ship||'Теплоход не указан')}<small>${esc(route)}</small>`:x.cid
         ?`${esc(ship||name||`Рейс №${x.cid}`)}${ship&&name&&ship!==name?`<small>${esc(name)}</small>`:''}<small>${esc(`${ship||name?`Рейс №${x.cid} · `:''}Маршрут не указан`)}</small>`
-        :'Рейс не определён';
+        :x.kind==='c'?'Рейс не определён':esc(WK.find(([k])=>(k==='air'?'a':k)===x.kind)?.[1]||'Прочее');
       return`<tr><td>${esc(x.ev)}</td><td>${esc(x.src)}</td><td>${product}</td><td class="nw">${c?.[2]||c?.[3]?`${esc(f(c[2]))} – ${esc(f(c[3]))}`:'—'}</td><td class="r">${c?.[4]?fmt(c[4]):'—'}</td><td class="r">${fmt(x.n)}</td><td class="r b">${x.sum?rubF(Math.round(x.sum)):'—'}</td><td class="r">${x.wait?`${fmt(x.wait)}<small>${rubF(Math.round(x.waitSum))}</small>`:'—'}</td></tr>`}).join('')}
-    </tbody></table></div></div>`;
+    </tbody></table></div>`;
 }
-function wsBlock(W,WKT){
-  const P=W.pool;
-  if(!P||P.error||!P.p)return`<div class="panel sec${wsFoldC('web-sum')}" id="web-sum" style="margin-bottom:16px">${wsFoldH('web-sum','Общая сводная')}<div class="empty">${P&&P.error?'Список людей мероприятий не прочитан: '+esc(P.error):'Считается ночью по Букингу (лист «Мероприятия: люди») или сразу — меню «Заявки» → «Мероприятия: пересчитать сегменты по Букингу».'}</div></div>`;
-  const byName={};(W.list||[]).forEach(w=>byName[w.name]=w);
+const WS_CT=[['p','Частные лица'],['i','ИП'],['s','Самозанятые'],['g','Агентства'],['o','Прочие']];
+const WS_VIEWS=[['sum','Общая сводная'],['products','Продукты'],['cmp','Сравнение мероприятий']];
+function wsModel(P,list,WKT){
+  const byName=Object.fromEntries(list.map(w=>[w.name,w]));
   const L=P.ev.map(n=>byName[n]||{name:n});
-  const F=S.wsF||(S.wsF={}),on=WS_FD.filter(([f])=>F[f]&&F[f].v&&F[f].v.length);
+  const F=S.wsF||(S.wsF={});
   // только мероприятия списка: строка справочника с акциями экскурсии («Лунная соната · 01.11», SA_EV_PROMO) — не мероприятие
   const evAll=P.ev.map((n,i)=>i).filter(i=>byName[P.ev[i]]&&P.p.some(x=>x.some(e=>e[0]===i)));
   const evOk=new Set(evAll);
   if(!Array.isArray(S.wsE))S.wsE=[];
-  const evOn=new Set((S.wsE.length?S.wsE:P.ev).map(n=>P.ev.indexOf(n)).filter(i=>evOk.has(i)));
+  const selected=S.wsE.map(n=>P.ev.indexOf(n)).filter(i=>evOk.has(i));
+  const evOn=new Set(selected.length?selected:evAll);
   const kinds=new Set(P.q.map(r=>r[0]));
   const WK=WKT.filter(([k])=>k==='c'||k==='all'||kinds.has(k==='air'?'a':k));
   if(!WK.some(x=>x[0]===S.wsK))S.wsK='c';
   const kt=S.wsK==='air'?'a':S.wsK,keepK=S.wsK==='all'?()=>true:t=>t===kt;
-  const ctOn=new Set(Array.isArray(S.wct)?S.wct:['p','i','s','g']),own=!!S.wsO,hasOwn=P.q.some(r=>r[6]>-1);
-  const qOk=r=>keepK(r[0])&&(ctOn.has(r[1])||r[1]==='o');
+  const ctOn=new Set(Array.isArray(S.wsCt)?S.wsCt:Array.isArray(S.wct)?[...S.wct,'o']:WS_CT.map(([k])=>k)),own=!!S.wsO,hasOwn=P.q.some(r=>r[6]>-1);
+  const qOk=r=>keepK(r[0])&&ctOn.has(r[1])&&(own||r[6]<0);
   const z=()=>({n:0,found:0,ppl:0,pplSz:0,req:0,sale:0,buyers:0,buyersSz:0,sum:0,sumSz:0,wait:0,waitSum:0});
   const add=(x,found,R)=>{x.n++;if(found)x.found++;const pd=R.filter(r=>r[3]==='p');
     if(R.length)x.ppl++;if(R.some(r=>r[4]))x.pplSz++;x.req+=R.length;x.sale+=pd.length;if(pd.length)x.buyers++;if(pd.some(r=>r[4]))x.buyersSz++;
     pd.forEach(r=>{x.sum+=r[5];if(r[4])x.sumSz+=r[5]});R.forEach(r=>{if(r[3]==='w'){x.wait++;x.waitSum+=r[5]}})};
   const fnd=e=>e[6]===1||(own&&e[6]===2);
-  const rqOf=e=>e[7].map(i=>P.q[i]).filter(r=>qOk(r)&&(own||r[6]!==e[0]));
   const ok=e=>evOn.has(e[0])&&wsPass(F,P,L,e);
-  // строки мероприятий
-  const rows={};evAll.forEach(i=>{if(evOn.has(i))rows[i]=z()});
-  P.p.forEach(x=>x.forEach(e=>{if(ok(e))add(rows[e[0]],fnd(e),rqOf(e))}));
-  // итог без повторов + новые и повторные
-  const T=z(),SG={};WS_SEG.forEach(([k])=>SG[k]=z());let multi=0;
-  P.p.forEach(x=>{const Q=x.filter(ok).sort((a,b)=>a[1]-b[1]);if(!Q.length)return;if(new Set(Q.map(e=>e[0])).size>1)multi++;
-    const seen=new Set(),R=[];
-    Q.forEach(e=>e[7].forEach(i=>{if(seen.has(i))return;seen.add(i);const r=P.q[i];if(!qOk(r))return;
-      let at=null;Q.forEach(q=>{if(q[1]<=r[2])at=q});if(!at)return;if(!own&&r[6]===at[0])return;R.push(r)}));
-    const found=Q.some(fnd);add(T,found,R);const sk=WS_SEG[Q[0][5]];if(sk)add(SG[sk[0]],found,R)});
+  const rows={},picks=new Map(),owners=new Map();evAll.forEach(i=>{if(evOn.has(i))rows[i]=z()});
+  P.p.forEach((person,pi)=>person.filter(ok).forEach(e=>{
+    const k=`${e[0]}:${pi}`;
+    if(!owners.has(k))owners.set(k,{ei:e[0],found:false,R:[]});
+    if(fnd(e))owners.get(k).found=true;
+    e[7].forEach(i=>{
+      const r=P.q[i];if(!qOk(r))return;
+      const id=`${e[0]}:${i}`,prev=picks.get(id);
+      if(!prev||e[1]<prev[0][1])picks.set(id,[e,r,k]);
+    });
+  }));
+  picks.forEach(([,r,k])=>owners.get(k).R.push(r));
+  owners.forEach(x=>add(rows[x.ei],x.found,x.R));
+  // Итог: один человек и одна заявка между всеми выбранными мероприятиями.
+  const T=z(),SG={},allPeople=[],allReq=new Map();WS_SEG.forEach(([k])=>SG[k]=z());let multi=0;
+  P.p.forEach(person=>{
+    const Q=person.filter(ok).sort((a,b)=>a[1]-b[1]);if(!Q.length)return;
+    if(new Set(Q.map(e=>e[0])).size>1)multi++;
+    const x={R:[],found:Q.some(fnd),seg:WS_SEG[Q[0][5]]?.[0]};allPeople.push(x);
+    Q.forEach(e=>e[7].forEach(i=>{const r=P.q[i],prev=allReq.get(i);
+      if(qOk(r)&&e[1]<=r[2]&&(!prev||e[1]>prev.day))allReq.set(i,{r,x,day:e[1]});
+    }));
+  });
+  allReq.forEach(({r,x})=>x.R.push(r));
+  allPeople.forEach(x=>{add(T,x.found,x.R);if(x.seg)add(SG[x.seg],x.found,x.R)});
   ['sum','sumSz','waitSum'].forEach(k=>{T[k]=Math.round(T[k])});
   const S0=Object.values(rows).reduce((a,x)=>{Object.keys(a).forEach(k=>a[k]+=x[k]);return a},z());
-  // фильтры — как на «Попапах»
-  const cnt=f=>{const c={};P.p.forEach(x=>x.forEach(e=>{if(!evOn.has(e[0])||!wsPass(F,P,L,e,f))return;const v=wsVal(P,L,e,f);c[v]=(c[v]||0)+1}));return c};
-  const nm=f=>WS_FD.find(x=>x[0]===f)[1],vt=(f,x)=>x.v.slice(0,2).map(v=>wsLbl(f,v)).join(', ')+(x.v.length>2?` +${x.v.length-2}`:'');
-  const chips=on.map(([f,l],i)=>(i?`<button type="button" class="pf-j" data-wsj="1" title="Переключить: все условия сразу / хотя бы одно">${S.wsJ==='or'?'или':'и'}</button>`:'')
-    +`<button type="button" class="pf-chip" data-wse="${f}" title="${esc(l+(F[f].x?' — все, кроме: ':' — любое из: ')+F[f].v.map(v=>wsLbl(f,v)).join(', '))}"><span>${esc(l)}<i>${F[f].x?'≠':'='}</i><b>${esc(vt(f,F[f]))}</b></span></button><button type="button" class="pf-x" data-wsd="${f}" aria-label="Убрать фильтр ${esc(l)}">×</button>`).join('');
+  return {L,F,evAll,evOn,selected,WK,ctOn,hasOwn,rows,picks,T,SG,S0,multi};
+}
+function wsControls(P,A){
+  const {L,F,evAll,evOn,selected,WK,ctOn}=A,on=WS_FD.filter(([f])=>F[f]?.v?.length);
+  const label=(t,h)=>`<label class="ws-control"><span class="flbl">${t}</span>${h}</label>`;
+  const menu=(k,v)=>`<button type="button" data-wsmenu="${k}" aria-expanded="${wsOpen===k}" aria-controls="ws-menu">${esc(v)}</button>`;
+  const select=(k,t,opts,v)=>`<select${k==='field'?' class="ws-fields"':''} data-wsselect="${k}" aria-label="${t}">${opts.map(([id,n])=>`<option value="${id}"${id===v?' selected':''}>${esc(n)}</option>`).join('')}</select>`;
+  const check=(k,v,n,on)=>`<label><input type="checkbox" data-${k}="${esc(v)}"${on?' checked':''}><span>${esc(n)}</span></label>`;
+  const done='<button type="button" class="pf-btn" data-wsok="1">Готово</button>';
+  const evName=i=>`${P.ev[i]}${L[i].type==='встреча'?' · офлайн':''}`;
   let pop='';
-  if(wsOpen==='+')pop=`<div class="pf-pop"><h4>Фильтр по</h4><div class="pf-flds">${WS_FD.filter(([f])=>!on.some(o=>o[0]===f)).map(([f,l])=>`<button type="button" data-wse="${f}">${l}</button>`).join('')}</div></div>`;
-  else if(wsOpen){const f=wsOpen,x=F[f]||{x:0,v:[]},c=cnt(f);x.v.forEach(v=>{if(!(v in c))c[v]=0});
-    const sel=v=>x.v.includes(v)?0:1,vals=Object.keys(c).sort((a,b)=>sel(a)-sel(b)||c[b]-c[a]||a.localeCompare(b));
-    pop=`<div class="pf-pop"><h4>${esc(nm(f))}</h4><div class="seg"><button type="button" data-wsx="0" aria-pressed="${!x.x}">= любое из</button><button type="button" data-wsx="1" aria-pressed="${!!x.x}">≠ все, кроме</button></div>
-      ${vals.length>12?`<input class="pf-q" type="search" placeholder="Найти…" value="${esc(wsQ)}">`:''}
-      <div class="pf-list">${vals.map(v=>`<label data-s="${esc(wsLbl(f,v).toLowerCase())}"><input type="checkbox" data-wsv="${esc(v)}"${x.v.includes(v)?' checked':''}><span title="${esc(v)}">${esc(wsLbl(f,v))}</span><span class="muted">${fmt(c[v])}</span></label>`).join('')}</div>
-      <div class="pf-foot"><span class="muted" style="font-size:12px">число — регистраций с остальными фильтрами</span><button type="button" class="pf-btn" data-wsok="1">Готово</button></div></div>`}
+  if(wsOpen==='events')pop=`<h4>Мероприятия</h4><div class="pf-list">${check('wsall','events','Все мероприятия',!selected.length)}${evAll.map(i=>check('wsev',P.ev[i],evName(i),selected.includes(i))).join('')}</div><div class="pf-foot">${done}</div>`;
+  if(wsOpen==='clients')pop=`<h4>Тип клиента</h4><div class="pf-list">${check('wsall','clients','Все типы',ctOn.size===WS_CT.length)}${WS_CT.map(([k,n])=>check('wsct',k,n,ctOn.has(k))).join('')}</div><div class="pf-foot">${done}</div>`;
+  if(wsOpen==='filters'){
+    const f=wsField,x=F[f]||{x:0,v:[]},c=Object.create(null);
+    P.p.forEach(person=>person.forEach(e=>{if(!evOn.has(e[0])||!wsPass(F,P,L,e,f))return;const v=wsVal(P,L,e,f);c[v]=(c[v]||0)+1}));
+    x.v.forEach(v=>{if(!(v in c))c[v]=0});
+    const vals=Object.keys(c).sort((a,b)=>c[b]-c[a]||a.localeCompare(b));
+    pop=`<h4>Настройка фильтров</h4>${select('field','Поле фильтра',WS_FD,wsField)}
+      <div class="pf-bar ws-short">${on.map(([k,n])=>`<button type="button" class="pf-btn" data-wse="${k}">${n} · ${F[k].v.length}</button>`).join('')}${on.length?'<button type="button" class="pf-btn" data-wsr="1">Сбросить все</button>':''}</div>
+      <div class="seg ws-short"><button type="button" data-wsx="0" aria-pressed="${!x.x}">Включить выбранные</button><button type="button" data-wsx="1" aria-pressed="${!!x.x}">Исключить выбранные</button></div>
+      ${on.length>1?`<div class="ws-short"><label>Условия ${select('join','Объединение условий',[['and','Все (И)'],['or','Любое (ИЛИ)']],S.wsJ==='or'?'or':'and')}</label></div>`:''}
+      ${vals.length>12?`<input class="pf-q" type="search" aria-label="Поиск значений" placeholder="Найти…" value="${esc(wsQ)}">`:''}
+      <div class="pf-list">${vals.map(v=>`<label data-s="${esc(wsLbl(f,v).toLowerCase())}"><input type="checkbox" data-wsv="${esc(v)}"${x.v.includes(v)?' checked':''}><span title="${esc(v)}">${esc(wsLbl(f,v))}</span><span class="muted">${fmt(c[v])}</span></label>`).join('')||'<div class="muted">Нет значений</div>'}</div>
+      <div class="pf-foot">${x.v.length?`<button type="button" class="pf-btn" data-wsd="${f}">Очистить поле</button>`:''}${done}</div>`;
+  }
+  return `<div class="ws-tools"><div class="ws-toolbar" aria-label="Общие фильтры">
+    ${label('Мероприятия',menu('events',selected.length===1?evName(selected[0]):selected.length?`Выбрано: ${selected.length}`:'Все мероприятия'))}
+    ${label('Что считаем',select('kind','Что считаем',WK,S.wsK))}
+    ${label('Тип клиента',menu('clients',ctOn.size===WS_CT.length?'Все клиенты':ctOn.size===1?WS_CT.find(([k])=>ctOn.has(k))?.[1]||'Клиент':`Выбрано: ${ctOn.size}`))}
+    ${label('Экскурсия',select('own','Экскурсия',[['0','Без броней экскурсии'],['1','Включить брони экскурсии']],S.wsO?'1':'0'))}
+    ${label('Фильтры',menu('filters',on.length?`Условий: ${on.length}`:'Настроить'))}
+    </div>${pop?`<div class="pf-pop" id="ws-menu">${pop}</div>`:''}</div>`;
+}
+function wsSummary(P,A){
+  const {L,evAll,rows,WK,hasOwn,T,SG,S0,multi}=A;
   const dt=w=>w&&w.date?w.date.slice(8,10)+'.'+w.date.slice(5,7)+'.'+w.date.slice(0,4):'';
-  const evBar=`<div class="seg" id="ws-ev" style="flex-wrap:wrap">${[['','Все']].concat(evAll.map(i=>[P.ev[i],P.ev[i]])).map(([v,l])=>`<button type="button" data-wsev="${esc(v)}" aria-pressed="${v?S.wsE.includes(v):!S.wsE.length}">${esc(l)}</button>`).join('')}</div>`;
-  const ctl=[['p','Частные лица'],['i','ИП'],['s','Самозанятые'],['g','Агентства']].filter(([t])=>P.q.some(r=>r[1]===t));
   const c2=(a,b)=>`${fmt(a)}${b!=null?`<small>СЗ ${fmt(b)}</small>`:''}`,r2=(a,b)=>`${a?rubF(a):'—'}${b!=null&&a?`<small>СЗ ${rubF(b)}</small>`:''}`;
   const line=(name,x,cls,hint)=>`<tr class="${cls||''}"><td>${name}${hint?`<small>${esc(hint)}</small>`:''}</td><td class="r b">${fmt(x.n)}</td><td class="r">${fmt(x.found)}</td><td class="r">${c2(x.ppl,x.pplSz)}</td><td class="r">${fmt(x.req)}</td><td class="r b">${fmt(x.sale)}</td><td class="r">${c2(x.buyers,x.buyersSz)}</td><td class="r b">${r2(Math.round(x.sum),Math.round(x.sumSz))}</td><td class="r">${x.wait?`${fmt(x.wait)}<small>${rubF(x.waitSum)}</small>`:'—'}</td></tr>`;
   const head=`<thead><tr><th></th><th class="r">Людей</th><th class="r">Нашлись в Букинге</th><th class="r">С заявкой</th><th class="r">Заявок</th><th class="r">Продаж</th><th class="r">Покупателей</th><th class="r">Выручка</th><th class="r">Ждут оплаты</th></tr></thead>`;
   const evR=evAll.filter(i=>rows[i]).map(i=>line(`${esc(P.ev[i])}${L[i].type==='встреча'?' · офлайн':''}`,rows[i],'',/\d{2}\.\d{2}$/.test(P.ev[i])?'':dt(L[i])));
-  const wt=WKT.find(x=>x[0]===S.wsK)||WKT[0];
-  return`<div class="panel sec${wsFoldC('web-sum')}" id="web-sum" style="margin-bottom:16px">${wsFoldH('web-sum','Общая сводная')}
-    <p class="sub">Сколько людей пришло на выбранные мероприятия и что они купили в Букинге с дня регистрации — по любым источникам. Итог — без повторов: каждый человек и каждая заявка считаются один раз.</p>
-    <div class="filters" style="margin:6px 0 8px;flex-wrap:wrap"><div><span class="flbl">Мероприятия</span>${evBar}</div></div>
-    <div class="ws-fl" style="position:relative;margin-bottom:8px"><span class="flbl">Фильтры</span><div class="pf-bar" id="ws-flt"><button type="button" class="pf-add" data-wse="+">+ Фильтр</button>${chips}${on.length?'<button type="button" class="pf-btn" data-wsr="1">Сбросить</button>':''}</div>${pop}</div>
-    <div class="filters" style="margin:4px 0 10px;flex-wrap:wrap"><div><span class="flbl">Что считаем</span><div class="seg wk" id="ws-kind">${WK.map(([k,l])=>`<button type="button" data-k="${k}" aria-pressed="${S.wsK===k}">${l}</button>`).join('')}</div></div>
-      ${ctl.length>1?`<div class="fgroup"><span class="flbl">Тип клиента (общий с блоками ниже)</span><div class="checks" id="ws-ct">${ctl.map(([t,l])=>`<label><input type="checkbox" data-t="${t}"${ctOn.has(t)?' checked':''}>${l}</label>`).join('')}</div></div>`:''}
-      ${hasOwn?`<div class="fgroup"><span class="flbl">Экскурсия</span><div class="checks" id="ws-own"><label title="Брони самой экскурсии (билеты, по которым человек зарегистрировался). Обычно в отчёте не считаются; в расчёте для Романа 19.11 — считались"><input type="checkbox"${own?' checked':''}>считать брони самой экскурсии</label></div></div>`:''}</div>
+  const wt=WK.find(x=>x[0]===S.wsK)||WK[0];
+  return`<p class="sub">Что участники выбранных мероприятий оформили в Букинге с дня регистрации. Итог — без повторов: каждый человек и каждая заявка считаются один раз.</p>
     <div class="tbl"><table>${head}<tbody>${evR.join('')}
       ${evR.length>1?line('<span class="muted">Сумма строк (повторы считаются)</span>',S0,''):''}
       ${line('Итого без повторов',T,'b',multi?`${nw(multi,'человек был','человека были','человек были')} на нескольких мероприятиях`:'')}</tbody></table></div>
@@ -1408,29 +1459,61 @@ function wsBlock(W,WKT){
     <details class="how"><summary>Как считаем</summary><ul class="sub" style="margin:6px 0 0;padding-left:18px;line-height:1.55">
       <li><b>Человек</b> — почта или телефон: общая почта или телефон хоть в одной регистрации любого мероприятия — один человек. Сюда же — лиды CRM-формы без регистрации (источник «без регистрации (crm-форма)»).</li>
       <li><b>Источник</b> — метки самой ранней регистрации человека на этом мероприятии. Если на два мероприятия человек пришёл по разным меткам, он есть в каждом своём источнике.</li>
-      <li><b>Заявки</b> — ${esc(wt[3])} в Букинге, созданные в день регистрации и позже, любой оператор; «СЗ» — из них Созвездие с Речными линиями. В итоге без повторов — с первой подходящей регистрации человека, каждая заявка один раз${hasOwn?'; брони самой экскурсии — только с галочкой':''}.</li>
+      <li><b>Заявки</b> — ${esc(wt[3])} в Букинге, созданные в день регистрации и позже, любой оператор; «СЗ» — из них Созвездие с Речными линиями. В итоге без повторов — с первой подходящей регистрации человека, каждая заявка один раз${hasOwn?'; брони самой экскурсии включаются настройкой «Экскурсия»':''}.</li>
       <li><b>Заявок</b> — все заявки, в том числе аннулированные. <b>Продаж</b> — оплаченные (21 Предоплата, 30 Оплачено), <b>выручка</b> — их полная стоимость. <b>Ждут оплаты</b> — статусы 10, 13, 20, 33, число заявок и их стоимость; в выручку не входят. Аннуляции (0) и возвраты (1, 2, 12) не входят ни в продажи, ни в ожидание.</li>
       <li><b>Новые и повторные</b> — кем человек был в день первой подходящей регистрации: новый — не было в Букинге; «покупал» — оплаченный круиз.</li>
       <li>Строка мероприятия считает человека на каждом его мероприятии, поэтому «Сумма строк» больше итога. Тип клиента — по карточке клиента в Букинге.</li>
-      <li>Расчёт ночью${P.updated?`, последний — ${esc(new Date(P.updated).toLocaleString('ru-RU',{timeZone:'Europe/Moscow',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}))}`:''}.</li></ul></details></div>`}
+      <li>Расчёт ночью${P.updated?`, последний — ${esc(new Date(P.updated).toLocaleString('ru-RU',{timeZone:'Europe/Moscow',day:'2-digit',month:'2-digit',hour:'2-digit'}))}`:''}.</li></ul></details>`}
+function wsCompare(P,A,current){
+  const {L,rows,evAll}=A;
+  const cv=(a,b)=>b?pct(a/b,a/b<0.1?1:0):'—';
+  const date=w=>{const d=w.seats?.list?.map(x=>x.date).filter(Boolean).sort()[0]||w.date;return d?d.split('-').reverse().join('.'):'—'};
+  return `<p class="sub">Показатели по тем же заявкам Букинга, что в сводной и продуктах. Нажмите на строку, чтобы открыть карточку с лидами и местами.</p>
+  <div class="tbl"><table><thead><tr><th>Дата</th><th>Мероприятие</th><th class="r">Людей</th><th class="r">С заявкой</th><th class="r">Заявок в Букинге</th><th class="r">Продаж</th><th class="r">Выручка</th><th class="r">Ждут оплаты</th></tr></thead><tbody>
+  ${evAll.filter(i=>rows[i]).map(i=>{const w=L[i],r=rows[i];return `<tr data-pick="w:${esc(w.name)}" title="Открыть мероприятие"><td class="nw">${date(w)}</td><td class="b">${esc(w.name)}${w.type==='встреча'?' · офлайн':''}${w.name===current?.name?' ✓':''}</td><td class="r">${fmt(r.n)}</td><td class="r">${fmt(r.ppl)} <span class="muted">${cv(r.ppl,r.n)}</span></td><td class="r">${fmt(r.req)}</td><td class="r">${fmt(r.sale)} <span class="muted">${cv(r.sale,r.req)}</span></td><td class="r b">${r.sum?rubF(Math.round(r.sum)):'—'}</td><td class="r">${r.wait?`${fmt(r.wait)}<small>${rubF(Math.round(r.waitSum))}</small>`:'—'}</td></tr>`}).join('')}
+  </tbody></table></div>`;
+}
+function wsHub(P,L,WKT,current){
+  const id='web-analysis',view=WS_VIEWS.some(([k])=>k===S.wsView)?S.wsView:'sum';
+  const open=`<div class="panel sec${wsFoldC(id)}" id="${id}" style="margin-bottom:16px">${wsFoldH(id,'Аналитика мероприятий')}`;
+  if(!P?.p||P.error)return `${open}<div class="empty">${P?.error?'Список людей мероприятий не прочитан: '+esc(P.error):'Данные появятся после ночного обновления Букинга.'}</div></div>`;
+  const A=wsModel(P,L,WKT);
+  return `${open}<div class="seg ws-switch" role="group" aria-label="Вид аналитики">${WS_VIEWS.map(([k,t])=>`<button type="button" data-wsview="${k}" aria-pressed="${view===k}">${t}</button>`).join('')}</div>
+    ${wsControls(P,A)}<div id="ws-results">${view==='products'?wsProducts(P,A):view==='cmp'?wsCompare(P,A,current):wsSummary(P,A)}</div></div>`;
+}
 function wsBind(){
-  const el=$('#web-sum');if(!el)return;const F=S.wsF||(S.wsF={}),go=()=>{save();render()};
-  const q=el.querySelector('.pf-q');if(q)q.dispatchEvent(new Event('input',{bubbles:true}));
-  el.addEventListener('input',e=>{if(!e.target.classList.contains('pf-q'))return;wsQ=e.target.value;const s=wsQ.trim().toLowerCase();el.querySelectorAll('.pf-list label').forEach(l=>l.hidden=!!s&&!l.dataset.s.includes(s))});
+  const el=$('#web-analysis'),bar=el?.querySelector('.ws-toolbar');if(!bar)return;
+  const F=S.wsF||(S.wsF={}),go=()=>{save();render()},position=()=>{
+    const pop=el.querySelector('#ws-menu'),b=el.querySelector(`[data-wsmenu="${wsOpen}"]`);if(!pop||!b)return;
+    const box=el.querySelector('.ws-tools').getBoundingClientRect();pop.style.left=Math.max(0,Math.min(b.getBoundingClientRect().left-box.left,box.width-pop.offsetWidth))+'px';
+  };
+  bar.scrollLeft=wsScroll;bar.onscroll=()=>{wsScroll=bar.scrollLeft;position()};position();
+  const search=()=>{const s=wsQ.trim().toLowerCase();el.querySelectorAll('.pf-list label[data-s]').forEach(l=>l.hidden=!!s&&!l.dataset.s.includes(s))};search();
+  el.addEventListener('input',e=>{if(e.target.classList.contains('pf-q')){wsQ=e.target.value;search()}});
   el.addEventListener('change',e=>{const t=e.target;
-    if(t.dataset.wsv!=null){const x=F[wsOpen]||(F[wsOpen]={x:0,v:[]});x.v=t.checked?x.v.concat([t.dataset.wsv]):x.v.filter(v=>v!==t.dataset.wsv);return go()}
-    if(t.closest('#ws-ct')&&t.dataset.t){const st=new Set(Array.isArray(S.wct)?S.wct:['p','i','s','g']);if(t.checked)st.add(t.dataset.t);else st.delete(t.dataset.t);S.wct=[...st];return go()}
-    if(t.closest('#ws-own')){S.wsO=t.checked;return go()}});
+    const d=t.dataset,v=t.value;
+    if(d.wsselect==='field'){wsField=v;wsQ='';return render()}
+    if(d.wsselect==='kind'){S.wsK=v;return go()}
+    if(d.wsselect==='own'){S.wsO=v==='1';return go()}
+    if(d.wsselect==='join'){S.wsJ=v;return go()}
+    if(d.wsall==='events'){S.wsE=[];return go()}
+    if(d.wsall==='clients'){S.wsCt=t.checked?WS_CT.map(([k])=>k):[];return go()}
+    if(d.wsev!=null){const st=new Set(S.wsE);if(t.checked)st.add(d.wsev);else st.delete(d.wsev);S.wsE=[...st];return go()}
+    if(d.wsct){const st=new Set(Array.isArray(S.wsCt)?S.wsCt:Array.isArray(S.wct)?[...S.wct,'o']:WS_CT.map(([k])=>k));if(t.checked)st.add(d.wsct);else st.delete(d.wsct);S.wsCt=[...st];return go()}
+    if(d.wsv!=null){const x=F[wsField]||(F[wsField]={x:0,v:[]});x.v=t.checked?[...new Set([...x.v,d.wsv])]:x.v.filter(v=>v!==d.wsv);return go()}
+  });
   el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset;
-    if(d.wsev!=null){const v=d.wsev;S.wsE=!v?[]:S.wsE.includes(v)?S.wsE.filter(x=>x!==v):S.wsE.concat([v]);return go()}
-    if(d.k&&b.closest('#ws-kind')){S.wsK=d.k;return go()}
-    if(d.wse){wsOpen=wsOpen===d.wse?null:d.wse;wsQ='';return render()}
-    if(d.wsd){delete F[d.wsd];if(wsOpen===d.wsd)wsOpen=null;return go()}
-    if(d.wsj){S.wsJ=S.wsJ==='or'?'and':'or';return go()}
-    if(d.wsr){S.wsF={};wsOpen=null;return go()}
-    if(d.wsok){wsOpen=null;return render()}
-    if(d.wsx){const x=F[wsOpen]||(F[wsOpen]={x:0,v:[]});x.x=+d.wsx;return go()}});
-  if(!wsBind.doc){wsBind.doc=1;document.addEventListener('click',e=>{if(wsOpen&&!e.target.closest('#web-sum .pf-pop,#ws-flt')&&document.contains(e.target)){wsOpen=null;const p=document.querySelector('#web-sum .pf-pop');if(p)p.remove()}})}}
+    if(d.wsview){S.wsView=d.wsview;wsOpen=null;return go()}
+    if(d.wsmenu){wsOpen=wsOpen===d.wsmenu?null:d.wsmenu;wsQ='';return render()}
+    if(d.wse){wsField=d.wse;wsQ='';return render()}
+    if(d.wsd){delete F[d.wsd];wsQ='';return go()}
+    if(d.wsr){S.wsF={};S.wsJ='and';wsQ='';return go()}
+    if(d.wsok)return wsClose(true);
+    if(d.wsx){const x=F[wsField]||(F[wsField]={x:0,v:[]});x.x=+d.wsx;return go()}});
+  if(!wsBind.doc){wsBind.doc=1;document.addEventListener('click',e=>{if(wsOpen&&document.contains(e.target)&&!e.target.closest('#ws-menu,[data-wsmenu]'))wsClose()});
+    document.addEventListener('keydown',e=>{if(wsOpen&&e.key==='Escape'&&$('#ws-menu')){e.preventDefault();wsClose(true)}})}
+}
+function wsClose(focus){const b=document.querySelector(`[data-wsmenu="${wsOpen}"]`);wsOpen=null;$('#ws-menu')?.remove();b?.setAttribute('aria-expanded','false');if(focus)b?.focus()}
 const WB_DIMS=[['med','Канал'],['src','Источник'],['brand','Бренд'],['camp','Кампания'],['utm','Метки']];   // «Метки» — связка utm_source / utm_medium / utm_campaign (12.11.2026)
 function vWeb(){
   const W=D.webinars||{list:[]},L=(W.list||[]).filter(w=>w.rows);
@@ -1519,7 +1602,7 @@ function vWeb(){
   </div><!--jump-->`;
   } else h+=`<div class="grid g-kpi">
     ${ex?`    <div class="panel kpi go" data-go="${ex&&w.seats?'web-seats':'web-days'}" title="${ex&&w.seats?'Места по сеансам':'Регистрации по дням'}"><div class="lbl">Регистраций</div><div class="val">${fmt(n)}</div><div class="foot"><span>${ex?'уникальные по почте или телефону':'уникальные по почте'}</span></div>${mutedLine(w.extra?`ещё ${nw(w.extra,'лид','лида','лидов')} Б24 без регистрации`:'')}</div>
-    <div class="panel kpi go" data-go="web-cut" title="Разрез по каналам"><div class="lbl">Уже в базе Инфофлота</div><div class="val">${fmt(k.inIF)}</div><div class="foot"><span>${share(k.inIF)} регистраций</span></div>${mutedLine(`раньше оплачивали: ${fmt(k.paid)} (${share(k.paid)})`)}</div>
+    <div class="panel kpi go" data-go="web-cut" title="Трафик по каналам"><div class="lbl">Уже в базе Инфофлота</div><div class="val">${fmt(k.inIF)}</div><div class="foot"><span>${share(k.inIF)} регистраций</span></div>${mutedLine(`раньше оплачивали: ${fmt(k.paid)} (${share(k.paid)})`)}</div>
     <div class="panel kpi go" data-go="web-funnel" title="Воронка и стадии"><div class="lbl">${ex?'Бронь в Б24':'Заявка в Б24'}</div><div class="val">${fmt(k.req)}</div><div class="foot"><span>${share(k.req)} регистраций</span></div>${mutedLine(ex?`действующих: ${fmt(rows.filter(r=>stOf(r)==='live').length)}`:`забронировали круиз: ${fmt(k.booked)}, из них новых: ${fmt(k.newBooked)}`)}</div>
     <div class="panel kpi go" data-go="${L.length>1?'web-cmp':'web-funnel'}" title="${L.length>1?'Сравнение мероприятий':'Воронка'}"><div class="lbl">${ex?'Оплачено броней':(sz&&sz.bk?'Продажи по лидам '+evG:'Продажи по срезу Б24')}</div>${sz?`<div class="val">${fmt(sz.sold)}<small>на ${rub(sz.sum)}</small></div><div class="foot"><span>${sz.bk?`${nw(sz.leads,ex?'сделка':'лид',ex?'сделки':'лида',ex?'сделок':'лидов')} → с номером заявки ${fmt(sz.withReq)} → оплачено ${fmt(sz.sold)}`:ex?`из ${nw(sz.leads,'сделки','сделок','сделок')} экскурсии`:`из ${nw(sz.leads,'лида','лидов','лидов')} ${evG}`}</span></div>${mutedLine(`${sz.bk?'статус заявки в Букинге · ':''}новых клиентов: ${fmt(sz.soldNew)}${sz.soldNoContact?` · без контакта: ${fmt(sz.soldNoContact)}`:''}`)}`:`<div class="val muted" style="font-size:24px">нет среза</div><div class="foot muted">в таблице мероприятий — меню «Созвездие» → срез Б24</div>`}</div>`:`
     ${mtP?`<div class="panel kpi go" data-go="web-days" title="Регистрации по дням"><div class="lbl">Придёт людей</div><div class="val">${fmt(mtP.total-mtP.dup)}</div><div class="foot"><span>все заявки без полных дублей</span></div>${mutedLine(`уникальных по почте или телефону: ${fmt(mtP.uniq)}`)}${mutedLine(`всего заявок: ${fmt(mtP.total)}`)}</div>`:`<div class="panel kpi go" data-go="web-days" title="Регистрации по дням"><div class="lbl">Регистраций</div><div class="val">${fmt(nP)}</div><div class="foot"><span>${mtC?`людей: ${fmt(mtC.total)} ${plural(mtC.total,'заявка','заявки','заявок')} без ${fmt(mtDup)} ${plural(mtDup,'дубля','дублей','дублей')}`:'уникальные по почте'}</span></div>${mtC?mutedLine(`уникальных почт: ${fmt(n)}`):''}${mutedLine(`${mtC?'по почтам: ':''}в базе Инфофлота ${share(k.inIF)} · платили раньше ${share(k.paid)}`)}</div>`}
@@ -1752,25 +1835,12 @@ function vWeb(){
   const di=c[S.wdim],g={},keyOf=S.wdim==='utm'?r=>['src','med','camp'].map(k=>w.dict[k][r[c[k]]]).join(' / '):r=>w.dict[S.wdim][r[di]];all.forEach(r=>{const key=keyOf(r);const x=g[key]||(g[key]={n:0,inIF:0,paid:0,req:0,booked:0,nb:0});x.n++;x.inIF+=r[c.inIF];x.paid+=r[c.paid];x.req+=r[c.req];x.booked+=r[c.booked];x.nb+=r[c.newBooked]});
   const gl=Object.entries(g).sort((a,b)=>b[1].n-a[1].n);
   const line=(name,x,b)=>`<tr><td class="${b?'b':''}">${esc(name)}</td><td class="r">${fmt(x.n)}</td><td class="r">${pct(x.n/NA,0)}</td><td class="r">${fmt(x.inIF)} <span class="muted">${pct(x.n?x.inIF/x.n:null,0)}</span></td><td class="r">${fmt(x.paid)} <span class="muted">${pct(x.n?x.paid/x.n:null,0)}</span></td><td class="r">${fmt(x.req)} <span class="muted">${pct(x.n?x.req/x.n:null,0)}</span></td><td class="r">${fmt(x.booked)}</td><td class="r">${fmt(x.nb)}</td></tr>`;
-  h+=`<div class="panel sec" id="web-cut" style="margin-bottom:16px"><div class="filters" style="margin-bottom:8px"><div><span class="flbl">Разрез</span><div class="seg" id="seg-wdim">${WB_DIMS.map(([key,l])=>`<button type="button" data-d="${key}" aria-pressed="${S.wdim===key}">${l}</button>`).join('')}</div></div></div>
+  h+=`<div class="panel sec" id="web-cut" style="margin-bottom:16px"><h2>Трафик</h2><div class="filters" style="margin-bottom:8px"><div class="seg" id="seg-wdim" aria-label="Группировка трафика">${WB_DIMS.map(([key,l])=>`<button type="button" data-d="${key}" aria-pressed="${S.wdim===key}">${l}</button>`).join('')}</div></div>
     <div class="tbl"><table><thead><tr><th></th><th class="r">${nNr?'Участников':'Регистраций'}</th><th class="r">Доля</th><th class="r">В базе ИФ</th><th class="r">Оплата СЗ</th><th class="r">Заявка Б24</th><th class="r">Забронировали</th><th class="r">Из них новые</th></tr></thead>
     <tbody>${gl.map(([name,x])=>line(name,x)).join('')}${line('Итого',{n:NA,inIF:cntA('inIF'),paid:cntA('paid'),req:cntA('req'),booked:cntA('booked'),nb:cntA('newBooked')},true)}</tbody></table></div></div>`;
-  // «Общая сводная» (19.11.2026): выбранные мероприятия × метки, итог без повторов
-  const wsH=wsBlock(W,WKT);
-  // сравнение вебинаров
-  let cmpH='';
-  if(L.length>1)cmpH=`<div class="panel sec${wsFoldC('web-cmp')}" id="web-cmp" style="margin-bottom:16px">${wsFoldH('web-cmp','Сравнение мероприятий')}<p class="sub">Нажмите на строку — откроется это мероприятие</p><div class="tbl"><table><thead><tr><th>Дата</th><th>Мероприятие</th><th class="r">Регистраций</th><th class="r">${L.some(x=>x.type==='экскурсия'&&!(x.promo&&x.promo.reqs))?'Лидов / мест':'Лидов'}</th><th class="r">Заявок в Букинге</th><th class="r">Продажи</th><th class="r">Сумма продаж</th></tr></thead><tbody>
-    ${L.map(x=>{const cc=Object.fromEntries(x.cols.map((kk,i)=>[kk,i])),xr=regsOf(x),nn=regN(x),rq=xr.reduce((a,r)=>a+(r[cc.req]?1:0),0),z=srezOf(x),ld=z?z.leads:rq+(x.extra||0),wq=z&&z.bk?z.withReq:null;
-      // экскурсия — как «Места по сеансам»: места и брони держат только действующие брони, продажи — оплаченные брони
-      const xs=x.type==='экскурсия'&&x.seats&&x.seats.list&&x.seats.list.length?x.seats.list.flatMap(q=>q.items||[]):null,xpb=xs&&xs.filter(i=>/Оплачено|Предоплата/i.test(i.st)).length;
-      // экскурсия с подбором круиза (10.11.2026): лиды — анкеты подбора, заявки и продажи — заявки Букинга из них, сумма — стоимость оплаченных
-      const pq=x.type==='экскурсия'&&x.promo&&x.promo.reqs,pf=pq&&x.promo.forms.find(f=>/подбор/i.test(f.name));
-      if(pq&&pf)return`<tr data-pick="w:${esc(x.name)}" title="Открыть это мероприятие. Лиды — анкеты подбора круиза (сайт, офис СРВ, с борта); заявки и продажи — заявки Букинга из этих анкет; сумма — стоимость оплаченных"><td class="nw">${dd(evDays(x)[0]||x.date)}</td><td class="b">${esc(x.name.replace(/\s*·\s*\d{2}\.\d{2}$/,''))}${x.type==='встреча'?' · офлайн':''}${x.name===w.name?' ✓':''}</td><td class="r"${pplOf(x)?' title="Придёт людей: регистрации и спутники из комментария, без полных дублей"':''}>${fmt(nn)}</td><td class="r">${fmt(pf.ank)} <span class="muted">${cv(pf.ank,nn)}</span></td><td class="r">${fmt(pq.base)} <span class="muted">${cv(pq.base,pf.ank)}</span></td><td class="r">${fmt(pq.paidReqs)} <span class="muted">${cv(pq.paidReqs,pq.base)}</span></td><td class="r">${pq.paidSum?rubF(pq.paidSum.all.total):'—'}</td></tr>`;
-      if(xs)return`<tr data-pick="w:${esc(x.name)}" title="Открыть это мероприятие"><td class="nw">${dd(evDays(x)[0]||x.date)}</td><td class="b">${esc(x.name.replace(/\s*·\s*\d{2}\.\d{2}$/,''))}${x.type==='встреча'?' · офлайн':''}${x.name===w.name?' ✓':''}</td><td class="r"${pplOf(x)?' title="Придёт людей: регистрации и спутники из комментария, без полных дублей"':''}>${fmt(nn)}</td><td class="r">${fmt(xs.reduce((a,i)=>a+i.g,0))} <span class="muted">мест</span></td><td class="r">${fmt(xs.length)} <span class="muted">${cv(xs.length,nn)}</span></td><td class="r">${fmt(xpb)} <span class="muted">${cv(xpb,xs.length)}</span></td><td class="r">${z?.sum!=null?rubF(z.sum):'—'}</td></tr>`;
-      return`<tr data-pick="w:${esc(x.name)}" title="Открыть это мероприятие"><td class="nw">${dd(evDays(x)[0]||x.date)}</td><td class="b">${esc(x.name.replace(/\s*·\s*\d{2}\.\d{2}$/,''))}${x.type==='встреча'?' · офлайн':''}${x.name===w.name?' ✓':''}</td><td class="r"${pplOf(x)?' title="Придёт людей: регистрации и спутники из комментария, без полных дублей"':''}>${fmt(nn)}</td><td class="r">${fmt(ld)} <span class="muted">${cv(ld,nn)}</span></td><td class="r">${wq==null?'—':`${fmt(wq)} <span class="muted">${cv(wq,ld)}</span>`}</td><td class="r">${z?fmt(z.sold):'—'}${wq!=null?` <span class="muted">${cv(z.sold,wq)}</span>`:''}</td><td class="r">${z?.sum!=null?rubF(z.sum):'—'}</td></tr>`}).join('')}
-    </tbody></table></div></div>`;
-  h=h.replace('<!--wsum-->',wsH+cmpH+wsProducts(W.pool,L));
-  $('#view').innerHTML=withJump(h,[['web-sum','Сводная'],['web-cmp','Сравнение'],['web-products','Продукты'],...(ex&&w.seats?[['web-seats','Места']]:[]),...(ex&&w.promo?[['web-promo','Розыгрыш']]:[]),['web-meet',M&&M.people&&M.people.total?'Люди':'Обзвон'],['web-mail','Рассылки'],['web-adv','Реклама'],['web-days','По дням'],['web-funnel','Воронка и стадии'],['web-cohort','Когорта'],['web-seg','Кто и когда купил'],['web-cut','Разрез']]);
+  h=h.replace('<!--wsum-->',wsHub(W.pool,L,WKT,w));
+  $('#view').innerHTML=withJump(h,[['web-analysis','Аналитика'],...(ex&&w.seats?[['web-seats','Места']]:[]),...(ex&&w.promo?[['web-promo','Розыгрыш']]:[]),['web-meet',M&&M.people&&M.people.total?'Люди':'Обзвон'],['web-mail','Рассылки'],['web-adv','Реклама'],['web-ads','Поп-ап'],['web-blog','Блогеры'],['web-och','Другие каналы'],['web-days','По дням'],['web-funnel','Воронка и стадии'],['web-cohort','Когорта'],['web-seg','Кто и когда купил'],['web-cut','Трафик']]);
+  wsFoldTables($('#view'));
   $('#web-pick').onclick=e=>{const b=e.target.closest('[data-w]');if(!b)return;S.web=b.dataset.w;save();render()};
   wsBind();wsFoldBind();
   const ck=$('#chk-wct');if(ck)ck.onchange=e=>{const t=e.target.dataset&&e.target.dataset.t;if(!t)return;const st=new Set(S.wct);if(e.target.checked)st.add(t);else st.delete(t);S.wct=[...st];save();render()};
