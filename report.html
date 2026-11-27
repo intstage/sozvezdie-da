@@ -1329,7 +1329,11 @@ function wsProducts(P,L){
   const rows=[...groups.values()].sort((a,b)=>a.ev.localeCompare(b.ev,'ru')||a.src.localeCompare(b.src,'ru')||dt(P.cr[a.cid]).localeCompare(dt(P.cr[b.cid]))||a.cid-b.cid);
   return `${open}<p class="sub">Круизные заявки с дня регистрации, без повторов внутри мероприятия. Источник — канал или метки регистрации. Суммы считаются как в «Общей сводной».</p>
     <div class="tbl"><table><thead><tr><th>Мероприятие</th><th>Источник</th><th>Теплоход / круиз</th><th>Даты</th><th class="r">Дней</th><th class="r">Количество заявок</th><th class="r">Выручка</th><th class="r">Ждут оплаты</th></tr></thead><tbody>
-    ${rows.map(x=>{const c=P.cr[x.cid];return`<tr><td>${esc(x.ev)}</td><td>${esc(x.src)}</td><td>${c?`${esc(c[0]||'Теплоход не указан')}<small>${esc(c[1]||'Маршрут не указан')}</small>`:'Рейс не определён'}</td><td class="nw">${c?.[2]||c?.[3]?`${esc(f(c[2]))} – ${esc(f(c[3]))}`:'—'}</td><td class="r">${c?.[4]?fmt(c[4]):'—'}</td><td class="r">${fmt(x.n)}</td><td class="r b">${x.sum?rubF(Math.round(x.sum)):'—'}</td><td class="r">${x.wait?`${fmt(x.wait)}<small>${rubF(Math.round(x.waitSum))}</small>`:'—'}</td></tr>`}).join('')}
+    ${rows.map(x=>{const c=P.cr[x.cid],ship=c?.[0]||'',route=c?.[1],name=c?.[5]||'';
+      const product=route?`${esc(ship||'Теплоход не указан')}<small>${esc(route)}</small>`:x.cid
+        ?`${esc(ship||name||`Рейс №${x.cid}`)}${ship&&name&&ship!==name?`<small>${esc(name)}</small>`:''}<small>${esc(`${ship||name?`Рейс №${x.cid} · `:''}Маршрут не указан`)}</small>`
+        :'Рейс не определён';
+      return`<tr><td>${esc(x.ev)}</td><td>${esc(x.src)}</td><td>${product}</td><td class="nw">${c?.[2]||c?.[3]?`${esc(f(c[2]))} – ${esc(f(c[3]))}`:'—'}</td><td class="r">${c?.[4]?fmt(c[4]):'—'}</td><td class="r">${fmt(x.n)}</td><td class="r b">${x.sum?rubF(Math.round(x.sum)):'—'}</td><td class="r">${x.wait?`${fmt(x.wait)}<small>${rubF(Math.round(x.waitSum))}</small>`:'—'}</td></tr>`}).join('')}
     </tbody></table></div></div>`;
 }
 function wsBlock(W,WKT){
