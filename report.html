@@ -865,7 +865,7 @@ function chartPick(id,n,fn){const svg=document.getElementById(id);if(!svg||!n)re
 function viewClick(e){
   const g=e.target.closest('[data-go]');
   if(g){if(e.detail&&g.blur)g.blur();let v=g.dataset.go;
-    if(S.tab==='web'&&v==='web-cmp'){S.wsView='cmp';wsOpen=null;(S.fold||(S.fold={}))['web-analysis']=false;save();render();v='web-analysis'}
+    if(S.tab==='web'&&v==='web-cmp'){S.wsView='sum';wsOpen=null;(S.fold||(S.fold={}))['web-analysis']=false;save();render();v='web-analysis'}
     if(v[0]==='@'){const[t,sec]=v.slice(1).split('#');
       if(t===S.tab){if(sec)jumpTo(sec,true);return}
       histPush();S.tab=t;save();render();navState();if(sec)jumpTo(sec,false,true);else window.scrollTo({top:0});return}
@@ -1361,7 +1361,7 @@ function wsProducts(P,A){
     </tbody></table></div>`;
 }
 const WS_CT=[['p','Частные лица'],['i','ИП'],['s','Самозанятые'],['g','Агентства'],['o','Прочие']];
-const WS_VIEWS=[['sum','Общая сводная'],['products','Продукты'],['cmp','Сравнение мероприятий']];
+const WS_VIEWS=[['sum','Общая сводная'],['products','Продукты'],['segments','Сегменты']];
 function wsModel(P,list,WKT){
   const byName=Object.fromEntries(list.map(w=>[w.name,w]));
   const L=P.ev.map(n=>byName[n]||{name:n});
@@ -1451,44 +1451,35 @@ function wsControls(P,A){
     ${label('Фильтры',menu('filters',on.length||S.wsO?`Условий: ${on.length+Number(!!S.wsO)}`:'Настроить'))}
     </div>${pop?`<div class="pf-pop" id="ws-menu">${pop}</div>`:''}</div>`;
 }
-function wsSummary(P,A){
+function wsSummary(P,A,segments){
   const {L,evAll,rows,WK,hasOwn,T,SG,S0,multi}=A;
   const dt=w=>w&&w.date?w.date.slice(8,10)+'.'+w.date.slice(5,7)+'.'+w.date.slice(0,4):'';
   const c2=(a,b)=>`${fmt(a)}${b!=null?`<small>СЗ ${fmt(b)}</small>`:''}`,r2=(a,b)=>`${a?rubF(a):'—'}${b!=null&&a?`<small>СЗ ${rubF(b)}</small>`:''}`;
-  const line=(name,x,cls,hint)=>`<tr class="${cls||''}"><td>${name}${hint?`<small>${esc(hint)}</small>`:''}</td><td class="r b">${fmt(x.n)}</td><td class="r">${fmt(x.found)}</td><td class="r">${c2(x.ppl,x.pplSz)}</td><td class="r">${fmt(x.req)}</td><td class="r b">${fmt(x.sale)}</td><td class="r">${c2(x.buyers,x.buyersSz)}</td><td class="r b">${r2(Math.round(x.sum),Math.round(x.sumSz))}</td><td class="r">${x.wait?`${fmt(x.wait)}<small>${rubF(x.waitSum)}</small>`:'—'}</td></tr>`;
+  const line=(name,x,cls,hint,event)=>`<tr class="${cls||''}"${event?` data-pick="w:${esc(event)}" title="Открыть мероприятие"`:''}><td>${name}${hint?`<small>${esc(hint)}</small>`:''}</td><td class="r b">${fmt(x.n)}</td><td class="r">${fmt(x.found)}</td><td class="r">${c2(x.ppl,x.pplSz)}</td><td class="r">${fmt(x.req)}</td><td class="r b">${fmt(x.sale)}</td><td class="r">${c2(x.buyers,x.buyersSz)}</td><td class="r b">${r2(Math.round(x.sum),Math.round(x.sumSz))}</td><td class="r">${x.wait?`${fmt(x.wait)}<small>${rubF(x.waitSum)}</small>`:'—'}</td></tr>`;
   const head=`<thead><tr><th></th><th class="r">Людей</th><th class="r">Нашлись в Букинге</th><th class="r">С заявкой</th><th class="r">Заявок</th><th class="r">Продаж</th><th class="r">Покупателей</th><th class="r">Выручка</th><th class="r">Ждут оплаты</th></tr></thead>`;
-  const evR=evAll.filter(i=>rows[i]).map(i=>line(`${esc(P.ev[i])}${L[i].type==='встреча'?' · офлайн':''}`,rows[i],'',/\d{2}\.\d{2}$/.test(P.ev[i])?'':dt(L[i])));
+  const evR=evAll.filter(i=>rows[i]).map(i=>line(`${esc(P.ev[i])}${L[i].type==='встреча'?' · офлайн':''}`,rows[i],'',/\d{2}\.\d{2}$/.test(P.ev[i])?'':dt(L[i]),P.ev[i]));
   const wt=WK.find(x=>x[0]===S.wsK)||WK[0];
-  return`<p class="sub">Что участники выбранных мероприятий оформили в Букинге с дня регистрации. Итог — без повторов: каждый человек и каждая заявка считаются один раз.</p>
+  const table=segments?`<p class="sub">Участники по сегментам на день первой подходящей регистрации. Каждый человек и каждая заявка считаются один раз.</p>
+    <div class="tbl"><table>${head}<tbody>${WS_SEG.map(([k,l,h])=>line(esc(l),SG[k],'',h)).join('')}${line('Всего',T,'b')}</tbody></table></div>`:
+    `<p class="sub">Что участники выбранных мероприятий оформили в Букинге с дня регистрации. Итог — без повторов. Нажмите на строку, чтобы открыть мероприятие.</p>
     <div class="tbl"><table>${head}<tbody>${evR.join('')}
       ${evR.length>1?line('<span class="muted">Сумма строк (повторы считаются)</span>',S0,''):''}
-      ${line('Итого без повторов',T,'b',multi?`${nw(multi,'человек был','человека были','человек были')} на нескольких мероприятиях`:'')}</tbody></table></div>
-    <h3 style="margin:16px 0 6px;font:600 15px var(--display)">Новые и повторные · итог без повторов</h3>
-    <div class="tbl"><table>${head}<tbody>${WS_SEG.map(([k,l,h])=>line(esc(l),SG[k],'',h)).join('')}${line('Всего',T,'b')}</tbody></table></div>
-    <details class="how"><summary>Как считаем</summary><ul class="sub" style="margin:6px 0 0;padding-left:18px;line-height:1.55">
+      ${line('Итого без повторов',T,'b',multi?`${nw(multi,'человек был','человека были','человек были')} на нескольких мероприятиях`:'')}</tbody></table></div>`;
+  return`${table}<details class="how"><summary>Как считаем</summary><ul class="sub" style="margin:6px 0 0;padding-left:18px;line-height:1.55">
       <li><b>Человек</b> — почта или телефон: общая почта или телефон хоть в одной регистрации любого мероприятия — один человек. Сюда же — лиды CRM-формы без регистрации (источник «без регистрации (crm-форма)»).</li>
       <li><b>Источник</b> — метки самой ранней регистрации человека на этом мероприятии. Если на два мероприятия человек пришёл по разным меткам, он есть в каждом своём источнике.</li>
       <li><b>Заявки</b> — ${esc(wt[3])} в Букинге, созданные в день регистрации и позже, любой оператор; «СЗ» — из них Созвездие с Речными линиями. В итоге без повторов — с первой подходящей регистрации человека, каждая заявка один раз${hasOwn?'; брони самой экскурсии включаются в «Фильтры» → «Вспомогательный продукт»':''}.</li>
       <li><b>Заявок</b> — все заявки, в том числе аннулированные. <b>Продаж</b> — оплаченные (21 Предоплата, 30 Оплачено), <b>выручка</b> — их полная стоимость. <b>Ждут оплаты</b> — статусы 10, 13, 20, 33, число заявок и их стоимость; в выручку не входят. Аннуляции (0) и возвраты (1, 2, 12) не входят ни в продажи, ни в ожидание.</li>
-      <li><b>Новые и повторные</b> — кем человек был в день первой подходящей регистрации: новый — не было в Букинге; «покупал» — оплаченный круиз.</li>
+      <li><b>Сегменты</b> — кем человек был в день первой подходящей регистрации: новый — не было в Букинге; «покупал» — оплаченный круиз.</li>
       <li>Строка мероприятия считает человека на каждом его мероприятии, поэтому «Сумма строк» больше итога. Тип клиента — по карточке клиента в Букинге.</li>
       <li>Расчёт ночью${P.updated?`, последний — ${esc(new Date(P.updated).toLocaleString('ru-RU',{timeZone:'Europe/Moscow',day:'2-digit',month:'2-digit',hour:'2-digit'}))}`:''}.</li></ul></details>`}
-function wsCompare(P,A,current){
-  const {L,rows,evAll}=A;
-  const cv=(a,b)=>b?pct(a/b,a/b<0.1?1:0):'—';
-  const date=w=>{const d=w.seats?.list?.map(x=>x.date).filter(Boolean).sort()[0]||w.date;return d?d.split('-').reverse().join('.'):'—'};
-  return `<p class="sub">Показатели по тем же заявкам Букинга, что в сводной и продуктах. Нажмите на строку, чтобы открыть карточку с лидами и местами.</p>
-  <div class="tbl"><table><thead><tr><th>Дата</th><th>Мероприятие</th><th class="r">Людей</th><th class="r">С заявкой</th><th class="r">Заявок в Букинге</th><th class="r">Продаж</th><th class="r">Выручка</th><th class="r">Ждут оплаты</th></tr></thead><tbody>
-  ${evAll.filter(i=>rows[i]).map(i=>{const w=L[i],r=rows[i];return `<tr data-pick="w:${esc(w.name)}" title="Открыть мероприятие"><td class="nw">${date(w)}</td><td class="b">${esc(w.name)}${w.type==='встреча'?' · офлайн':''}${w.name===current?.name?' ✓':''}</td><td class="r">${fmt(r.n)}</td><td class="r">${fmt(r.ppl)} <span class="muted">${cv(r.ppl,r.n)}</span></td><td class="r">${fmt(r.req)}</td><td class="r">${fmt(r.sale)} <span class="muted">${cv(r.sale,r.req)}</span></td><td class="r b">${r.sum?rubF(Math.round(r.sum)):'—'}</td><td class="r">${r.wait?`${fmt(r.wait)}<small>${rubF(Math.round(r.waitSum))}</small>`:'—'}</td></tr>`}).join('')}
-  </tbody></table></div>`;
-}
-function wsHub(P,L,WKT,current){
+function wsHub(P,L,WKT){
   const id='web-analysis',view=WS_VIEWS.some(([k])=>k===S.wsView)?S.wsView:'sum';
   const open=`<div class="panel sec${wsFoldC(id)}" id="${id}" style="margin-bottom:16px">${wsFoldH(id,'Аналитика мероприятий')}`;
   if(!P?.p||P.error)return `${open}<div class="empty">${P?.error?'Список людей мероприятий не прочитан: '+esc(P.error):'Данные появятся после ночного обновления Букинга.'}</div></div>`;
   const A=wsModel(P,L,WKT);
   return `${open}<div class="seg ws-switch" role="group" aria-label="Вид аналитики">${WS_VIEWS.map(([k,t])=>`<button type="button" data-wsview="${k}" aria-pressed="${view===k}">${t}</button>`).join('')}</div>
-    ${wsControls(P,A)}<div id="ws-results">${view==='products'?wsProducts(P,A):view==='cmp'?wsCompare(P,A,current):wsSummary(P,A)}</div></div>`;
+    ${wsControls(P,A)}<div id="ws-results">${view==='products'?wsProducts(P,A):wsSummary(P,A,view==='segments')}</div></div>`;
 }
 function wsBind(){
   const el=$('#web-analysis'),bar=el?.querySelector('.ws-toolbar');if(!bar)return;
@@ -1613,11 +1604,11 @@ function vWeb(){
     ${ex?`    <div class="panel kpi go" data-go="${ex&&w.seats?'web-seats':'web-days'}" title="${ex&&w.seats?'Места по сеансам':'Регистрации по дням'}"><div class="lbl">Регистраций</div><div class="val">${fmt(n)}</div><div class="foot"><span>${ex?'уникальные по почте или телефону':'уникальные по почте'}</span></div>${mutedLine(w.extra?`ещё ${nw(w.extra,'лид','лида','лидов')} Б24 без регистрации`:'')}</div>
     <div class="panel kpi go" data-go="web-cut" title="Трафик по каналам"><div class="lbl">Уже в базе Инфофлота</div><div class="val">${fmt(k.inIF)}</div><div class="foot"><span>${share(k.inIF)} регистраций</span></div>${mutedLine(`раньше оплачивали: ${fmt(k.paid)} (${share(k.paid)})`)}</div>
     <div class="panel kpi go" data-go="web-funnel" title="Воронка и стадии"><div class="lbl">${ex?'Бронь в Б24':'Заявка в Б24'}</div><div class="val">${fmt(k.req)}</div><div class="foot"><span>${share(k.req)} регистраций</span></div>${mutedLine(ex?`действующих: ${fmt(rows.filter(r=>stOf(r)==='live').length)}`:`забронировали круиз: ${fmt(k.booked)}, из них новых: ${fmt(k.newBooked)}`)}</div>
-    <div class="panel kpi go" data-go="${L.length>1?'web-cmp':'web-funnel'}" title="${L.length>1?'Сравнение мероприятий':'Воронка'}"><div class="lbl">${ex?'Оплачено броней':(sz&&sz.bk?'Продажи по лидам '+evG:'Продажи по срезу Б24')}</div>${sz?`<div class="val">${fmt(sz.sold)}<small>на ${rub(sz.sum)}</small></div><div class="foot"><span>${sz.bk?`${nw(sz.leads,ex?'сделка':'лид',ex?'сделки':'лида',ex?'сделок':'лидов')} → с номером заявки ${fmt(sz.withReq)} → оплачено ${fmt(sz.sold)}`:ex?`из ${nw(sz.leads,'сделки','сделок','сделок')} экскурсии`:`из ${nw(sz.leads,'лида','лидов','лидов')} ${evG}`}</span></div>${mutedLine(`${sz.bk?'статус заявки в Букинге · ':''}новых клиентов: ${fmt(sz.soldNew)}${sz.soldNoContact?` · без контакта: ${fmt(sz.soldNoContact)}`:''}`)}`:`<div class="val muted" style="font-size:24px">нет среза</div><div class="foot muted">в таблице мероприятий — меню «Созвездие» → срез Б24</div>`}</div>`:`
+    <div class="panel kpi go" data-go="${L.length>1?'web-cmp':'web-funnel'}" title="${L.length>1?'Общая сводная':'Воронка'}"><div class="lbl">${ex?'Оплачено броней':(sz&&sz.bk?'Продажи по лидам '+evG:'Продажи по срезу Б24')}</div>${sz?`<div class="val">${fmt(sz.sold)}<small>на ${rub(sz.sum)}</small></div><div class="foot"><span>${sz.bk?`${nw(sz.leads,ex?'сделка':'лид',ex?'сделки':'лида',ex?'сделок':'лидов')} → с номером заявки ${fmt(sz.withReq)} → оплачено ${fmt(sz.sold)}`:ex?`из ${nw(sz.leads,'сделки','сделок','сделок')} экскурсии`:`из ${nw(sz.leads,'лида','лидов','лидов')} ${evG}`}</span></div>${mutedLine(`${sz.bk?'статус заявки в Букинге · ':''}новых клиентов: ${fmt(sz.soldNew)}${sz.soldNoContact?` · без контакта: ${fmt(sz.soldNoContact)}`:''}`)}`:`<div class="val muted" style="font-size:24px">нет среза</div><div class="foot muted">в таблице мероприятий — меню «Созвездие» → срез Б24</div>`}</div>`:`
     ${mtP?`<div class="panel kpi go" data-go="web-days" title="Регистрации по дням"><div class="lbl">Придёт людей</div><div class="val">${fmt(mtP.total-mtP.dup)}</div><div class="foot"><span>все заявки без полных дублей</span></div>${mutedLine(`уникальных по почте или телефону: ${fmt(mtP.uniq)}`)}${mutedLine(`всего заявок: ${fmt(mtP.total)}`)}</div>`:`<div class="panel kpi go" data-go="web-days" title="Регистрации по дням"><div class="lbl">Регистраций</div><div class="val">${fmt(nP)}</div><div class="foot"><span>${mtC?`людей: ${fmt(mtC.total)} ${plural(mtC.total,'заявка','заявки','заявок')} без ${fmt(mtDup)} ${plural(mtDup,'дубля','дублей','дублей')}`:'уникальные по почте'}</span></div>${mtC?mutedLine(`уникальных почт: ${fmt(n)}`):''}${mutedLine(`${mtC?'по почтам: ':''}в базе Инфофлота ${share(k.inIF)} · платили раньше ${share(k.paid)}`)}</div>`}
     ${tracked?meetingCards:`<div class="panel kpi go" data-go="web-funnel" title="Воронка и стадии"><div class="lbl">Лидов в Битриксе</div><div class="val">${fmt(sz?sz.leads:k.req+(w.extra||0))}</div><div class="foot"><span>${cv(sz?sz.leads:k.req+(w.extra||0),nP)} от регистраций</span></div>${mutedLine(`с типом ${mt?'этой встречи':'этого вебинара'} · от участников ${fmt(k.req)}${w.extra?` · без регистрации ${fmt(w.extra)}`:''}`)}</div>
     <div class="panel kpi go" data-go="web-funnel" title="Воронка"><div class="lbl">Заявок в Букинге</div><div class="val${sz&&sz.bk?'':' muted'}">${sz&&sz.bk?fmt(sz.withReq):'—'}</div><div class="foot"><span>${sz&&sz.bk?`${cv(sz.withReq,sz.leads)} от лидов`:'номер заявки есть в лиде'}</span></div>${mutedLine(sz&&sz.bk?'номер заявки есть в лиде':mt?'появится, когда в Битриксе будут лиды встречи':'после ночного расчёта')}</div>
-    <div class="panel kpi go" data-go="${L.length>1?'web-cmp':'web-funnel'}" title="${L.length>1?'Сравнение мероприятий':'Воронка'}"><div class="lbl">Продаж</div>${sz?`<div class="val">${fmt(sz.sold)}<small>на ${rub(sz.sum)}</small></div><div class="foot"><span>${sz.bk?`${cv(sz.sold,sz.withReq)} от заявок`:'по стадии сделки Б24'}</span></div>${mutedLine(`${sz.bk?'оплачено в Букинге · ':''}новых клиентов ${fmt(sz.soldNew)}`)}`:`<div class="val muted"${mt?'':' style="font-size:24px"'}>${mt?'—':'нет среза'}</div><div class="foot muted">${mt?'оплаченные заявки из лидов встречи':'меню таблицы мероприятий → срез Б24'}</div>${mt?mutedLine('появится, когда в Битриксе будут лиды встречи'):''}`}</div>`}`}
+    <div class="panel kpi go" data-go="${L.length>1?'web-cmp':'web-funnel'}" title="${L.length>1?'Общая сводная':'Воронка'}"><div class="lbl">Продаж</div>${sz?`<div class="val">${fmt(sz.sold)}<small>на ${rub(sz.sum)}</small></div><div class="foot"><span>${sz.bk?`${cv(sz.sold,sz.withReq)} от заявок`:'по стадии сделки Б24'}</span></div>${mutedLine(`${sz.bk?'оплачено в Букинге · ':''}новых клиентов ${fmt(sz.soldNew)}`)}`:`<div class="val muted"${mt?'':' style="font-size:24px"'}>${mt?'—':'нет среза'}</div><div class="foot muted">${mt?'оплаченные заявки из лидов встречи':'меню таблицы мероприятий → срез Б24'}</div>${mt?mutedLine('появится, когда в Битриксе будут лиды встречи'):''}`}</div>`}`}
   </div><!--jump-->`;
   if(mt)h+=M?meetBlock(w,M,rows,c):`<div class="empty" style="margin-bottom:16px">Обзвон и площадки не прочитаны${w.meetError?': '+esc(w.meetError):''}.</div>`;
   // места экскурсии по сеансам (Букинг: вместимость − свободно; гости — действующие брони)
@@ -1847,7 +1838,7 @@ function vWeb(){
   h+=`<div class="panel sec" id="web-cut" style="margin-bottom:16px"><h2>Трафик</h2><div class="filters" style="margin-bottom:8px"><div class="seg" id="seg-wdim" aria-label="Группировка трафика">${WB_DIMS.map(([key,l])=>`<button type="button" data-d="${key}" aria-pressed="${S.wdim===key}">${l}</button>`).join('')}</div></div>
     <div class="tbl"><table><thead><tr><th></th><th class="r">${nNr?'Участников':'Регистраций'}</th><th class="r">Доля</th><th class="r">В базе ИФ</th><th class="r">Оплата СЗ</th><th class="r">Заявка Б24</th><th class="r">Забронировали</th><th class="r">Из них новые</th></tr></thead>
     <tbody>${gl.map(([name,x])=>line(name,x)).join('')}${line('Итого',{n:NA,inIF:cntA('inIF'),paid:cntA('paid'),req:cntA('req'),booked:cntA('booked'),nb:cntA('newBooked')},true)}</tbody></table></div></div>`;
-  h=h.replace('<!--wsum-->',wsHub(W.pool,L,WKT,w));
+  h=h.replace('<!--wsum-->',wsHub(W.pool,L,WKT));
   $('#view').innerHTML=withJump(h,[['web-analysis','Аналитика'],...(ex&&w.seats?[['web-seats','Места']]:[]),...(ex&&w.promo?[['web-promo','Розыгрыш']]:[]),['web-meet',M&&M.people&&M.people.total?'Люди':'Обзвон'],['web-mail','Рассылки'],['web-adv','Реклама'],['web-ads','Поп-ап'],['web-blog','Блогеры'],['web-och','Другие каналы'],['web-days','По дням'],['web-funnel','Воронка и стадии'],['web-cohort','Когорта'],['web-seg','Кто и когда купил'],['web-cut','Трафик']]);
   wsFoldTables($('#view'));
   $('#web-pick').onclick=e=>{const b=e.target.closest('[data-w]');if(!b)return;S.web=b.dataset.w;save();render()};
