@@ -432,6 +432,9 @@ nav.tabs>.pinned-f :is(.pf-wrap,.pf-chips,.pf-pop){display:none}
 .ws-tools{position:relative;margin:12px 0}.ws-toolbar{display:flex;gap:8px;align-items:end;overflow-x:auto;padding:2px 2px 6px}.ws-control{flex:0 0 auto;min-width:0;display:flex;flex-direction:column;gap:4px}.ws-control>button,.ws-control>select,.ws-fields{height:34px;padding:0 9px;font:inherit;font-size:13px;color:var(--ink);background-color:var(--surface);border:1px solid var(--line);border-radius:8px}.ws-control>select,.ws-fields{padding-right:28px;cursor:pointer}.ws-control>button{cursor:pointer;white-space:nowrap}.ws-control>button::after{content:' ▾'}.ws-switch{display:flex;flex-wrap:wrap;margin-top:10px}.ws-fields{width:100%;margin-bottom:8px}.ws-short{margin-bottom:8px}
 @media (min-width:561px){#web-analysis .pf-pop{top:100%;left:0;margin-top:4px}}
 .pf-pop{position:absolute;z-index:15;width:min(380px,86vw);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.15)}
+@supports (background:color-mix(in srgb,white 85%,transparent)) and ((backdrop-filter:blur(12px)) or (-webkit-backdrop-filter:blur(12px))){
+  .pf-pop,nav.tabs>.pinned-f details.pick[open] .pick-list{background:color-mix(in srgb,var(--surface) 85%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+}
 .pf-pop .seg{min-height:0;display:flex}.pf-pop .seg button{flex:1}
 .pf-pop h4{margin:2px 0 8px;font:600 14px var(--display);color:var(--navy);display:flex;align-items:center;gap:6px}
 .pf-flds{display:grid;grid-template-columns:1fr 1fr;gap:4px}
@@ -1292,7 +1295,7 @@ function meetBlock(w,M,rows,c){
    источник — метки самой ранней регистрации человека на каждом мероприятии; новый / повторный — на день первой подходящей регистрации. */
 const WS_FD=[['t','Тип мероприятия'],['med','utm_medium'],['src','utm_source'],['camp','utm_campaign'],['mch','Канал встречи']];
 const WS_SEG=[['new','Новые','не было в базе Инфофлота'],['base','В базе, не покупали','контакт есть, покупок не было'],['other','Покупали не Созвездие','только у других операторов'],['sz','Покупатели Созвездия','последняя покупка СЗ меньше 2 лет назад'],['back','Вернувшиеся','покупали СЗ 2 года назад и раньше']];
-let wsOpen=null,wsField='med',wsQ='',wsScroll=0;
+let wsOpen=null,wsField=null,wsQ='',wsScroll=0;
 function wsMeetCh(M,s,m,cp){   // копия chM из meetBlock: правила по трём меткам, иначе utm_medium по «Настройкам»
   const lo=v=>String(v==null?'':v).trim().toLowerCase(),RU=M.rules||[],ch=M.chan||{};
   m=lo(m);if(!m||m==='не определён'||m==='-')return'Без меток';
@@ -1414,31 +1417,36 @@ function wsControls(P,A){
   const {L,F,evAll,evOn,selected,WK,ctOn}=A,on=WS_FD.filter(([f])=>F[f]?.v?.length);
   const label=(t,h)=>`<label class="ws-control"><span class="flbl">${t}</span>${h}</label>`;
   const menu=(k,v)=>`<button type="button" data-wsmenu="${k}" aria-expanded="${wsOpen===k}" aria-controls="ws-menu">${esc(v)}</button>`;
-  const select=(k,t,opts,v)=>`<select${k==='field'||k==='own'?' class="ws-fields"':''} data-wsselect="${k}" aria-label="${t}">${opts.map(([id,n])=>`<option value="${id}"${id===v?' selected':''}>${esc(n)}</option>`).join('')}</select>`;
+
   const check=(k,v,n,on)=>`<label><input type="checkbox" data-${k}="${esc(v)}"${on?' checked':''}><span>${esc(n)}</span></label>`;
   const done='<button type="button" class="pf-btn" data-wsok="1">Готово</button>';
   const evName=i=>`${P.ev[i]}${L[i].type==='встреча'?' · офлайн':''}`;
   let pop='';
   if(wsOpen==='events')pop=`<h4>Мероприятия</h4><div class="pf-list">${check('wsall','events','Все мероприятия',!selected.length)}${evAll.map(i=>check('wsev',P.ev[i],evName(i),selected.includes(i))).join('')}</div><div class="pf-foot">${done}</div>`;
+  if(wsOpen==='kind')pop=`<h4>Что считаем</h4><div class="pf-list">${WK.map(([k,n])=>`<label><input type="radio" name="ws-kind" data-wskind="${k}"${k===S.wsK?' checked':''}><span>${esc(n)}</span></label>`).join('')}</div><div class="pf-foot">${done}</div>`;
   if(wsOpen==='clients')pop=`<h4>Тип клиента</h4><div class="pf-list">${check('wsall','clients','Все типы',ctOn.size===WS_CT.length)}${WS_CT.map(([k,n])=>check('wsct',k,n,ctOn.has(k))).join('')}</div><div class="pf-foot">${done}</div>`;
-  if(wsOpen==='filters'){
+  const back='<button type="button" class="pf-btn" data-wsback="1">К фильтрам</button>';
+  if(wsOpen==='filters'&&!wsField){
+    const fields=[...WS_FD,['own','Вспомогательный продукт']];
+    pop=`<h4>Фильтр по</h4><div class="pf-flds">${fields.map(([k,n])=>{const count=k==='own'?Number(!!S.wsO):F[k]?.v?.length||0;return `<button type="button" data-wse="${k}">${esc(n)}${count?` · ${count}`:''}</button>`}).join('')}</div>
+      <div class="pf-foot">${on.length||S.wsO?'<button type="button" class="pf-btn" data-wsr="1">Сбросить все</button>':''}${done}</div>`;
+  }else if(wsOpen==='filters'&&wsField==='own'){
+    pop=`<h4>Вспомогательный продукт</h4><div class="pf-list">${[['0','Без броней экскурсии'],['1','Включить брони экскурсии']].map(([k,n])=>`<label><input type="radio" name="ws-own" data-wsown="${k}"${(S.wsO?'1':'0')===k?' checked':''}><span>${n}</span></label>`).join('')}</div><div class="pf-foot">${back}${done}</div>`;
+  }else if(wsOpen==='filters'){
     const f=wsField,x=F[f]||{x:0,v:[]},c=Object.create(null);
     P.p.forEach(person=>person.forEach(e=>{if(!evOn.has(e[0])||!wsPass(F,P,L,e,f))return;const v=wsVal(P,L,e,f);c[v]=(c[v]||0)+1}));
     x.v.forEach(v=>{if(!(v in c))c[v]=0});
     const vals=Object.keys(c).sort((a,b)=>c[b]-c[a]||a.localeCompare(b));
-    pop=`<h4>Настройка фильтров</h4>
-      <label><span class="flbl">Вспомогательный продукт</span>${select('own','Вспомогательный продукт',[['0','Без броней экскурсии'],['1','Включить брони экскурсии']],S.wsO?'1':'0')}</label>
-      ${select('field','Поле фильтра',WS_FD,wsField)}
-      <div class="pf-bar ws-short">${on.map(([k,n])=>`<button type="button" class="pf-btn" data-wse="${k}">${n} · ${F[k].v.length}</button>`).join('')}${on.length?'<button type="button" class="pf-btn" data-wsr="1">Сбросить все</button>':''}</div>
+    pop=`<h4>${esc(WS_FD.find(([k])=>k===f)[1])}</h4>
       <div class="seg ws-short"><button type="button" data-wsx="0" aria-pressed="${!x.x}">Включить выбранные</button><button type="button" data-wsx="1" aria-pressed="${!!x.x}">Исключить выбранные</button></div>
-      ${on.length>1?`<div class="ws-short"><label>Условия ${select('join','Объединение условий',[['and','Все (И)'],['or','Любое (ИЛИ)']],S.wsJ==='or'?'or':'and')}</label></div>`:''}
+      ${on.length>1?`<div class="seg ws-short" aria-label="Объединение условий"><button type="button" data-wsjoin="and" aria-pressed="${S.wsJ!=='or'}">Все (И)</button><button type="button" data-wsjoin="or" aria-pressed="${S.wsJ==='or'}">Любое (ИЛИ)</button></div>`:''}
       ${vals.length>12?`<input class="pf-q" type="search" aria-label="Поиск значений" placeholder="Найти…" value="${esc(wsQ)}">`:''}
       <div class="pf-list">${vals.map(v=>`<label data-s="${esc(wsLbl(f,v).toLowerCase())}"><input type="checkbox" data-wsv="${esc(v)}"${x.v.includes(v)?' checked':''}><span title="${esc(v)}">${esc(wsLbl(f,v))}</span><span class="muted">${fmt(c[v])}</span></label>`).join('')||'<div class="muted">Нет значений</div>'}</div>
-      <div class="pf-foot">${x.v.length?`<button type="button" class="pf-btn" data-wsd="${f}">Очистить поле</button>`:''}${done}</div>`;
+      <div class="pf-foot">${back}${x.v.length?`<button type="button" class="pf-btn" data-wsd="${f}">Очистить поле</button>`:''}${done}</div>`;
   }
   return `<div class="ws-tools"><div class="ws-toolbar" aria-label="Общие фильтры">
     ${label('Мероприятия',menu('events',selected.length===1?evName(selected[0]):selected.length?`Выбрано: ${selected.length}`:'Все мероприятия'))}
-    ${label('Что считаем',select('kind','Что считаем',WK,S.wsK))}
+    ${label('Что считаем',menu('kind',WK.find(([k])=>k===S.wsK)?.[1]||'Круизы'))}
     ${label('Тип клиента',menu('clients',ctOn.size===WS_CT.length?'Все клиенты':ctOn.size===1?WS_CT.find(([k])=>ctOn.has(k))?.[1]||'Клиент':`Выбрано: ${ctOn.size}`))}
     ${label('Фильтры',menu('filters',on.length||S.wsO?`Условий: ${on.length+Number(!!S.wsO)}`:'Настроить'))}
     </div>${pop?`<div class="pf-pop" id="ws-menu">${pop}</div>`:''}</div>`;
@@ -1492,11 +1500,9 @@ function wsBind(){
   const search=()=>{const s=wsQ.trim().toLowerCase();el.querySelectorAll('.pf-list label[data-s]').forEach(l=>l.hidden=!!s&&!l.dataset.s.includes(s))};search();
   el.addEventListener('input',e=>{if(e.target.classList.contains('pf-q')){wsQ=e.target.value;search()}});
   el.addEventListener('change',e=>{const t=e.target;
-    const d=t.dataset,v=t.value;
-    if(d.wsselect==='field'){wsField=v;wsQ='';return render()}
-    if(d.wsselect==='kind'){S.wsK=v;return go()}
-    if(d.wsselect==='own'){S.wsO=v==='1';return go()}
-    if(d.wsselect==='join'){S.wsJ=v;return go()}
+    const d=t.dataset;
+    if(d.wskind&&t.checked){S.wsK=d.wskind;go();document.querySelector(`#ws-menu input[data-wskind="${d.wskind}"]`)?.focus({preventScroll:true});return}
+    if(d.wsown!=null&&t.checked){S.wsO=d.wsown==='1';go();document.querySelector(`#ws-menu input[data-wsown="${d.wsown}"]`)?.focus({preventScroll:true});return}
     if(d.wsall==='events'){S.wsE=[];return go()}
     if(d.wsall==='clients'){S.wsCt=t.checked?WS_CT.map(([k])=>k):[];return go()}
     if(d.wsev!=null){const st=new Set(S.wsE);if(t.checked)st.add(d.wsev);else st.delete(d.wsev);S.wsE=[...st];return go()}
@@ -1505,10 +1511,12 @@ function wsBind(){
   });
   el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset;
     if(d.wsview){S.wsView=d.wsview;wsOpen=null;return go()}
-    if(d.wsmenu){wsOpen=wsOpen===d.wsmenu?null:d.wsmenu;wsQ='';return render()}
+    if(d.wsmenu){wsOpen=wsOpen===d.wsmenu?null:d.wsmenu;wsField=null;wsQ='';return render()}
     if(d.wse){wsField=d.wse;wsQ='';return render()}
     if(d.wsd){delete F[d.wsd];wsQ='';return go()}
-    if(d.wsr){S.wsF={};S.wsJ='and';wsQ='';return go()}
+    if(d.wsback){wsField=null;wsQ='';return render()}
+    if(d.wsjoin){S.wsJ=d.wsjoin;return go()}
+    if(d.wsr){S.wsF={};S.wsJ='and';S.wsO=false;wsQ='';return go()}
     if(d.wsok)return wsClose(true);
     if(d.wsx){const x=F[wsField]||(F[wsField]={x:0,v:[]});x.x=+d.wsx;return go()}});
   if(!wsBind.doc){wsBind.doc=1;document.addEventListener('click',e=>{if(wsOpen&&document.contains(e.target)&&!e.target.closest('#ws-menu,[data-wsmenu]'))wsClose()});
@@ -2272,7 +2280,7 @@ function vChan(){
   $('#view').innerHTML=h;
 }
 
-/** «Качество данных» внизу каждой вкладки, свёрнуто (как в NPS). Раскрывается само при ошибке или устаревшем источнике. */
+/** «Качество данных» внизу каждой вкладки: раскрывается только вручную, даже при предупреждениях. */
 function dqBlock(){
   const d=x=>x?dShort(x)+' '+x.slice(0,4):'—';
   const ageH=a=>a?(Date.now()-new Date(a).getTime())/36e5:null;
@@ -2301,8 +2309,8 @@ function dqBlock(){
   W.push({level:(D.spend||[]).length?'ok':'info',text:(D.spend||[]).length?'Расходы: лист «Расходы» заполнен':'Расходов нет — лист «Расходы»; карточки CPA, ДРР, ROMI пока серые'});
   W.push({level:(D.plan||[]).length?'ok':'info',text:(D.plan||[]).length?'План: лист «План» заполнен':'Плана нет — лист «План»'});
   W.push({level:'info',text:'Сравнения с периодами до начала данных не показываются, чтобы конверсия не искажалась'});
-  const lv={bad:0,warn:1,ok:2,info:3},open=W.some(w=>w.level==='bad'||w.level==='warn');
-  return`<details class="panel dq"${open?' open':''}><summary>Качество данных · ${W.length}</summary><p class="sub" style="margin-top:6px">Откуда данные, когда обновлялись и с какой даты есть</p><ul>${[...W].sort((a,b)=>lv[a.level]-lv[b.level]).map(w=>`<li class="${w.level}"><span>${esc(w.text)}</span></li>`).join('')}</ul></details>`;
+  const lv={bad:0,warn:1,ok:2,info:3};
+  return`<details class="panel dq"><summary>Качество данных · ${W.length}</summary><p class="sub" style="margin-top:6px">Откуда данные, когда обновлялись и с какой даты есть</p><ul>${[...W].sort((a,b)=>lv[a.level]-lv[b.level]).map(w=>`<li class="${w.level}"><span>${esc(w.text)}</span></li>`).join('')}</ul></details>`;
 }
 
 /* ---------- Переход из уведомления бота: обёртка передаёт go = «вкладка» или «вкладка__блок» (zav__zav-mon) ---------- */
